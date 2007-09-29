@@ -1,0 +1,19 @@
+VERSION 1.3:
+- Two great contributions for uvc_streamer by
+  Lucas van Staden (lvs) and Alan W. Richter (awr)
+- (lvs) Added control.c and control.h for camera motion control (view control.c
+  for instructions)
+- (lvs) Moved some variables used in uvc_stream.c to a struct to allow sharing
+  between threads
+- (awr) cleaning up the opened socket on shutdown, added high resolution
+
+VERSION 1.2:
+- removed obsolete jpeg decoder source from "utils.c".
+- changed occurences of (FILE *) to use (int) UNIX filedescriptors.
+- added the subpage "snapshot". It's possible to get a single JPEG now.
+  Just use an URL like "http://127.0.0.1:8080/snapshot" to get a single
+  frame.
+
+VERSION 1.1:
+- Replaced the classic reader/writer IPC solution with a pthread broadcast
+  condition. This should improve timing for higher framerates.
