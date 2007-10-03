@@ -25,6 +25,7 @@ pthread_t   server;
 globals     *global;
 
 extern int  port;
+extern char *credentials;
 
 /******************************************************************************
 Description.: 
@@ -37,6 +38,7 @@ void help(void) {
                   " ---------------------------------------------------------------\n" \
                   " The following parameters can be passed to this plugin:\n\n" \
                   " [-p | --port ]..........: TCP port for this HTTP server\n" \
+                  " [-c | --credentials ]...: check for \"username:password\"\n" \
                   " ---------------------------------------------------------------\n");
 }
 
@@ -51,6 +53,7 @@ int output_init(output_parameter *param) {
   int argc=1, i;
 
   port = htons(8080);
+  credentials = NULL;
 
   /* convert the single parameter-string to an array of strings */
   argv[0] = OUTPUT_PLUGIN_NAME;
@@ -90,6 +93,8 @@ int output_init(output_parameter *param) {
       {"help", no_argument, 0, 0},
       {"p", required_argument, 0, 0},
       {"port", required_argument, 0, 0},
+      {"c", required_argument, 0, 0},
+      {"credentials", required_argument, 0, 0},
       {0, 0, 0, 0}
     };
 
@@ -119,12 +124,20 @@ int output_init(output_parameter *param) {
         DBG("case 2,3\n");
         port = htons(atoi(optarg));
         break;
+
+      /* c, credentials */
+      case 4:
+      case 5:
+        DBG("case 4,5\n");
+        credentials = strdup(optarg);
+        break;
     }
   }
 
   global = param->global;
 
   OPRINT("HTTP TCP port.....: %d\n", ntohs(port));
+  OPRINT("username:password.: %s\n", credentials);
   return 0;
 }
 

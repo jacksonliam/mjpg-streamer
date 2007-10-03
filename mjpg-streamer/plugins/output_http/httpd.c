@@ -17,7 +17,8 @@
 #include "../output.h"
 
 extern globals *global;
-int sd, port;
+int  sd, port;
+char *credentials;
 
 /******************************************************************************
 Description.: 
@@ -127,6 +128,47 @@ int _readline(int fd, iobuffer *iobuf, void *buffer, size_t len, int timeout) {
 }
 
 /******************************************************************************
+Description.: (taken from busybox)
+Input Value.: 
+Return Value: 
+******************************************************************************/
+void decodeBase64(char *data) {
+  const unsigned char *in = (const unsigned char *)data;
+  /* The decoded size will be at most 3/4 the size of the encoded */
+  unsigned ch = 0;
+  int i = 0;
+
+  while (*in) {
+    int t = *in++;
+
+    if (t >= '0' && t <= '9')
+      t = t - '0' + 52;
+    else if (t >= 'A' && t <= 'Z')
+      t = t - 'A';
+    else if (t >= 'a' && t <= 'z')
+      t = t - 'a' + 26;
+    else if (t == '+')
+      t = 62;
+    else if (t == '/')
+      t = 63;
+    else if (t == '=')
+      t = 0;
+    else
+      continue;
+
+    ch = (ch << 6) | t;
+    i++;
+    if (i == 4) {
+      *data++ = (char) (ch >> 16);
+      *data++ = (char) (ch >> 8);
+      *data++ = (char) ch;
+      i = 0;
+    }
+  }
+  *data = '\0';
+}
+
+/******************************************************************************
 Description.: 
 Input Value.: 
 Return Value: 
@@ -143,7 +185,7 @@ void send_snapshot(int fd) {
 
   sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
                   "Server: MJPG Streamer\r\n" \
-                  "Content-type: image/jpeg\r\n"
+                  "Content-type: image/jpeg\r\n" \
                   "\r\n");
 
   if ( write(fd, buffer, strlen(buffer)) < 0 ) {
@@ -219,6 +261,32 @@ Description.:
 Input Value.: 
 Return Value: 
 ******************************************************************************/
+void send_error(int fd, int which) {
+  char buffer[256] = {0};
+
+  if ( which == 401 ) {
+    sprintf(buffer, "HTTP/1.0 401 Unauthorized\r\n" \
+                    "Content-type: text/plain\r\n" \
+                    "Connection: close\r\n" \
+                    "WWW-Authenticate: Basic realm=\"MJPG-Streamer\"\r\n" \
+                    "\r\n" \
+                    "401: Not Authenticated!");
+  } else {
+    sprintf(buffer, "HTTP/1.0 501 Not Implemented\r\n" \
+                    "Content-type: text/plain\r\n" \
+                    "Connection: close\r\n" \
+                    "\r\n" \
+                    "501: Not Implemented!");
+  }
+
+  write(fd, buffer, strlen(buffer));
+}
+
+/******************************************************************************
+Description.: 
+Input Value.: 
+Return Value: 
+******************************************************************************/
 /* thread for clients that connected to this server */
 void *client_thread( void *arg ) {
   int fd = *((int *)arg), cnt;
@@ -251,7 +319,7 @@ void *client_thread( void *arg ) {
     /* search for second variable "command" that specifies the command */
     if ( (pb = strstr(buffer, "command=")) == NULL ) {
       DBG("no command specified, it should be passed as second variable\n");
-      //send_error_message(fd);
+      send_error(fd, 501);
       close(fd);
       return NULL;
     }
@@ -274,7 +342,7 @@ void *client_thread( void *arg ) {
 
     if ( (pb = strstr(buffer, "GET /")) == NULL ) {
       DBG("HTTP request seems to be malformed\n");
-      //send_error_message(fd);
+      send_error(fd, 501);
       close(fd);
       return NULL;
     }
@@ -298,9 +366,25 @@ void *client_thread( void *arg ) {
     }
     else if ( strstr(buffer, "Authorization: Basic ") != NULL ) {
       req.credentials = strdup(buffer+strlen("Authorization: Basic "));
+      decodeBase64(req.credentials);
+      DBG("username:password: %s\n", req.credentials);
     }
 
   } while( cnt > 2 && !(buffer[0] == '\r' && buffer[1] == '\n') );
+
+  /* check for username and password if parameter -c was given */
+  if ( credentials != NULL ) {
+    if ( req.credentials == NULL || strcmp(credentials, req.credentials) != 0 ) {
+      DBG("access denied\n");
+      send_error(fd, 401);
+      close(fd);
+      if ( req.parameter != NULL ) free(req.parameter);
+      if ( req.client != NULL ) free(req.client);
+      if ( req.credentials != NULL ) free(req.credentials);
+      return NULL;
+    }
+    DBG("access granted\n");
+  }
 
   /* now it's time to answer */
   switch ( req.type ) {
@@ -314,9 +398,11 @@ void *client_thread( void *arg ) {
       break;
     case A_COMMAND:
       //command(fd, parameter);
+      send_error(fd, 501);
       break;
     case A_FILE:
       //deliver_file(fd, parameter)
+      send_error(fd, 501);
       break;
     default:
       DBG("unknown request\n");
