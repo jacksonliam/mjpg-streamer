@@ -43,6 +43,11 @@
 /* globals */
 globals global;
 
+/******************************************************************************
+Description.: 
+Input Value.: 
+Return Value: 
+******************************************************************************/
 void help(char *progname)
 {
   fprintf(stderr, "-----------------------------------------------------------------------\n");
@@ -75,6 +80,11 @@ void help(char *progname)
   fprintf(stderr, "-----------------------------------------------------------------------\n");
 }
 
+/******************************************************************************
+Description.: 
+Input Value.: 
+Return Value: 
+******************************************************************************/
 void signal_handler(int sig)
 {
   int i;
@@ -105,9 +115,11 @@ void signal_handler(int sig)
   return;
 }
 
-/* #########################################################################
-Main
-######################################################################### */
+/******************************************************************************
+Description.: 
+Input Value.: 
+Return Value: 
+******************************************************************************/
 int main(int argc, char *argv[])
 {
   char *input  = "input_uvc.so --resolution 640x480 --fps 5 --device /dev/video0";
@@ -198,11 +210,11 @@ int main(int argc, char *argv[])
 
   if( pthread_mutex_init(&global.db, NULL) != 0 ) {
     fprintf(stderr, "could not initialize mutex variable\n");
-    exit(1);
+    exit(EXIT_FAILURE);
   }
   if( pthread_cond_init(&global.db_update, NULL) != 0 ) {
     fprintf(stderr, "could not initialize condition variable\n");
-    exit(1);
+    exit(EXIT_FAILURE);
   }
 
   /* ignore SIGPIPE (send by OS if transmitting to closed TCP sockets) */
@@ -211,11 +223,17 @@ int main(int argc, char *argv[])
   /* register signal handler for <CTRL>+C in order to clean up */
   if (signal(SIGINT, signal_handler) == SIG_ERR) {
     fprintf(stderr, "could not register signal handler\n");
-    exit(1);
+    exit(EXIT_FAILURE);
   }
 
   /* messages like the following will only be visible if not running in daemon mode */
   fprintf(stderr, "MJPG Streamer Version.: %s\n", SOURCE_VERSION);
+
+  /* check if at least one output plugin was selected */
+  if ( global.outcnt == 0 ) {
+    /* no? Then use the default plugin instead */
+    global.outcnt = 1;
+  }
 
   /* open input plugin */
   tmp = (size_t)(strchr(input, ' ')-input);
@@ -223,23 +241,25 @@ int main(int argc, char *argv[])
   global.in.handle = dlopen(global.in.plugin, RTLD_LAZY);
   if ( !global.in.handle ) {
     fprintf(stderr, "ERROR: could not find input plugin\n");
+    fprintf(stderr, "       Perhaps you want to adjust the search path with:\n");
+    fprintf(stderr, "       # export LD_LIBRARY_PATH=/path/to/plugin/folder\n");
     fprintf(stderr, "dlopen: %s\n", dlerror() );
-    exit(1);
+    exit(EXIT_FAILURE);
   }
   global.in.init = dlsym(global.in.handle, "input_init");
   if ( global.in.init == NULL ) {
     fprintf(stderr, "%s\n", dlerror());
-    exit(1);
+    exit(EXIT_FAILURE);
   }
   global.in.stop = dlsym(global.in.handle, "input_stop");
   if ( global.in.stop == NULL ) {
     fprintf(stderr, "%s\n", dlerror());
-    exit(1);
+    exit(EXIT_FAILURE);
   }
   global.in.run = dlsym(global.in.handle, "input_run");
   if ( global.in.run == NULL ) {
     fprintf(stderr, "%s\n", dlerror());
-    exit(1);
+    exit(EXIT_FAILURE);
   }
 
   global.in.param.parameter_string = strchr(input, ' ');
@@ -256,23 +276,25 @@ int main(int argc, char *argv[])
     global.out[i].handle = dlopen(global.out[i].plugin, RTLD_LAZY);
     if ( !global.out[i].handle ) {
       fprintf(stderr, "ERROR: could not find output plugin\n");
+      fprintf(stderr, "       Perhaps you want to adjust the search path with:\n");
+      fprintf(stderr, "       # export LD_LIBRARY_PATH=/path/to/plugin/folder\n");
       fprintf(stderr, "dlopen: %s\n", dlerror() );
-      exit(1);
+      exit(EXIT_FAILURE);
     }
     global.out[i].init = dlsym(global.out[i].handle, "output_init");
     if ( global.out[i].init == NULL ) {
       fprintf(stderr, "%s\n", dlerror());
-      exit(1);
+      exit(EXIT_FAILURE);
     }
     global.out[i].stop = dlsym(global.out[i].handle, "output_stop");
     if ( global.out[i].stop == NULL ) {
       fprintf(stderr, "%s\n", dlerror());
-      exit(1);
+      exit(EXIT_FAILURE);
     }
     global.out[i].run = dlsym(global.out[i].handle, "output_run");
     if ( global.out[i].run == NULL ) {
       fprintf(stderr, "%s\n", dlerror());
-      exit(1);
+      exit(EXIT_FAILURE);
     }
 
     global.out[i].param.parameter_string = strchr(output[i], ' ');

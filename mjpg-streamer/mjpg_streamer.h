@@ -19,7 +19,6 @@
 #                                                                              #
 *******************************************************************************/
 #define SOURCE_VERSION "2.0"
-#define BOUNDARY "arflebarfle"
 #define MAX_OUTPUT_PLUGINS 10
 
 #ifdef DEBUG

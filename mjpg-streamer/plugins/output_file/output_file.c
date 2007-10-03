@@ -29,6 +29,11 @@ char        *folder = "/tmp";
 unsigned char *frame=NULL;
 char        *command = NULL;
 
+/******************************************************************************
+Description.: 
+Input Value.: 
+Return Value: 
+******************************************************************************/
 void help(void) {
   fprintf(stderr, " ---------------------------------------------------------------\n" \
                   " Help for output plugin..: "OUTPUT_PLUGIN_NAME"\n" \
@@ -41,6 +46,11 @@ void help(void) {
                   " ---------------------------------------------------------------\n");
 }
 
+/******************************************************************************
+Description.: 
+Input Value.: 
+Return Value: 
+******************************************************************************/
 void worker_cleanup(void *arg) {
   static unsigned char first_run=1;
 
@@ -56,6 +66,11 @@ void worker_cleanup(void *arg) {
   close(fd);
 }
 
+/******************************************************************************
+Description.: 
+Input Value.: 
+Return Value: 
+******************************************************************************/
 void *worker_thread( void *arg ) {
   int ok = 1, frame_size=0, previous_frame_size=0;
   char buffer1[1024] = {0}, buffer2[1024] = {0};
@@ -147,6 +162,11 @@ void *worker_thread( void *arg ) {
 }
 
 /*** plugin interface functions ***/
+/******************************************************************************
+Description.: 
+Input Value.: 
+Return Value: 
+******************************************************************************/
 int output_init(output_parameter *param) {
   char *argv[MAX_ARGUMENTS]={NULL};
   int argc=1, i;
@@ -260,12 +280,22 @@ int output_init(output_parameter *param) {
   return 0;
 }
 
+/******************************************************************************
+Description.: 
+Input Value.: 
+Return Value: 
+******************************************************************************/
 int output_stop(void) {
   DBG("will cancel worker thread\n");
   pthread_cancel(worker);
   return 0;
 }
 
+/******************************************************************************
+Description.: 
+Input Value.: 
+Return Value: 
+******************************************************************************/
 int output_run(void) {
   DBG("launching worker thread\n");
   pthread_create(&worker, 0, worker_thread, NULL);
