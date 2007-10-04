@@ -25,7 +25,7 @@ pthread_t   server;
 globals     *global;
 
 extern int  port;
-extern char *credentials;
+extern char *credentials, *www_folder;
 
 /******************************************************************************
 Description.: 
@@ -37,6 +37,8 @@ void help(void) {
                   " Help for output plugin..: "OUTPUT_PLUGIN_NAME"\n" \
                   " ---------------------------------------------------------------\n" \
                   " The following parameters can be passed to this plugin:\n\n" \
+                  " [-w | --www ]...........: folder that contains webpages in \n" \
+                  "                           flat hierarchy (no subfolders)\n" \
                   " [-p | --port ]..........: TCP port for this HTTP server\n" \
                   " [-c | --credentials ]...: check for \"username:password\"\n" \
                   " ---------------------------------------------------------------\n");
@@ -54,6 +56,7 @@ int output_init(output_parameter *param) {
 
   port = htons(8080);
   credentials = NULL;
+  www_folder = NULL;
 
   /* convert the single parameter-string to an array of strings */
   argv[0] = OUTPUT_PLUGIN_NAME;
@@ -95,6 +98,8 @@ int output_init(output_parameter *param) {
       {"port", required_argument, 0, 0},
       {"c", required_argument, 0, 0},
       {"credentials", required_argument, 0, 0},
+      {"w", required_argument, 0, 0},
+      {"www", required_argument, 0, 0},
       {0, 0, 0, 0}
     };
 
@@ -131,13 +136,25 @@ int output_init(output_parameter *param) {
         DBG("case 4,5\n");
         credentials = strdup(optarg);
         break;
+
+      /* w, www */
+      case 6:
+      case 7:
+        DBG("case 6,7\n");
+        www_folder = malloc(strlen(optarg)+2);
+        strcpy(www_folder, optarg);
+        if ( optarg[strlen(optarg)-1] != '/' )
+          strcat(www_folder, "/");
+        break;
     }
   }
 
   global = param->global;
 
+  OPRINT("www-folder-path...: %s\n", (www_folder==NULL)?"disabled":www_folder);
   OPRINT("HTTP TCP port.....: %d\n", ntohs(port));
-  OPRINT("username:password.: %s\n", credentials);
+  OPRINT("username:password.: %s\n", (credentials==NULL)?"disabled":credentials);
+
   return 0;
 }
 

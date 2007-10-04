@@ -5,9 +5,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <pthread.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #define DEBUG
 
@@ -18,7 +19,7 @@
 
 extern globals *global;
 int  sd, port;
-char *credentials;
+char *credentials, *www_folder;
 
 /******************************************************************************
 Description.: 
@@ -184,7 +185,8 @@ void send_snapshot(int fd) {
   }
 
   sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
-                  "Server: MJPG Streamer\r\n" \
+                  "Connection: close\r\n" \
+                  "Server: MJPG-Streamer\r\n" \
                   "Content-type: image/jpeg\r\n" \
                   "\r\n");
 
@@ -222,7 +224,7 @@ void send_stream(int fd) {
   }
 
   sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
-                  "Server: MJPG Streamer\r\n" \
+                  "Server: MJPG-Streamer\r\n" \
                   "Content-Type: multipart/x-mixed-replace;boundary=" BOUNDARY "\r\n" \
                   "\r\n" \
                   "--" BOUNDARY "\n");
@@ -268,18 +270,86 @@ void send_error(int fd, int which) {
     sprintf(buffer, "HTTP/1.0 401 Unauthorized\r\n" \
                     "Content-type: text/plain\r\n" \
                     "Connection: close\r\n" \
+                    "Server: MJPG-Streamer\r\n" \
                     "WWW-Authenticate: Basic realm=\"MJPG-Streamer\"\r\n" \
                     "\r\n" \
                     "401: Not Authenticated!");
+  } if ( which == 404 ) {
+    sprintf(buffer, "HTTP/1.0 404 Not Found\r\n" \
+                    "Content-type: text/plain\r\n" \
+                    "Connection: close\r\n" \
+                    "Server: MJPG-Streamer\r\n" \
+                    "\r\n" \
+                    "404: Not Found!");
   } else {
     sprintf(buffer, "HTTP/1.0 501 Not Implemented\r\n" \
                     "Content-type: text/plain\r\n" \
                     "Connection: close\r\n" \
+                    "Server: MJPG-Streamer\r\n" \
                     "\r\n" \
                     "501: Not Implemented!");
   }
 
   write(fd, buffer, strlen(buffer));
+}
+
+/******************************************************************************
+Description.: 
+Input Value.: 
+Return Value: 
+******************************************************************************/
+void send_file(int fd, char *parameter) {
+  char buffer[256] = {0};
+  char *extension, *mimetype=NULL;
+  int i, lfd;
+
+  if ( parameter == NULL || strlen(parameter) == 0 )
+    parameter = "index.html";
+
+  /* find file-extension */
+  if ( (extension = strstr(parameter, ".")) == NULL ) {
+    send_error(fd, 404);
+    return;
+  }
+
+  /* determine mime-type */
+  for ( i=0; i < LENGTH_OF(mimetypes); i++ ) {
+    if ( strcmp(mimetypes[i].dot_extension, extension) == 0 ) {
+      mimetype = (char *)mimetypes[i].mimetype;
+      break;
+    }
+  }
+  if ( mimetype == NULL ) {
+    send_error(fd, 404);
+    return;
+  }
+
+  DBG("trying to serve file \"%s\", extension: \"%s\" mime: \"%s\"\n", parameter, extension, mimetype);
+
+  strncat(buffer, www_folder, sizeof(buffer)-1);
+  strncat(buffer, parameter, sizeof(buffer)-strlen(buffer)-1);
+  if ( (lfd = open(buffer, O_RDONLY)) < 0 ) {
+    DBG("file %s not accessible\n", buffer);
+    send_error(fd, 404);
+    return;
+  }
+  DBG("opened file: %s\n", buffer);
+
+  sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
+                  "Content-type: %s\r\n" \
+                  "Connection: close\r\n" \
+                  "Server: MJPG-Streamer\r\n" \
+                  "\r\n", mimetype);
+  i = strlen(buffer);
+
+  do {
+    if ( write(fd, buffer, i) < 0 ) {
+      close(lfd);
+      return;
+    }
+  } while ( (i=read(lfd, buffer, sizeof(buffer))) > 0 );
+
+  close(lfd);
 }
 
 /******************************************************************************
@@ -401,8 +471,10 @@ void *client_thread( void *arg ) {
       send_error(fd, 501);
       break;
     case A_FILE:
-      //deliver_file(fd, parameter)
-      send_error(fd, 501);
+      if ( www_folder == NULL )
+        send_error(fd, 501);
+      else
+        send_file(fd, req.parameter);
       break;
     default:
       DBG("unknown request\n");
