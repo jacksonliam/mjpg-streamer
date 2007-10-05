@@ -16,7 +16,10 @@ static const struct {
   { ".jpg",  "image/jpeg" },
   { ".jpeg", "image/jpeg" },
   { ".png",  "image/png"},
-  { ".ico",  "image/x-icon" }
+  { ".ico",  "image/x-icon" },
+  { ".swf",  "application/x-shockwave-flash" },
+  { ".cab",  "application/x-shockwave-flash" },
+  { ".jar",  "application/java-archive" }
 };
 
 typedef enum { A_UNKNOWN, A_SNAPSHOT, A_STREAM, A_COMMAND, A_FILE } answer_t;
