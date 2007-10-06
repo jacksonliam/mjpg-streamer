@@ -357,6 +357,36 @@ Description.:
 Input Value.: 
 Return Value: 
 ******************************************************************************/
+void command(int fd, char *parameter) {
+  char buffer[256] = {0};
+
+  if ( parameter == NULL || strlen(parameter) > 50 || strlen(parameter) == 0 ) {
+    sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
+                    "Content-type: text/plain\r\n" \
+                    "Connection: close\r\n" \
+                    "Server: MJPG-Streamer\r\n" \
+                    "\r\n" \
+                    "ERROR: parameter length is wrong");
+
+    write(fd, buffer, strlen(buffer));
+    return;
+  }
+
+  sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
+                  "Content-type: text/plain\r\n" \
+                  "Connection: close\r\n" \
+                  "Server: MJPG-Streamer\r\n" \
+                  "\r\n" \
+                  "OK: %s", parameter);
+
+  write(fd, buffer, strlen(buffer));
+}
+
+/******************************************************************************
+Description.: 
+Input Value.: 
+Return Value: 
+******************************************************************************/
 /* thread for clients that connected to this server */
 void *client_thread( void *arg ) {
   int fd = *((int *)arg), cnt;
@@ -397,7 +427,7 @@ void *client_thread( void *arg ) {
     /* req.parameter = strdup(strsep(&pb, " ")+strlen("command=")); */
     /* i like more to validate against the character set using strspn() */
     pb += strlen("command=");
-    len = strspn(pb, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_");
+    len = strspn(pb, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_1234567890");
     req.parameter = malloc(len+1);
     memset(req.parameter, 0, len+1);
     strncpy(req.parameter, pb, len);
@@ -418,7 +448,7 @@ void *client_thread( void *arg ) {
     }
 
     pb += strlen("GET /");
-    len = strspn(pb, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ._-");
+    len = strspn(pb, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ._-1234567890");
     req.parameter = malloc(len+1);
     memset(req.parameter, 0, len+1);
     strncpy(req.parameter, pb, len);
@@ -467,8 +497,7 @@ void *client_thread( void *arg ) {
       send_stream(fd);
       break;
     case A_COMMAND:
-      //command(fd, parameter);
-      send_error(fd, 501);
+      command(fd, req.parameter);
       break;
     case A_FILE:
       if ( www_folder == NULL )
