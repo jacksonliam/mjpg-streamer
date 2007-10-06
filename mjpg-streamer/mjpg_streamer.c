@@ -261,6 +261,8 @@ int main(int argc, char *argv[])
     fprintf(stderr, "%s\n", dlerror());
     exit(EXIT_FAILURE);
   }
+  /* try to find optional command */
+  global.in.cmd = dlsym(global.in.handle, "input_cmd");
 
   global.in.param.parameter_string = strchr(input, ' ');
   global.in.param.global = &global;
@@ -296,6 +298,8 @@ int main(int argc, char *argv[])
       fprintf(stderr, "%s\n", dlerror());
       exit(EXIT_FAILURE);
     }
+    /* try to find optional command */
+    global.out[i].cmd = dlsym(global.out[i].handle, "output_cmd");
 
     global.out[i].param.parameter_string = strchr(output[i], ' ');
     global.out[i].param.global = &global;

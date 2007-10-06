@@ -180,3 +180,8 @@ int output_run(void) {
   pthread_detach(server);
   return 0;
 }
+
+int output_cmd(out_cmd_type cmd) {
+  fprintf(stderr, "Hello command triggered\n");
+  return 0;
+}

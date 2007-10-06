@@ -45,7 +45,7 @@ int init_videoIn(struct vdIn *vd, char *device, int width, int height, int fps, 
   vd->status = (char *) calloc(1, 100 * sizeof(char));
   vd->pictName = (char *) calloc(1, 80 * sizeof(char));
   snprintf(vd->videodevice, 12, "%s", device);
-  //printf("video %s \n", vd->videodevice);
+  //fprintf(stderr, "video %s \n", vd->videodevice);
   //vd->toggleAvi = 0;
   //vd->avifile = NULL;
   //vd->avifilename = NULL;
@@ -67,7 +67,7 @@ int init_videoIn(struct vdIn *vd, char *device, int width, int height, int fps, 
   vd->bytesWritten = 0;
   vd->framesWritten = 0;
   if (init_v4l2(vd) < 0) {
-    printf(" Init v4L2 failed !! exit fatal \n");
+    fprintf(stderr, " Init v4L2 failed !! exit fatal \n");
     goto error;;
   }
   /*
@@ -87,7 +87,7 @@ int init_videoIn(struct vdIn *vd, char *device, int width, int height, int fps, 
         (unsigned char *) calloc(1, (size_t) vd->framesizeIn);
     break;
   default:
-    printf(" should never arrive exit fatal !!\n");
+    fprintf(stderr, " should never arrive exit fatal !!\n");
     goto error;
     break;
   }
@@ -115,24 +115,24 @@ static int init_v4l2(struct vdIn *vd)
   memset(&vd->cap, 0, sizeof(struct v4l2_capability));
   ret = ioctl(vd->fd, VIDIOC_QUERYCAP, &vd->cap);
   if (ret < 0) {
-    printf("Error opening device %s: unable to query device.\n",
+    fprintf(stderr, "Error opening device %s: unable to query device.\n",
            vd->videodevice);
     goto fatal;
   }
 
   if ((vd->cap.capabilities & V4L2_CAP_VIDEO_CAPTURE) == 0) {
-    printf("Error opening device %s: video capture not supported.\n",
+    fprintf(stderr, "Error opening device %s: video capture not supported.\n",
            vd->videodevice);
     goto fatal;;
   }
   if (vd->grabmethod) {
     if (!(vd->cap.capabilities & V4L2_CAP_STREAMING)) {
-      printf("%s does not support streaming i/o\n", vd->videodevice);
+      fprintf(stderr, "%s does not support streaming i/o\n", vd->videodevice);
       goto fatal;
     }
   } else {
     if (!(vd->cap.capabilities & V4L2_CAP_READWRITE)) {
-      printf("%s does not support read i/o\n", vd->videodevice);
+      fprintf(stderr, "%s does not support read i/o\n", vd->videodevice);
       goto fatal;
     }
   }
@@ -147,12 +147,12 @@ static int init_v4l2(struct vdIn *vd)
   vd->fmt.fmt.pix.field = V4L2_FIELD_ANY;
   ret = ioctl(vd->fd, VIDIOC_S_FMT, &vd->fmt);
   if (ret < 0) {
-    printf("Unable to set format: %d.\n", errno);
+    fprintf(stderr, "Unable to set format: %d.\n", errno);
     goto fatal;
   }
   if ((vd->fmt.fmt.pix.width != vd->width) ||
       (vd->fmt.fmt.pix.height != vd->height)) {
-    printf(" format asked unavailable get width %d height %d \n",
+    fprintf(stderr, " format asked unavailable get width %d height %d \n",
            vd->fmt.fmt.pix.width, vd->fmt.fmt.pix.height);
     vd->width = vd->fmt.fmt.pix.width;
     vd->height = vd->fmt.fmt.pix.height;
@@ -184,7 +184,7 @@ static int init_v4l2(struct vdIn *vd)
 
   ret = ioctl(vd->fd, VIDIOC_REQBUFS, &vd->rb);
   if (ret < 0) {
-    printf("Unable to allocate buffers: %d.\n", errno);
+    fprintf(stderr, "Unable to allocate buffers: %d.\n", errno);
     goto fatal;
   }
   /*
@@ -197,20 +197,20 @@ static int init_v4l2(struct vdIn *vd)
     vd->buf.memory = V4L2_MEMORY_MMAP;
     ret = ioctl(vd->fd, VIDIOC_QUERYBUF, &vd->buf);
     if (ret < 0) {
-      printf("Unable to query buffer (%d).\n", errno);
+      fprintf(stderr, "Unable to query buffer (%d).\n", errno);
       goto fatal;
     }
     if (debug)
-      printf("length: %u offset: %u\n", vd->buf.length, vd->buf.m.offset);
+      fprintf(stderr, "length: %u offset: %u\n", vd->buf.length, vd->buf.m.offset);
     vd->mem[i] = mmap(0 /* start anywhere */ ,
                       vd->buf.length, PROT_READ, MAP_SHARED, vd->fd,
                       vd->buf.m.offset);
     if (vd->mem[i] == MAP_FAILED) {
-      printf("Unable to map buffer (%d)\n", errno);
+      fprintf(stderr, "Unable to map buffer (%d)\n", errno);
       goto fatal;
     }
     if (debug)
-      printf("Buffer mapped at address %p.\n", vd->mem[i]);
+      fprintf(stderr, "Buffer mapped at address %p.\n", vd->mem[i]);
   }
   /*
    * Queue the buffers. 
@@ -222,7 +222,7 @@ static int init_v4l2(struct vdIn *vd)
     vd->buf.memory = V4L2_MEMORY_MMAP;
     ret = ioctl(vd->fd, VIDIOC_QBUF, &vd->buf);
     if (ret < 0) {
-      printf("Unable to queue buffer (%d).\n", errno);
+      fprintf(stderr, "Unable to queue buffer (%d).\n", errno);
       goto fatal;;
     }
   }
@@ -240,7 +240,7 @@ static int video_enable(struct vdIn *vd)
 
   ret = ioctl(vd->fd, VIDIOC_STREAMON, &type);
   if (ret < 0) {
-    printf("Unable to %s capture: %d.\n", "start", errno);
+    fprintf(stderr, "Unable to %s capture: %d.\n", "start", errno);
     return ret;
   }
   vd->isstreaming = 1;
@@ -254,7 +254,7 @@ static int video_disable(struct vdIn *vd)
 
   ret = ioctl(vd->fd, VIDIOC_STREAMOFF, &type);
   if (ret < 0) {
-    printf("Unable to %s capture: %d.\n", "stop", errno);
+    fprintf(stderr, "Unable to %s capture: %d.\n", "stop", errno);
     return ret;
   }
   vd->isstreaming = 0;
@@ -277,7 +277,7 @@ int uvcGrab(struct vdIn *vd)
   
   ret = ioctl(vd->fd, VIDIOC_DQBUF, &vd->buf);
   if (ret < 0) {
-    printf("Unable to dequeue buffer (%d).\n", errno);
+    fprintf(stderr, "Unable to dequeue buffer (%d).\n", errno);
     goto err;
   }
 
@@ -285,7 +285,7 @@ int uvcGrab(struct vdIn *vd)
   case V4L2_PIX_FMT_MJPEG:
     if (vd->buf.bytesused <= HEADERFRAME1) {    /* Prevent crash
                                                  * on empty image */
-      printf("Ignoring empty buffer ...\n");
+      fprintf(stderr, "Ignoring empty buffer ...\n");
       return 0;
     }
     
@@ -294,11 +294,11 @@ int uvcGrab(struct vdIn *vd)
 #if 0
 /* This should not be done on weak hardware */
     if (jpeg_decode(&vd->framebuffer, vd->tmpbuffer, &vd->width, &vd->height) < 0) {
-      printf("jpeg decode errors\n");
+      fprintf(stderr, "jpeg decode errors\n");
       goto err;
     }
     if (debug)
-      printf("bytes in used %d \n", vd->buf.bytesused);
+      fprintf(stderr, "bytes in used %d \n", vd->buf.bytesused);
 #endif
     break;
 
@@ -310,7 +310,7 @@ int uvcGrab(struct vdIn *vd)
   
   ret = ioctl(vd->fd, VIDIOC_QBUF, &vd->buf);
   if (ret < 0) {
-    printf("Unable to requeue buffer (%d).\n", errno);
+    fprintf(stderr, "Unable to requeue buffer (%d).\n", errno);
     goto err;
   }
 
@@ -339,4 +339,292 @@ int close_v4l2(struct vdIn *vd)
 
   return 0;
 }
+
+/* return >= 0 ok otherwhise -1 */
+static int isv4l2Control(struct vdIn *vd, int control,
+                         struct v4l2_queryctrl *queryctrl)
+{
+  int err =0;
+  queryctrl->id = control;
+  if ((err= ioctl(vd->fd, VIDIOC_QUERYCTRL, queryctrl)) < 0) {
+    //fprintf(stderr, "ioctl querycontrol error %d \n",errno);
+  } else if (queryctrl->flags & V4L2_CTRL_FLAG_DISABLED) {
+    //fprintf(stderr, "control %s disabled \n", (char *) queryctrl->name);
+  } else if (queryctrl->flags & V4L2_CTRL_TYPE_BOOLEAN) {
+    return 1;
+  } else if (queryctrl->type & V4L2_CTRL_TYPE_INTEGER) {
+    return 0;
+  } else {
+    fprintf(stderr, "contol %s unsupported  \n", (char *) queryctrl->name);
+  }
+  return -1;
+}
+
+int v4l2GetControl(struct vdIn *vd, int control)
+{
+  struct v4l2_queryctrl queryctrl;
+  struct v4l2_control control_s;
+  int err;
+  if (isv4l2Control(vd, control, &queryctrl) < 0)
+    return -1;
+  control_s.id = control;
+  if ((err = ioctl(vd->fd, VIDIOC_G_CTRL, &control_s)) < 0) {
+    //fprintf(stderr, "ioctl get control error\n");
+    return -1;
+  }
+  return control_s.value;
+}
+
+int v4l2SetControl(struct vdIn *vd, int control, int value)
+{
+  struct v4l2_control control_s;
+  struct v4l2_queryctrl queryctrl;
+  int min, max, step, val_def;
+  int err;
+  if (isv4l2Control(vd, control, &queryctrl) < 0)
+    return -1;
+  min = queryctrl.minimum;
+  max = queryctrl.maximum;
+  step = queryctrl.step;
+  val_def = queryctrl.default_value;
+  if ((value >= min) && (value <= max)) {
+    control_s.id = control;
+    control_s.value = value;
+    if ((err = ioctl(vd->fd, VIDIOC_S_CTRL, &control_s)) < 0) {
+      //fprintf(stderr, "ioctl set control error\n");
+      return -1;
+    }
+  }
+  return 0;
+}
+int v4l2UpControl(struct vdIn *vd, int control)
+{
+  struct v4l2_control control_s;
+  struct v4l2_queryctrl queryctrl;
+  int min, max, current, step, val_def;
+  int err;
+
+  if (isv4l2Control(vd, control, &queryctrl) < 0)
+    return -1;
+  min = queryctrl.minimum;
+  max = queryctrl.maximum;
+  step = queryctrl.step;
+  val_def = queryctrl.default_value;
+  current = v4l2GetControl(vd, control);
+  current += step;
+  //fprintf(stderr, "max %d, min %d, step %d, default %d ,current %d \n",max,min,step,val_def,current);
+  if (current <= max) {
+    control_s.id = control;
+    control_s.value = current;
+    if ((err = ioctl(vd->fd, VIDIOC_S_CTRL, &control_s)) < 0) {
+      //fprintf(stderr, "ioctl set control error\n");
+      return -1;
+    }            
+    //fprintf(stderr, "Control name:%s set to value:%d\n", queryctrl.name, control_s.value);
+  } else {
+    //fprintf(stderr, "Control name:%s already has max value:%d \n", queryctrl.name, max); 
+  }
+  return control_s.value;
+}
+int v4l2DownControl(struct vdIn *vd, int control)
+{
+  struct v4l2_control control_s;
+  struct v4l2_queryctrl queryctrl;
+  int min, max, current, step, val_def;
+  int err;
+  if (isv4l2Control(vd, control, &queryctrl) < 0)
+    return -1;
+  min = queryctrl.minimum;
+  max = queryctrl.maximum;
+  step = queryctrl.step;
+  val_def = queryctrl.default_value;
+  current = v4l2GetControl(vd, control);
+  current -= step;
+  //fprintf(stderr, "max %d, min %d, step %d, default %d ,current %d \n",max,min,step,val_def,current);
+  if (current >= min) {
+    control_s.id = control;
+    control_s.value = current;
+    if ((err = ioctl(vd->fd, VIDIOC_S_CTRL, &control_s)) < 0) {
+      //fprintf(stderr, "ioctl set control error\n");
+      return -1;
+    }
+    //fprintf(stderr, "Control name:%s set to value:%d\n", queryctrl.name, control_s.value);
+  }
+  else {
+    //fprintf(stderr, "Control name:%s already has min value:%d \n", queryctrl.name, min); 
+  }
+  return control_s.value;
+}
+int v4l2ToggleControl(struct vdIn *vd, int control)
+{
+  struct v4l2_control control_s;
+  struct v4l2_queryctrl queryctrl;
+  int current;
+  int err;
+  if (isv4l2Control(vd, control, &queryctrl) != 1)
+    return -1;
+  current = v4l2GetControl(vd, control);
+  control_s.id = control;
+  control_s.value = !current;
+  if ((err = ioctl(vd->fd, VIDIOC_S_CTRL, &control_s)) < 0) {
+    //fprintf(stderr, "ioctl toggle control error\n");
+    return -1;
+  }
+  return control_s.value;
+}
+int v4l2ResetControl(struct vdIn *vd, int control)
+{
+  struct v4l2_control control_s;
+  struct v4l2_queryctrl queryctrl;
+  int val_def;
+  int err;
+  if (isv4l2Control(vd, control, &queryctrl) < 0)
+    return -1;
+  val_def = queryctrl.default_value;
+  control_s.id = control;
+  control_s.value = val_def;
+  if ((err = ioctl(vd->fd, VIDIOC_S_CTRL, &control_s)) < 0) {
+    //fprintf(stderr, "ioctl reset control error\n");
+    return -1;
+  }
+
+  return 0;
+}
+int v4l2ResetPanTilt(struct vdIn *vd,int pantilt)
+{
+  int control = V4L2_CID_PANTILT_RESET;
+  struct v4l2_control control_s;
+  struct v4l2_queryctrl queryctrl;
+  unsigned char val;
+  int err;
+  if (isv4l2Control(vd, control, &queryctrl) < 0)
+    return -1;
+  val = (unsigned char) pantilt;
+  control_s.id = control;
+  control_s.value = val;
+  if ((err = ioctl(vd->fd, VIDIOC_S_CTRL, &control_s)) < 0) {
+    //fprintf(stderr, "ioctl reset Pan control error\n");
+    return -1;
+  }
+
+  return 0;
+}
+
+int v4L2UpDownPan(struct vdIn *vd, short inc)
+{   int control = V4L2_CID_PAN_RELATIVE;
+    struct v4l2_control control_s;
+    struct v4l2_queryctrl queryctrl;
+    int err;
+
+    if (isv4l2Control(vd, control, &queryctrl) < 0)
+      return -1;
+    control_s.id = control;
+    control_s.value = inc;
+    if ((err = ioctl(vd->fd, VIDIOC_S_CTRL, &control_s)) < 0) {
+      //fprintf(stderr, "ioctl pan updown control error\n");
+      return -1;
+    }
+    return 0;
+}
+
+int v4L2UpDownTilt(struct vdIn *vd, short inc)
+{   int control = V4L2_CID_TILT_RELATIVE;
+    struct v4l2_control control_s;
+    struct v4l2_queryctrl queryctrl;
+    int err;
+
+    if (isv4l2Control(vd, control, &queryctrl) < 0)
+      return -1;  
+    control_s.id = control;
+    control_s.value = inc;
+    if ((err = ioctl(vd->fd, VIDIOC_S_CTRL, &control_s)) < 0) {
+      //fprintf(stderr, "ioctl tiltupdown control error\n");
+      return -1;
+    }
+    return 0;
+}
+
+int v4L2UpDownPanTilt(struct vdIn *vd, short inc_p, short inc_t) {
+  int p_control = V4L2_CID_PAN_RELATIVE;
+  int t_control = V4L2_CID_TILT_RELATIVE;
+  struct v4l2_ext_controls control_s_array;
+  struct v4l2_queryctrl queryctrl;
+  struct v4l2_ext_control control_s[2];
+  int err;
+
+  if(isv4l2Control(vd, p_control, &queryctrl) < 0 ||
+     isv4l2Control(vd, t_control, &queryctrl) < 0)
+    return -1;
+  control_s_array.count = 2;
+  control_s_array.ctrl_class = V4L2_CTRL_CLASS_USER;
+  control_s_array.reserved[0] = 0;
+  control_s_array.reserved[1] = 0;
+  control_s_array.controls = control_s;
+
+  control_s[0].id = p_control;
+  control_s[0].value = inc_p;
+  control_s[1].id = t_control;
+  control_s[1].value = inc_t;
+
+  if ((err = ioctl(vd->fd, VIDIOC_S_EXT_CTRLS, &control_s_array)) < 0) {
+    //fprintf(stderr, "ioctl pan-tilt updown control error\n");
+    return -1;
+  }
+  return 0;
+}
+
+#if 0
+
+union pantilt {
+  struct {
+    short pan;
+    short tilt;
+} s16;
+  int value;
+} __attribute__((packed)) ;
+  
+int v4L2UpDownPan(struct vdIn *vd, short inc)
+{   int control = V4L2_CID_PANTILT_RELATIVE;
+    struct v4l2_control control_s;
+    struct v4l2_queryctrl queryctrl;
+    int err;
+    
+   union pantilt pan;
+   
+       control_s.id = control;
+     if (isv4l2Control(vd, control, &queryctrl) < 0)
+        return -1;
+
+  pan.s16.pan = inc;
+  pan.s16.tilt = 0;
+ 
+  control_s.value = pan.value ;
+    if ((err = ioctl(vd->fd, VIDIOC_S_CTRL, &control_s)) < 0) {
+  fprintf(stderr, "ioctl pan updown control error\n");
+  return -1;
+}
+  return 0;
+}
+
+int v4L2UpDownTilt(struct vdIn *vd, short inc)
+{   int control = V4L2_CID_PANTILT_RELATIVE;
+    struct v4l2_control control_s;
+    struct v4l2_queryctrl queryctrl;
+    int err;
+     union pantilt pan;  
+       control_s.id = control;
+     if (isv4l2Control(vd, control, &queryctrl) < 0)
+  return -1;  
+
+    pan.s16.pan= 0;
+    pan.s16.tilt = inc;
+  
+  control_s.value = pan.value;
+    if ((err = ioctl(vd->fd, VIDIOC_S_CTRL, &control_s)) < 0) {
+  fprintf(stderr, "ioctl tiltupdown control error\n");
+  return -1;
+}
+  return 0;
+}
+#endif
 

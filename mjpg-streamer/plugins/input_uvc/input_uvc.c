@@ -13,11 +13,15 @@
 #include <getopt.h>
 #include <pthread.h>
 
+#define DEBUG
+
 #include "../../utils.h"
 #include "../../mjpg_streamer.h"
 #include "../input.h"
 #include "v4l2uvc.h"
 #include "huffman.h"
+
+#undef DEBUG
 
 #define INPUT_PLUGIN_NAME "UVC webcam M-JPEG grabber"
 #define MAX_ARGUMENTS 32
@@ -169,6 +173,85 @@ int input_run(void) {
   pthread_detach(cam);
 
   return 0;
+}
+
+int input_cmd(in_cmd_type cmd) {
+
+  switch (cmd) {
+    case IN_CMD_HELLO:
+      fprintf(stderr, "Hello from input plugin\n");
+      return 0;
+      break;
+    case IN_CMD_RESET:
+      DBG("about to reset all controls to defaults\n");
+      v4l2ResetControl (videoIn, V4L2_CID_BRIGHTNESS);
+      v4l2ResetControl (videoIn, V4L2_CID_CONTRAST);
+      v4l2ResetControl (videoIn, V4L2_CID_SATURATION);
+      v4l2ResetControl (videoIn, V4L2_CID_GAIN);
+      return 0;
+      break;
+    case IN_CMD_PAN_PLUS:
+      DBG("pan +\n");
+      return 0;
+      break;
+    case IN_CMD_PAN_MINUS:
+      DBG("pan -\n");
+      return 0;
+      break;
+    case IN_CMD_TILT_PLUS:
+      DBG("tilt +\n");
+      return 0;
+      break;
+    case IN_CMD_TILT_MINUS:
+      DBG("tilt -\n");
+      return 0;
+      break;
+    case IN_CMD_SATURATION_PLUS:
+      DBG("saturation + (%d)\n", v4l2GetControl (videoIn, V4L2_CID_SATURATION));
+      v4l2UpControl(videoIn, V4L2_CID_SATURATION);
+      return 0;
+      break;
+    case IN_CMD_SATURATION_MINUS:
+      DBG("saturation - (%d)\n", v4l2GetControl (videoIn, V4L2_CID_SATURATION));
+      v4l2DownControl(videoIn, V4L2_CID_SATURATION);
+      return 0;
+      break;
+    case IN_CMD_CONTRAST_PLUS:
+      DBG("contrast + (%d)\n", v4l2GetControl (videoIn, V4L2_CID_CONTRAST));
+      v4l2UpControl(videoIn, V4L2_CID_CONTRAST);
+      return 0;
+      break;
+    case IN_CMD_CONTRAST_MINUS:
+      DBG("contrast - (%d)\n", v4l2GetControl (videoIn, V4L2_CID_CONTRAST));
+      v4l2DownControl(videoIn, V4L2_CID_CONTRAST);
+      return 0;
+      break;
+    case IN_CMD_BRIGHTNESS_PLUS:
+      DBG("brightness + (%d)\n", v4l2GetControl (videoIn, V4L2_CID_BRIGHTNESS));
+      v4l2UpControl(videoIn, V4L2_CID_BRIGHTNESS);
+      return 0;
+      break;
+    case IN_CMD_BRIGHTNESS_MINUS:
+      DBG("brightness - (%d)\n", v4l2GetControl (videoIn, V4L2_CID_BRIGHTNESS));
+      v4l2DownControl(videoIn, V4L2_CID_BRIGHTNESS);
+      return 0;
+      break;
+    case IN_CMD_GAIN_PLUS:
+      DBG("gain + (%d)\n", v4l2GetControl (videoIn, V4L2_CID_GAIN));
+      v4l2UpControl(videoIn, V4L2_CID_GAIN);
+      return 0;
+      break;
+    case IN_CMD_GAIN_MINUS:
+      DBG("gain - (%d)\n", v4l2GetControl (videoIn, V4L2_CID_GAIN));
+      v4l2DownControl(videoIn, V4L2_CID_GAIN);
+      return 0;
+      break;
+    default:
+      DBG("nothing matched\n");
+      return -1;
+  }
+
+  return -1;
 }
 
 /*** private functions for this plugin below ***/

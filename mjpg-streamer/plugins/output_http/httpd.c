@@ -16,6 +16,7 @@
 #include "../../mjpg_streamer.h"
 #include "../../utils.h"
 #include "../output.h"
+#include "../input.h"
 
 extern globals *global;
 int  sd, port;
@@ -263,7 +264,7 @@ Description.:
 Input Value.: 
 Return Value: 
 ******************************************************************************/
-void send_error(int fd, int which) {
+void send_error(int fd, int which, char *message) {
   char buffer[256] = {0};
 
   if ( which == 401 ) {
@@ -273,21 +274,24 @@ void send_error(int fd, int which) {
                     "Server: MJPG-Streamer\r\n" \
                     "WWW-Authenticate: Basic realm=\"MJPG-Streamer\"\r\n" \
                     "\r\n" \
-                    "401: Not Authenticated!");
+                    "401: Not Authenticated!\r\n" \
+                    "%s", message);
   } if ( which == 404 ) {
     sprintf(buffer, "HTTP/1.0 404 Not Found\r\n" \
                     "Content-type: text/plain\r\n" \
                     "Connection: close\r\n" \
                     "Server: MJPG-Streamer\r\n" \
                     "\r\n" \
-                    "404: Not Found!");
+                    "404: Not Found!\r\n" \
+                    "%s", message);
   } else {
     sprintf(buffer, "HTTP/1.0 501 Not Implemented\r\n" \
                     "Content-type: text/plain\r\n" \
                     "Connection: close\r\n" \
                     "Server: MJPG-Streamer\r\n" \
                     "\r\n" \
-                    "501: Not Implemented!");
+                    "501: Not Implemented!\r\n" \
+                    "%s", message);
   }
 
   write(fd, buffer, strlen(buffer));
@@ -308,7 +312,7 @@ void send_file(int fd, char *parameter) {
 
   /* find file-extension */
   if ( (extension = strstr(parameter, ".")) == NULL ) {
-    send_error(fd, 404);
+    send_error(fd, 404, "No file extension found");
     return;
   }
 
@@ -320,7 +324,7 @@ void send_file(int fd, char *parameter) {
     }
   }
   if ( mimetype == NULL ) {
-    send_error(fd, 404);
+    send_error(fd, 404, "MIME-TYPE not known");
     return;
   }
 
@@ -330,7 +334,7 @@ void send_file(int fd, char *parameter) {
   strncat(buffer, parameter, sizeof(buffer)-strlen(buffer)-1);
   if ( (lfd = open(buffer, O_RDONLY)) < 0 ) {
     DBG("file %s not accessible\n", buffer);
-    send_error(fd, 404);
+    send_error(fd, 404, "Could not open file");
     return;
   }
   DBG("opened file: %s\n", buffer);
@@ -359,6 +363,7 @@ Return Value:
 ******************************************************************************/
 void command(int fd, char *parameter) {
   char buffer[256] = {0};
+  int i, res=-100;
 
   if ( parameter == NULL || strlen(parameter) > 50 || strlen(parameter) == 0 ) {
     sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
@@ -372,12 +377,34 @@ void command(int fd, char *parameter) {
     return;
   }
 
+  /* determine command, try the input command-mappings first */
+  for ( i=0; i < LENGTH_OF(in_cmd_mapping); i++ ) {
+    if ( strcmp(in_cmd_mapping[i].string, parameter) == 0 ) {
+
+      if ( global->in.cmd == NULL ) {
+        send_error(fd, 501, "input plugin can not process commands");
+        return;
+      }
+
+      res = global->in.cmd(in_cmd_mapping[i].cmd);
+      break;
+    }
+  }
+
+  /* if the command is for the output plugin itself */
+  for ( i=0; i < LENGTH_OF(out_cmd_mapping); i++ ) {
+    if ( strcmp(out_cmd_mapping[i].string, parameter) == 0 ) {
+      res = output_cmd(in_cmd_mapping[i].cmd);
+      break;
+    }
+  }
+
   sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
                   "Content-type: text/plain\r\n" \
                   "Connection: close\r\n" \
                   "Server: MJPG-Streamer\r\n" \
                   "\r\n" \
-                  "OK: %s", parameter);
+                  "%s: %s", (res==0)?"OK":"ERROR", parameter);
 
   write(fd, buffer, strlen(buffer));
 }
@@ -419,7 +446,7 @@ void *client_thread( void *arg ) {
     /* search for second variable "command" that specifies the command */
     if ( (pb = strstr(buffer, "command=")) == NULL ) {
       DBG("no command specified, it should be passed as second variable\n");
-      send_error(fd, 501);
+      send_error(fd, 501, "no \"command\" specified");
       close(fd);
       return NULL;
     }
@@ -442,7 +469,7 @@ void *client_thread( void *arg ) {
 
     if ( (pb = strstr(buffer, "GET /")) == NULL ) {
       DBG("HTTP request seems to be malformed\n");
-      send_error(fd, 501);
+      send_error(fd, 501, "Malformed HTTP request");
       close(fd);
       return NULL;
     }
@@ -476,7 +503,7 @@ void *client_thread( void *arg ) {
   if ( credentials != NULL ) {
     if ( req.credentials == NULL || strcmp(credentials, req.credentials) != 0 ) {
       DBG("access denied\n");
-      send_error(fd, 401);
+      send_error(fd, 401, "username and password do not match to configuration");
       close(fd);
       if ( req.parameter != NULL ) free(req.parameter);
       if ( req.client != NULL ) free(req.client);
@@ -501,7 +528,7 @@ void *client_thread( void *arg ) {
       break;
     case A_FILE:
       if ( www_folder == NULL )
-        send_error(fd, 501);
+        send_error(fd, 501, "no www-folder configured");
       else
         send_file(fd, req.parameter);
       break;
