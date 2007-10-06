@@ -13,21 +13,18 @@
 #include <getopt.h>
 #include <pthread.h>
 
-#define DEBUG
-
 #include "../../utils.h"
 #include "../../mjpg_streamer.h"
 #include "../input.h"
 #include "v4l2uvc.h"
 #include "huffman.h"
 
-#undef DEBUG
-
 #define INPUT_PLUGIN_NAME "UVC webcam M-JPEG grabber"
 #define MAX_ARGUMENTS 32
 
 /* private functions and variables to this plugin */
 pthread_t   cam;
+pthread_mutex_t controls_mutex;
 struct vdIn *videoIn;
 globals     *global;
 
@@ -39,6 +36,11 @@ void help(void);
 int input_init(input_parameter *param) {
   char *argv[MAX_ARGUMENTS]={NULL}, *dev = "/dev/video0";
   int argc=1, width=640, height=480, fps=5, i;
+
+  if( pthread_mutex_init(&controls_mutex, NULL) != 0 ) {
+    fprintf(stderr, "could not initialize mutex variable\n");
+    exit(EXIT_FAILURE);
+  }
 
   /* convert the single parameter-string to an array of strings */
   argv[0] = INPUT_PLUGIN_NAME;
@@ -176,82 +178,138 @@ int input_run(void) {
 }
 
 int input_cmd(in_cmd_type cmd) {
+  int res=0;
+  static int pan=0;
+  static int tilt=0;
+  static int pan_tilt_valid=-1;
+  const int one_degree = ONE_DEGREE;
+
+  pthread_mutex_lock( &controls_mutex );
+
+  DBG("pan: %d, tilt: %d, valid: %d\n", pan, tilt, pan_tilt_valid);
 
   switch (cmd) {
     case IN_CMD_HELLO:
       fprintf(stderr, "Hello from input plugin\n");
-      return 0;
       break;
+
     case IN_CMD_RESET:
-      DBG("about to reset all controls to defaults\n");
-      v4l2ResetControl (videoIn, V4L2_CID_BRIGHTNESS);
-      v4l2ResetControl (videoIn, V4L2_CID_CONTRAST);
-      v4l2ResetControl (videoIn, V4L2_CID_SATURATION);
-      v4l2ResetControl (videoIn, V4L2_CID_GAIN);
-      return 0;
+      DBG("about to reset all image controls to defaults\n");
+      res = v4l2ResetControl(videoIn, V4L2_CID_BRIGHTNESS);
+      res |= v4l2ResetControl(videoIn, V4L2_CID_CONTRAST);
+      res |= v4l2ResetControl(videoIn, V4L2_CID_SATURATION);
+      res |= v4l2ResetControl(videoIn, V4L2_CID_GAIN);
+      if ( res != 0 ) res = -1;
       break;
+
+    case IN_CMD_RESET_PAN_TILT:
+      DBG("about to set all pan/tilt to default position\n");
+      if ( uvcPanTilt(videoIn, 0, 0, 3) != 0 ) {
+        res = -1;
+        break;
+      }
+      pan_tilt_valid = 1;
+      break;
+
     case IN_CMD_PAN_PLUS:
       DBG("pan +\n");
-      return 0;
+      if ( pan_tilt_valid != 1 ) {
+        if ( uvcPanTilt(videoIn, 0, 0, 3) != 0 ) {
+          res = -1;
+          break;
+        }
+        pan_tilt_valid = 1;
+      }
+      pan = ( (MAX_PAN) < (pan+one_degree) ) ? (MAX_PAN) : (pan+one_degree);
+      res = uvcPanTilt(videoIn, pan, tilt, 0);
       break;
+
     case IN_CMD_PAN_MINUS:
       DBG("pan -\n");
-      return 0;
+      if ( pan_tilt_valid != 1 ) {
+        if ( uvcPanTilt(videoIn, 0, 0, 3) != 0 ) {
+          res = -1;
+          break;
+        }
+        pan_tilt_valid = 1;
+      }
+      pan = ( (MIN_PAN) > (pan+one_degree) )? (MIN_PAN) : (pan+one_degree);
+      res = uvcPanTilt(videoIn, pan, tilt, 0);
       break;
+
     case IN_CMD_TILT_PLUS:
       DBG("tilt +\n");
-      return 0;
+      if ( pan_tilt_valid != 1 ) {
+        if ( uvcPanTilt(videoIn, 0, 0, 3) != 0 ) {
+          res = -1;
+          break;
+        }
+        pan_tilt_valid = 1;
+      }
+      tilt = ( (MAX_TILT) < (tilt+one_degree) )? (MAX_TILT) : (tilt+one_degree);
+      res = uvcPanTilt(videoIn, pan, tilt, 0);
       break;
+
     case IN_CMD_TILT_MINUS:
       DBG("tilt -\n");
-      return 0;
+      if ( pan_tilt_valid != 1 ) {
+        if ( uvcPanTilt(videoIn, 0, 0, 3) != 0 ) {
+          res = -1;
+          break;
+        }
+        pan_tilt_valid = 1;
+      }
+      tilt = ( (MIN_TILT) > (tilt+one_degree) )? (MIN_TILT) : (tilt+one_degree);
+      res = uvcPanTilt(videoIn, pan, tilt, 0);
       break;
+
     case IN_CMD_SATURATION_PLUS:
       DBG("saturation + (%d)\n", v4l2GetControl (videoIn, V4L2_CID_SATURATION));
-      v4l2UpControl(videoIn, V4L2_CID_SATURATION);
-      return 0;
+      res = v4l2UpControl(videoIn, V4L2_CID_SATURATION);
       break;
+
     case IN_CMD_SATURATION_MINUS:
       DBG("saturation - (%d)\n", v4l2GetControl (videoIn, V4L2_CID_SATURATION));
-      v4l2DownControl(videoIn, V4L2_CID_SATURATION);
-      return 0;
+      res = v4l2DownControl(videoIn, V4L2_CID_SATURATION);
       break;
+
     case IN_CMD_CONTRAST_PLUS:
       DBG("contrast + (%d)\n", v4l2GetControl (videoIn, V4L2_CID_CONTRAST));
-      v4l2UpControl(videoIn, V4L2_CID_CONTRAST);
-      return 0;
+      res = v4l2UpControl(videoIn, V4L2_CID_CONTRAST);
       break;
+
     case IN_CMD_CONTRAST_MINUS:
       DBG("contrast - (%d)\n", v4l2GetControl (videoIn, V4L2_CID_CONTRAST));
-      v4l2DownControl(videoIn, V4L2_CID_CONTRAST);
-      return 0;
+      res = v4l2DownControl(videoIn, V4L2_CID_CONTRAST);
       break;
+
     case IN_CMD_BRIGHTNESS_PLUS:
       DBG("brightness + (%d)\n", v4l2GetControl (videoIn, V4L2_CID_BRIGHTNESS));
-      v4l2UpControl(videoIn, V4L2_CID_BRIGHTNESS);
-      return 0;
+      res = v4l2UpControl(videoIn, V4L2_CID_BRIGHTNESS);
       break;
+
     case IN_CMD_BRIGHTNESS_MINUS:
       DBG("brightness - (%d)\n", v4l2GetControl (videoIn, V4L2_CID_BRIGHTNESS));
-      v4l2DownControl(videoIn, V4L2_CID_BRIGHTNESS);
-      return 0;
+      res = v4l2DownControl(videoIn, V4L2_CID_BRIGHTNESS);
       break;
+
     case IN_CMD_GAIN_PLUS:
       DBG("gain + (%d)\n", v4l2GetControl (videoIn, V4L2_CID_GAIN));
-      v4l2UpControl(videoIn, V4L2_CID_GAIN);
-      return 0;
+      res = v4l2UpControl(videoIn, V4L2_CID_GAIN);
       break;
+
     case IN_CMD_GAIN_MINUS:
       DBG("gain - (%d)\n", v4l2GetControl (videoIn, V4L2_CID_GAIN));
-      v4l2DownControl(videoIn, V4L2_CID_GAIN);
-      return 0;
+      res = v4l2DownControl(videoIn, V4L2_CID_GAIN);
       break;
+
     default:
       DBG("nothing matched\n");
-      return -1;
+      res = -1;
   }
 
-  return -1;
+  pthread_mutex_unlock( &controls_mutex );
+  return res;
 }
 
 /*** private functions for this plugin below ***/

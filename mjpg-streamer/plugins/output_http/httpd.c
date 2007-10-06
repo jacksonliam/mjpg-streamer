@@ -10,8 +10,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#define DEBUG
-
 #include "httpd.h"
 #include "../../mjpg_streamer.h"
 #include "../../utils.h"
@@ -628,8 +626,6 @@ void *server_thread( void *arg ) {
 
     return NULL;
 }
-
-#undef DEBUG
 
 
 

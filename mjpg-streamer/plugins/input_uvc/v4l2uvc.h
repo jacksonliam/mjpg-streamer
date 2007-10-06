@@ -37,7 +37,11 @@
 #define NB_BUFFER 4
 #define DHT_SIZE 432
 
-
+#define ONE_DEGREE (64);
+#define MAX_PAN  (70*64)
+#define MIN_PAN  (-70*64)
+#define MAX_TILT (30*64)
+#define MIN_TILT (-30*64)
 
 struct vdIn {
     int fd;
@@ -91,6 +95,10 @@ int v4l2UpControl(struct vdIn *vd, int control);
 int v4l2DownControl(struct vdIn *vd, int control);
 int v4l2ToggleControl(struct vdIn *vd, int control);
 int v4l2ResetControl(struct vdIn *vd, int control);
+
+int uvcPanTilt(struct vdIn *vd, int pan, int tilt, int reset);
+
+#if 0
 int v4l2ResetPanTilt(struct vdIn *vd,int pantilt);
 int v4L2UpDownPan(struct vdIn *vd, short inc);
 int v4L2UpDownTilt(struct vdIn *vd,short inc);
@@ -99,3 +107,4 @@ int v4l2SetLightFrequencyFilter(struct vdIn *vd,int flt);
 int enum_frame_intervals(int dev, __u32 pixfmt, __u32 width, __u32 height);
 int enum_frame_sizes(int dev, __u32 pixfmt);
 int enum_frame_formats(int dev);
+#endif

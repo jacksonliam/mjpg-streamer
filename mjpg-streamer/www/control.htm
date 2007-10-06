@@ -16,23 +16,31 @@
 </head>
 <body>
 
-  <form name="command_panel" action="" onsubmit="return false;">
-      <input type="button" class="button" value="reset" onclick="send_command('reset')">
+    <form name="command_panel" action="" onsubmit="return false;" style="background-color: navy; position: absolute; top: 30px; width: 300px; height: 200px; padding: 10px">
+      <input type="button" value="reset" onclick="send_command('reset')">
     <br />
-      <input type="button" class="button" value="saturation +" onclick="send_command('saturation_plus')">
-      <input type="button" class="button" value="saturation -" onclick="send_command('saturation_minus')">
+      <input type="button" value="reset_pan_tilt" onclick="send_command('reset_pan_tilt')">
     <br />
-      <input type="button" class="button" value="contrast +" onclick="send_command('contrast_plus')">
-      <input type="button" class="button" value="contrast -" onclick="send_command('contrast_minus')">
+      <input type="button" value="saturation +" onclick="send_command('saturation_plus')">
+      <input type="button" value="saturation -" onclick="send_command('saturation_minus')">
     <br />
-      <input type="button" class="button" value="brightness +" onclick="send_command('brightness_plus')">
-      <input type="button" class="button" value="brightness -" onclick="send_command('brightness_minus')">
+      <input type="button" value="contrast +" onclick="send_command('contrast_plus')">
+      <input type="button" value="contrast -" onclick="send_command('contrast_minus')">
     <br />
-      <input type="button" class="button" value="gain +" onclick="send_command('gain_plus')">
-      <input type="button" class="button" value="gain -" onclick="send_command('gain_minus')">
+      <input type="button" value="brightness +" onclick="send_command('brightness_plus')">
+      <input type="button" value="brightness -" onclick="send_command('brightness_minus')">
+    <br />
+      <input type="button" value="gain +" onclick="send_command('gain_plus')">
+      <input type="button" value="gain -" onclick="send_command('gain_minus')">
+    <br />
+      <input type="button" value="pan +" onclick="send_command('pan_plus')">
+      <input type="button" value="pan -" onclick="send_command('pan_minus')">
+    <br />
+      <input type="button" value="tilt +" onclick="send_command('tilt_plus')">
+      <input type="button" value="tilt -" onclick="send_command('tilt_minus')">
   </form>
 
-  <div id="hints" style="background-color: green; position: absolute; top: 150px">Hints</div>
+  <div id="hints" style="background-color: yellow; position: absolute; top: 2px">Hints</div>
 
 </body>
 </html>

@@ -32,10 +32,11 @@ static const struct {
 } in_cmd_mapping[] = {
   { "hello_input", IN_CMD_HELLO },
   { "reset", IN_CMD_RESET },
+  { "reset_pan_tilt", IN_CMD_RESET_PAN_TILT },
   { "pan_plus", IN_CMD_PAN_PLUS },
   { "pan_minus", IN_CMD_PAN_MINUS },
   { "tilt_plus", IN_CMD_TILT_PLUS },
-  { "tile_minus", IN_CMD_TILT_MINUS },
+  { "tilt_minus", IN_CMD_TILT_MINUS },
   { "saturation_plus", IN_CMD_SATURATION_PLUS },
   { "saturation_minus", IN_CMD_SATURATION_MINUS },
   { "contrast_plus", IN_CMD_CONTRAST_PLUS },
