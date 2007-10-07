@@ -1,34 +1,30 @@
-"uvc_stream" is a command line application to stream JPEG files over an
-IP-based network from the webcam to a viewer like Firefox, Cambozola, 
-Videolanclient or even to a Windows Mobile device running the TCPMP-Player.
+"MJPG-streamer", is a command line application to stream JPEG files over an IP-based network from the webcam to a viewer like Firefox, Cambozola, Videolanclient or even to a Windows Mobile device running the TCPMP-Player.
 
-It was written for embedded devices with very limited ressources in terms of 
-RAM and CPU. The decision for Linux-UVC was done, because supported cameras
-directly produce JPEG-data, allowing fast and perfomant M-JPEG streams even
-from an embedded device running OpenWRT.
+It was written for embedded devices with very limited ressources in terms of RAM and CPU. Its origin, the "uvc_streamer" was written, because Linux-UVC compatible cameras directly produce JPEG-data, allowing fast and perfomant M-JPEG streams even from an embedded device running OpenWRT.
 
-For example a VGA resolution video stream with 5 frames per second produces
-about 2-15% CPU load of the 200MHz Mips processor of the Asus WL500gP router.
-Also RAM usage is quite low.
+For example a VGA resolution video stream with 5 frames per second produces about 2-15% CPU load of the 200MHz Mips processor of the Asus WL500gP router. Also RAM usage is quite low.
 
-I would suggest not to open this server to the internet. Use it as input to 
-the programm "motion" [http://motion.sf.net] running at your DMZ instead.
-Motion has many users and i expect it to be checked more often for security
-issues. Keep in mind, that motions advanced capabilties like
-motion-detection, writing of avifiles etc require more ressources. 
+I would suggest not to open this server to the internet. Use it as input to the programm "motion" (http://motion.sf.net) running at your DMZ instead. Motion has many users and i expect it to be checked more often for security issues. Keep in mind, that motions advanced capabilties like motion-detection, writing of avifiles etc require more ressources.
 
-In contrast to the better known SPCA5XX-LE, UVC-cameras in average produce
-better image quality (See Michel XHaards comparison table and rating at 
-his site) [http://mxhaard.free.fr/embedded.html].
+In contrast to the better known SPCA5XX-LE, UVC-cameras in average produce better image quality See Michel XHaards comparison table and rating at (http://mxhaard.free.fr/embedded.html)
 
-This programm was written in 2007 by Tom Stoeveken, basing on luvcview. 
-The luvcview sources were modified using the tool "indent" and afterwards
-SDL dependencies were removed to reduce dependencies to other packages.
+This programm was written in 2007 by Tom Stoeveken, basing on luvcview. The luvcview sources were modified using the tool "indent" and afterwards SDL dependencies were removed to reduce dependencies to other packages.
 
 This tool can be modified and distributed according to the terms of the GPL v2.
 
-Currently no issues are known, but since this software is quite young and not
-used widely it may cause problems. You must really know what you are doing, if
-you use this software. If you want to use the software you are obliged to check
-if the sourcecode does what you expect it to do and take the risk yourself to
-use it.
+Currently no issues are known, but since this software is quite young and not used widely it may cause problems. You must really know what you are doing, if you use this software. If you want to use the software you are obliged to check if the sourcecode does what you expect it to do and take the risk yourself to use it.
+
+To view the stream use VLC or Firefox and open the URL:
+http://127.0.0.1:8080/?action=stream
+
+To view a single JPEG just call:
+http://127.0.0.1:8080/?action=snapshot
+
+To compile and start the tool:
+# tar xzvf mjpg-streamer.tgz
+# cd mjpg-streamer
+# make clean all
+# export LD_LIBRARY_PATH=`pwd`
+# ./mjpg_streamer -o "output_http.so -w `pwd`/www"
+
+More examples can be found in the start.sh Bash script.

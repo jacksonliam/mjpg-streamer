@@ -1,6 +1,16 @@
 VERSION 2.0:
-- uvc_streamer becomes more modular. All UVC dependend parts were moved to the
-  input module "input_uvc". This leads to the new program name "mjpg-streamer".
+- uvc_streamer is more modular. All UVC dependend parts were moved to the
+  input module "input_uvc". The name uvc-streamer becomes false now if more
+  then just on input plugin is available. So the name was changed to
+  MJPG-streamer.
+- The output-plugin "output_http.so" can serve webpages now.
+- Motor control was implemented in the single server available.
+- Contrast, Saturation and Brightness can be changed via AJAX interface.
+- A new output-plugin "output_file.so" can save pictures to a certain folder.
+  It can also execute a command after saving a picture. If parameters are
+  needed, write a shell script that executes your complex command.
+- The project is hosted at sourceforge now.
+- Example webpages are provided in the subfolder "www"
 
 VERSION 1.3:
 - moved the input thread and output thread into separate files

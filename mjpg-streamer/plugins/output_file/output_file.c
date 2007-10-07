@@ -1,3 +1,24 @@
+/*******************************************************************************
+#                                                                              #
+#      MJPG-streamer allows to stream JPG frames from an input-plugin          #
+#      to several output plugins                                               #
+#                                                                              #
+#      Copyright (C) 2007 Tom Stöveken                                         #
+#                                                                              #
+# This program is free software; you can redistribute it and/or modify         #
+# it under the terms of the GNU General Public License as published by         #
+# the Free Software Foundation; version 2 of the License.                      #
+#                                                                              #
+# This program is distributed in the hope that it will be useful,              #
+# but WITHOUT ANY WARRANTY; without even the implied warranty of               #
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                #
+# GNU General Public License for more details.                                 #
+#                                                                              #
+# You should have received a copy of the GNU General Public License            #
+# along with this program; if not, write to the Free Software                  #
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA    #
+#                                                                              #
+*******************************************************************************/
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -39,10 +60,10 @@ void help(void) {
                   " Help for output plugin..: "OUTPUT_PLUGIN_NAME"\n" \
                   " ---------------------------------------------------------------\n" \
                   " The following parameters can be passed to this plugin:\n\n" \
-                  " [-f | --folder ]........: folder to save pictures to without \"/\" at end\n" \
+                  " [-f | --folder ]........: folder to save pictures\n" \
                   " [-d | --delay ].........: delay after saving pictures in ms\n" \
                   " [-b | --bytes ].........: save only on change in picture-size\n" \
-                  " [-c | --command ].......: execute command after svaing picture\n\n" \
+                  " [-c | --command ].......: execute command after saveing picture\n\n" \
                   " ---------------------------------------------------------------\n");
 }
 
@@ -245,7 +266,10 @@ int output_init(output_parameter *param) {
       case 2:
       case 3:
         DBG("case 2,3\n");
-        folder = strdup(optarg);
+        folder = malloc(strlen(optarg)+1);
+        strcpy(folder, optarg);
+        if ( folder[strlen(folder)-1] == '/' )
+          folder[strlen(folder)-1] = '\0';
         break;
 
       /* d, delay */
@@ -276,7 +300,7 @@ int output_init(output_parameter *param) {
   OPRINT("output folder.....: %s\n", folder);
   OPRINT("delay after save..: %d\n", delay);
   OPRINT("picture diff-bytes: %d\n", bytes);
-  OPRINT("command...........: %s\n", command);
+  OPRINT("command...........: %s\n", (command==NULL)?"disabled":command);
   return 0;
 }
 

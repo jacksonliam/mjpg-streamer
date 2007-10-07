@@ -1,8 +1,10 @@
 /*******************************************************************************
-# UVC streamer: Linuc-UVC streaming application                                #
+# Linux-UVC streaming input-plugin for MJPG-streamer                           #
+#                                                                              #
 # This package work with the Logitech UVC based webcams with the mjpeg feature #
 #                                                                              #
 # Copyright (C) 2005 2006 Laurent Pinchart &&  Michel Xhaard                   #
+#                    2007 Lucas van Staden                                     #
 #                    2007 Tom Stöveken                                         #
 #                                                                              #
 # This program is free software; you can redistribute it and/or modify         #
@@ -22,12 +24,9 @@
 *******************************************************************************/
 
 #include <stdlib.h>
-
 #include "v4l2uvc.h"
-//#include "utils.h"
 
 static int debug = 0;
-
 static int init_v4l2(struct vdIn *vd);
 
 int init_videoIn(struct vdIn *vd, char *device, int width, int height, int fps, int format, int grabmethod)

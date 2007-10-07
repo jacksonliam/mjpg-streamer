@@ -1,3 +1,28 @@
+/*******************************************************************************
+# Linux-UVC streaming input-plugin for MJPG-streamer                           #
+#                                                                              #
+# This package work with the Logitech UVC based webcams with the mjpeg feature #
+#                                                                              #
+# Copyright (C) 2005 2006 Laurent Pinchart &&  Michel Xhaard                   #
+#                    2007 Lucas van Staden                                     #
+#                    2007 Tom Stöveken                                         #
+#                                                                              #
+# This program is free software; you can redistribute it and/or modify         #
+# it under the terms of the GNU General Public License as published by         #
+# the Free Software Foundation; either version 2 of the License, or            #
+# (at your option) any later version.                                          #
+#                                                                              #
+# This program is distributed in the hope that it will be useful,              #
+# but WITHOUT ANY WARRANTY; without even the implied warranty of               #
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                #
+# GNU General Public License for more details.                                 #
+#                                                                              #
+# You should have received a copy of the GNU General Public License            #
+# along with this program; if not, write to the Free Software                  #
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA    #
+#                                                                              #
+*******************************************************************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -33,6 +58,11 @@ void cam_cleanup(void *);
 void help(void);
 
 /*** plugin interface functions ***/
+/******************************************************************************
+Description.: 
+Input Value.: 
+Return Value: 
+******************************************************************************/
 int input_init(input_parameter *param) {
   char *argv[MAX_ARGUMENTS]={NULL}, *dev = "/dev/video0";
   int argc=1, width=640, height=480, fps=5, i;
@@ -68,7 +98,7 @@ int input_init(input_parameter *param) {
 
   /* show all parameters for DBG purposes */
   for (i=0; i<argc; i++) {
-      DBG("argv[%d]=%s\n", i, argv[i]);
+    DBG("argv[%d]=%s\n", i, argv[i]);
   }
 
   reset_getopt();
@@ -118,6 +148,10 @@ int input_init(input_parameter *param) {
       case 4:
       case 5:
         DBG("case 4,5\n");
+        /*
+         * interesting resolutions, others are mentioned at:
+         * http://www.quickcamteam.net/hcl/frame-format-matrix/
+         */
         if ( strcmp("960x720", optarg) == 0 ) { width=960; height=720; }
         else if ( strcmp("640x480", optarg) == 0 ) { width=640; height=480; }
         else if ( strcmp("320x240", optarg) == 0 ) { width=320; height=240; }
@@ -142,7 +176,7 @@ int input_init(input_parameter *param) {
   global = param->global;
 
   /* allocate webcam datastructure */
-  videoIn = (struct vdIn *) calloc(1, sizeof(struct vdIn));
+  videoIn = malloc(sizeof(struct vdIn));
 
   IPRINT("Using V4L2 device.: %s\n", dev);
   IPRINT("Resolution........: %i x %i\n", width, height);
@@ -157,6 +191,11 @@ int input_init(input_parameter *param) {
   return 0;
 }
 
+/******************************************************************************
+Description.: 
+Input Value.: 
+Return Value: 
+******************************************************************************/
 int input_stop(void) {
   DBG("will cancel input thread\n");
   pthread_cancel(cam);
@@ -164,11 +203,16 @@ int input_stop(void) {
   return 0;
 }
 
+/******************************************************************************
+Description.: 
+Input Value.: 
+Return Value: 
+******************************************************************************/
 int input_run(void) {
-  global->buf = (unsigned char *) calloc(1, (size_t)videoIn->framesizeIn);
+  global->buf = malloc(videoIn->framesizeIn);
   if (global->buf == NULL) {
     fprintf(stderr, "could not allocate memory\n");
-    exit(1);
+    exit(EXIT_FAILURE);
   }
 
   pthread_create(&cam, 0, cam_thread, NULL);
@@ -177,6 +221,11 @@ int input_run(void) {
   return 0;
 }
 
+/******************************************************************************
+Description.: 
+Input Value.: 
+Return Value: 
+******************************************************************************/
 int input_cmd(in_cmd_type cmd) {
   int res=0;
   static int pan=0;
@@ -313,6 +362,11 @@ int input_cmd(in_cmd_type cmd) {
 }
 
 /*** private functions for this plugin below ***/
+/******************************************************************************
+Description.: 
+Input Value.: 
+Return Value: 
+******************************************************************************/
 void help(void) {
     fprintf(stderr, " ---------------------------------------------------------------\n" \
                     " Help for input plugin..: "INPUT_PLUGIN_NAME"\n" \
@@ -324,6 +378,11 @@ void help(void) {
                     " ---------------------------------------------------------------\n");
 }
 
+/******************************************************************************
+Description.: 
+Input Value.: 
+Return Value: 
+******************************************************************************/
 int is_huffman(unsigned char *buf)
 {
     unsigned char *ptbuf;
@@ -340,6 +399,11 @@ int is_huffman(unsigned char *buf)
 }
 
 #if 0
+/******************************************************************************
+Description.: 
+Input Value.: 
+Return Value: 
+******************************************************************************/
 int print_picture(int fd, unsigned char *buf, int size)
 {
     unsigned char *ptdeb, *ptcur = buf;
@@ -360,6 +424,11 @@ int print_picture(int fd, unsigned char *buf, int size)
 }
 #endif
 
+/******************************************************************************
+Description.: 
+Input Value.: 
+Return Value: 
+******************************************************************************/
 int memcpy_picture(unsigned char *out, unsigned char *buf, int size)
 {
     unsigned char *ptdeb, *ptcur = buf;
@@ -380,13 +449,17 @@ int memcpy_picture(unsigned char *out, unsigned char *buf, int size)
     return pos;
 }
 
+/******************************************************************************
+Description.: 
+Input Value.: 
+Return Value: 
+******************************************************************************/
 /* the single writer thread */
 void *cam_thread( void *arg ) {
   /* set cleanup handler to cleanup allocated ressources */
   pthread_cleanup_push(cam_cleanup, NULL);
 
   while( !global->stop ) {
-    /* DBG("grabbing frame\n"); */
 
     /* grab a frame */
     if( uvcGrab(videoIn) < 0 ) {
@@ -422,6 +495,11 @@ void *cam_thread( void *arg ) {
   return NULL;
 }
 
+/******************************************************************************
+Description.: 
+Input Value.: 
+Return Value: 
+******************************************************************************/
 void cam_cleanup(void *arg) {
   static unsigned char first_run=1;
 

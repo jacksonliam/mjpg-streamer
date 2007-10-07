@@ -1,8 +1,10 @@
 /*******************************************************************************
-# UVC streamer: Linuc-UVC streaming application                                #
+# Linuc-UVC streaming input-plugin for MJPG-streamer                           #
+#                                                                              #
 # This package work with the Logitech UVC based webcams with the mjpeg feature #
 #                                                                              #
 # Copyright (C) 2005 2006 Laurent Pinchart &&  Michel Xhaard                   #
+#                    2007 Lucas van Staden                                     #
 #                    2007 Tom Stöveken                                         #
 #                                                                              #
 # This program is free software; you can redistribute it and/or modify         #
@@ -33,9 +35,7 @@
 
 #include "uvcvideo.h"
 
-
 #define NB_BUFFER 4
-#define DHT_SIZE 432
 
 #define ONE_DEGREE (64);
 #define MAX_PAN  (70*64)

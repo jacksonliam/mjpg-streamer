@@ -1,9 +1,9 @@
 /*******************************************************************************
 #                                                                              #
-# This package work with the Logitech UVC based webcams with the mjpeg feature.#
+#      MJPG-streamer allows to stream JPG frames from an input-plugin          #
+#      to several output plugins                                               #
 #                                                                              #
-#     Copyright (C) 2005 2006 Laurent Pinchart &&  Michel Xhaard               #
-#     Copyright (C) 2007      Tom Stöveken                                     #
+#      Copyright (C) 2007 Tom Stöveken                                         #
 #                                                                              #
 # This program is free software; you can redistribute it and/or modify         #
 # it under the terms of the GNU General Public License as published by         #

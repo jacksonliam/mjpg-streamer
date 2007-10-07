@@ -1,3 +1,25 @@
+/*******************************************************************************
+#                                                                              #
+#      MJPG-streamer allows to stream JPG frames from an input-plugin          #
+#      to several output plugins                                               #
+#                                                                              #
+#      Copyright (C) 2007 busybox-project (base64 function)                    #
+#      Copyright (C) 2007 Tom Stöveken                                         #
+#                                                                              #
+# This program is free software; you can redistribute it and/or modify         #
+# it under the terms of the GNU General Public License as published by         #
+# the Free Software Foundation; version 2 of the License.                      #
+#                                                                              #
+# This program is distributed in the hope that it will be useful,              #
+# but WITHOUT ANY WARRANTY; without even the implied warranty of               #
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                #
+# GNU General Public License for more details.                                 #
+#                                                                              #
+# You should have received a copy of the GNU General Public License            #
+# along with this program; if not, write to the Free Software                  #
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA    #
+#                                                                              #
+*******************************************************************************/
 #include <string.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -21,9 +43,9 @@ int  sd, port;
 char *credentials, *www_folder;
 
 /******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
+Description.: initializes the iobuffer structure properly
+Input Value.: pointer to already allocated iobuffer
+Return Value: iobuf
 ******************************************************************************/
 void init_iobuffer(iobuffer *iobuf) {
   memset(iobuf->buffer, 0, sizeof(iobuf->buffer));
@@ -31,9 +53,9 @@ void init_iobuffer(iobuffer *iobuf) {
 }
 
 /******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
+Description.: initializes the request structure properly
+Input Value.: pointer to already allocated req
+Return Value: req
 ******************************************************************************/
 void init_request(request *req) {
   req->type        = A_UNKNOWN;
@@ -43,9 +65,10 @@ void init_request(request *req) {
 }
 
 /******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
+Description.: If strings were assigned to the different members free them
+              This will fail if strings are static, so always use strdup().
+Input Value.: req: pointer to request structure
+Return Value: -
 ******************************************************************************/
 void free_request(request *req) {
   if ( req->parameter != NULL ) free(req->parameter);
@@ -53,13 +76,22 @@ void free_request(request *req) {
   if ( req->credentials != NULL ) free(req->credentials);
 }
 
-/* setsockopt(n, SOL_SOCKET, SO_KEEPALIVE, &const_int_1, sizeof(const_int_1)); */
 /******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
+Description.: read with timeout, implemented without using signals
+              tries to read len bytes and returns if enough bytes were read
+              or the timeout was triggered. In case of timeout the return
+              value may differ from the requested bytes "len".
+Input Value.: * fd.....: fildescriptor to read from
+              * iobuf..: iobuffer that allows to use this functions from multiple
+                         threads because the complete context is the iobuffer.
+              * buffer.: The buffer to store values at, will be set to zero
+                         before storing values.
+              * len....: the length of buffer
+              * timeout: seconds to wait for an answer
+Return Value: * buffer.: will become filled with bytes read
+              * iobuf..: May get altered to save the context for future calls.
+              * func().: bytes copied to buffer or -1 in case of error
 ******************************************************************************/
-/* read with timeout, implemented without using signals */
 int _read(int fd, iobuffer *iobuf, void *buffer, size_t len, int timeout) {
   int copied=0, rc, i;
   fd_set fds;
@@ -105,9 +137,20 @@ int _read(int fd, iobuffer *iobuf, void *buffer, size_t len, int timeout) {
 }
 
 /******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
+Description.: Read a single line from the provided fildescriptor.
+              This funtion will return under two conditions:
+              * line end was reached
+              * timeout occured
+Input Value.: * fd.....: fildescriptor to read from
+              * iobuf..: iobuffer that allows to use this functions from multiple
+                         threads because the complete context is the iobuffer.
+              * buffer.: The buffer to store values at, will be set to zero
+                         before storing values.
+              * len....: the length of buffer
+              * timeout: seconds to wait for an answer
+Return Value: * buffer.: will become filled with bytes read
+              * iobuf..: May get altered to save the context for future calls.
+              * func().: bytes copied to buffer or -1 in case of error
 ******************************************************************************/
 /* read just a single line or timeout */
 int _readline(int fd, iobuffer *iobuf, void *buffer, size_t len, int timeout) {
@@ -128,9 +171,12 @@ int _readline(int fd, iobuffer *iobuf, void *buffer, size_t len, int timeout) {
 }
 
 /******************************************************************************
-Description.: (taken from busybox)
-Input Value.: 
-Return Value: 
+Description.: Decodes the data and stores the result to the same buffer.
+              The buffer will be large enough, because base64 requires more
+              space then plain text.
+Hints.......: taken from busybox, but it is GPL code
+Input Value.: base64 encoded data
+Return Value: plain decoded data
 ******************************************************************************/
 void decodeBase64(char *data) {
   const unsigned char *in = (const unsigned char *)data;
@@ -169,9 +215,9 @@ void decodeBase64(char *data) {
 }
 
 /******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
+Description.: Send a complete HTTP response and a single JPG-frame.
+Input Value.: fildescriptor fd to send the answer to
+Return Value: -
 ******************************************************************************/
 void send_snapshot(int fd) {
   unsigned char *frame=NULL;
@@ -181,17 +227,6 @@ void send_snapshot(int fd) {
   if ( (frame = (unsigned char *)malloc(MAX_FRAME_SIZE)) == NULL ) {
     fprintf(stderr, "not enough memory\n");
     exit(EXIT_FAILURE);
-  }
-
-  sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
-                  "Connection: close\r\n" \
-                  "Server: MJPG-Streamer\r\n" \
-                  "Content-type: image/jpeg\r\n" \
-                  "\r\n");
-
-  if ( write(fd, buffer, strlen(buffer)) < 0 ) {
-    free(frame);
-    return; 
   }
 
   /* wait for a fresh frame */
@@ -204,13 +239,27 @@ void send_snapshot(int fd) {
 
   pthread_mutex_unlock( &global->db );
 
+  /* write the response */
+  sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
+                  "Connection: close\r\n" \
+                  "Server: MJPG-Streamer\r\n" \
+                  "Content-type: image/jpeg\r\n" \
+                  "\r\n");
+
+  /* send header and image now */
+  if( write(fd, buffer, strlen(buffer)) < 0 ) {
+    free(frame);
+    return;
+  }
   write(fd, frame, frame_size);
+
+  free(frame);
 }
 
 /******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
+Description.: Send a complete HTTP response and a stream of JPG-frames.
+Input Value.: fildescriptor fd to send the answer to
+Return Value: -
 ******************************************************************************/
 void send_stream(int fd) {
   unsigned char *frame=NULL;
@@ -258,9 +307,11 @@ void send_stream(int fd) {
 }
 
 /******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
+Description.: Send error messages and headers.
+Input Value.: * fd.....: is the filedescriptor to send the message to
+              * which..: HTTP error code, most popular is 404
+              * message: append this string to the displayed response
+Return Value: -
 ******************************************************************************/
 void send_error(int fd, int which, char *message) {
   char buffer[256] = {0};
@@ -296,15 +347,20 @@ void send_error(int fd, int which, char *message) {
 }
 
 /******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
+Description.: Send HTTP header and copy the content of a file. To keep things
+              simple, just a single folder gets searched for the file. Just
+              files with known extension and supported mimetype get served.
+              If no parameter was given, the file "index.html" will be copied.
+Input Value.: * fd.......: filedescriptor to send data to
+              * parameter: string that consists of the filename
+Return Value: -
 ******************************************************************************/
 void send_file(int fd, char *parameter) {
   char buffer[256] = {0};
   char *extension, *mimetype=NULL;
   int i, lfd;
 
+  /* in case no parameter was given */
   if ( parameter == NULL || strlen(parameter) == 0 )
     parameter = "index.html";
 
@@ -321,15 +377,21 @@ void send_file(int fd, char *parameter) {
       break;
     }
   }
+
+  /* in case of unknown mimetype or extension leave */
   if ( mimetype == NULL ) {
     send_error(fd, 404, "MIME-TYPE not known");
     return;
   }
 
+  /* now filename, mimetype and extension are known */
   DBG("trying to serve file \"%s\", extension: \"%s\" mime: \"%s\"\n", parameter, extension, mimetype);
 
+  /* build the absolute path to the file */
   strncat(buffer, www_folder, sizeof(buffer)-1);
   strncat(buffer, parameter, sizeof(buffer)-strlen(buffer)-1);
+
+  /* try to open that file */
   if ( (lfd = open(buffer, O_RDONLY)) < 0 ) {
     DBG("file %s not accessible\n", buffer);
     send_error(fd, 404, "Could not open file");
@@ -337,6 +399,7 @@ void send_file(int fd, char *parameter) {
   }
   DBG("opened file: %s\n", buffer);
 
+  /* prepare HTTP header */
   sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
                   "Content-type: %s\r\n" \
                   "Connection: close\r\n" \
@@ -344,6 +407,7 @@ void send_file(int fd, char *parameter) {
                   "\r\n", mimetype);
   i = strlen(buffer);
 
+  /* first transmit HTTP-header, afterwards transmit content of file */
   do {
     if ( write(fd, buffer, i) < 0 ) {
       close(lfd);
@@ -351,18 +415,21 @@ void send_file(int fd, char *parameter) {
     }
   } while ( (i=read(lfd, buffer, sizeof(buffer))) > 0 );
 
+  /* close file, job done */
   close(lfd);
 }
 
 /******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
+Description.: Perform a command specified by parameter. Send response to fd.
+Input Value.: * fd.......: filedescriptor to send HTTP response to.
+              * parameter: specifies the command as string.
+Return Value: -
 ******************************************************************************/
 void command(int fd, char *parameter) {
   char buffer[256] = {0};
   int i, res=-100;
 
+  /* sanity check for parameter */
   if ( parameter == NULL || strlen(parameter) > 50 || strlen(parameter) == 0 ) {
     sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
                     "Content-type: text/plain\r\n" \
@@ -375,7 +442,12 @@ void command(int fd, char *parameter) {
     return;
   }
 
-  /* determine command, try the input command-mappings first */
+  /*
+   * determine command, try the input command-mappings first
+   * this is the interface to send commands to the input plugin.
+   * if the input-plugin does not implement the optional command
+   * function, a short error is reported to the HTTP-client.
+   */
   for ( i=0; i < LENGTH_OF(in_cmd_mapping); i++ ) {
     if ( strcmp(in_cmd_mapping[i].string, parameter) == 0 ) {
 
@@ -397,6 +469,7 @@ void command(int fd, char *parameter) {
     }
   }
 
+  /* Send HTTP-response, it will send the return value of res mapped to OK or ERROR */
   sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
                   "Content-type: text/plain\r\n" \
                   "Connection: close\r\n" \
@@ -408,23 +481,32 @@ void command(int fd, char *parameter) {
 }
 
 /******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
+Description.: Serve a connected TCP-client. This thread function is called
+              for each connect of a HTTP client like a webbrowser. It determines
+              if it is a valid HTTP request and dispatches between the different
+              response options.
+Input Value.: arg is the filedescriptor of the connected TCP socket. It must
+              have been allocated so it is freeable by this thread function.
+Return Value: always NULL
 ******************************************************************************/
 /* thread for clients that connected to this server */
 void *client_thread( void *arg ) {
   int fd = *((int *)arg), cnt;
-  char buffer[256], *pb=buffer;
+  char buffer[256]={0}, *pb=buffer;
   iobuffer iobuf;
   request req;
 
-  if (arg != NULL) free(arg); else exit(EXIT_FAILURE);
+  /* we really need the fildescriptor and it must be freeable by us */
+  if (arg != NULL)
+    free(arg);
+  else
+    return NULL;
 
+  /* initializes the structures */
   init_iobuffer(&iobuf);
   init_request(&req);
 
-  /* What does the client want to receive? */
+  /* What does the client want to receive? Read the request. */
   memset(buffer, 0, sizeof(buffer));
   cnt = _readline(fd, &iobuf, buffer, sizeof(buffer)-1, 5);
 
@@ -450,7 +532,7 @@ void *client_thread( void *arg ) {
     }
 
     /* req.parameter = strdup(strsep(&pb, " ")+strlen("command=")); */
-    /* i like more to validate against the character set using strspn() */
+    /* i prefer to validate against the character set using strspn() */
     pb += strlen("command=");
     len = strspn(pb, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_1234567890");
     req.parameter = malloc(len+1);
@@ -481,7 +563,10 @@ void *client_thread( void *arg ) {
     DBG("parameter (len: %d): \"%s\"\n", len, req.parameter);
   }
 
-  /* parse the rest of the request */
+  /*
+   * parse the rest of the HTTP-request
+   * the end of the request-header is a single, empty line with "\r\n"
+   */
   do {
     memset(buffer, 0, sizeof(buffer));
     cnt = _readline(fd, &iobuf, buffer, sizeof(buffer)-1, 5);
@@ -542,89 +627,94 @@ void *client_thread( void *arg ) {
 }
 
 /******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
+Description.: This function cleans up ressources allocated by the server_thread
+Input Value.: arg is not used
+Return Value: -
 ******************************************************************************/
 void server_cleanup(void *arg) {
-    static unsigned char first_run=1;
+  static unsigned char first_run=1;
 
-    if ( !first_run ) {
-        DBG("already cleaned up ressources\n");
-        return;
-    }
+  if ( !first_run ) {
+    DBG("already cleaned up ressources\n");
+    return;
+  }
 
-    first_run = 0;
-    DBG("cleaning up ressources allocated by server thread\n");
+  first_run = 0;
+  DBG("cleaning up ressources allocated by server thread\n");
 
-    close(sd);
+  close(sd);
 }
 
 /******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
+Description.: Open a TCP socket and wait for clients to connect. If clients
+              connect, start a new thread for each accepted connection.
+Input Value.: arg is not used
+Return Value: always NULL, will only return on exit
 ******************************************************************************/
 void *server_thread( void *arg ) {
-    struct sockaddr_in addr;
-    int on;
-    pthread_t client;
+  struct sockaddr_in addr;
+  int on;
+  pthread_t client;
 
-    /* set cleanup handler to cleanup allocated ressources */
-    pthread_cleanup_push(server_cleanup, NULL);
+  /* set cleanup handler to cleanup ressources */
+  pthread_cleanup_push(server_cleanup, NULL);
 
-    /* open socket for server */
-    sd = socket(PF_INET, SOCK_STREAM, 0);
-    if ( sd < 0 ) {
-        fprintf(stderr, "socket failed\n");
-        exit(1);
+  /* open socket for server */
+  sd = socket(PF_INET, SOCK_STREAM, 0);
+  if ( sd < 0 ) {
+    fprintf(stderr, "socket failed\n");
+    exit(EXIT_FAILURE);
+  }
+
+  /* ignore "socket already in use" errors */
+  on = 1;
+  if (setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
+    perror("setsockopt(SO_REUSEADDR) failed");
+    exit(EXIT_FAILURE);
+  }
+
+  /* perhaps we will use this keep-alive feature oneday */
+  /* setsockopt(sd, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on)); */
+
+  /* configure server address to listen to all local IPs */
+  memset(&addr, 0, sizeof(addr));
+  addr.sin_family = AF_INET;
+  addr.sin_port = port; /* is already in right byteorder */
+  addr.sin_addr.s_addr = htonl(INADDR_ANY);
+  if ( bind(sd, (struct sockaddr*)&addr, sizeof(addr)) != 0 ) {
+    fprintf(stderr, "bind(%d) failed\n", htons(port));
+    perror("bind: ");
+    exit(EXIT_FAILURE);
+  }
+
+  /* start listening on socket */
+  if ( listen(sd, 10) != 0 ) {
+    fprintf(stderr, "listen failed\n");
+    exit(EXIT_FAILURE);
+  }
+
+  /* create a child for every client that connects */
+  while ( !global->stop ) {
+    int *pfd = (int *)malloc(sizeof(int));
+
+    if (pfd == NULL) {
+      fprintf(stderr, "failed to allocate (a very small amount of) memory\n");
+      exit(EXIT_FAILURE);
     }
 
-    /* ignore "socket already in use" errors */
-    on = 1;
-    if (setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
-        perror("setsockopt(SO_REUSEADDR) failed");
-        exit(1);
-    }
+    DBG("waiting for clients to connect\n");
+    *pfd = accept(sd, 0, 0);
 
-    /* configure server address to listen to all local IPs */
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_port = port;
-    addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    if ( bind(sd, (struct sockaddr*)&addr, sizeof(addr)) != 0 ) {
-        fprintf(stderr, "bind(%d) failed\n", htons(port));
-        perror("bind: ");
-        exit(1);
-    }
+    /* start new thread that will handle this TCP connected client */
+    DBG("create thread to handle client that just established a connection\n");
+    pthread_create(&client, NULL, &client_thread, pfd);
+    pthread_detach(client);
+  }
 
-    /* start listening on socket */
-    if ( listen(sd, 10) != 0 ) {
-        fprintf(stderr, "listen failed\n");
-        exit(1);
-    }
+  DBG("leaving server thread, calling cleanup function now\n");
+  pthread_cleanup_pop(1);
 
-    /* create a child for every client that connects */
-    while ( !global->stop ) {
-        int *pfd = (int *)malloc(sizeof(int));
-
-        if (pfd == NULL) {
-            fprintf(stderr, "failed to allocate (a very small amount of) memory\n");
-            exit(1);
-        }
-
-        DBG("waiting for clients to connect\n");
-        *pfd = accept(sd, 0, 0);
-        DBG("create thread to handle client that just established a connection\n");
-
-        pthread_create(&client, NULL, &client_thread, pfd);
-        pthread_detach(client);
-    }
-
-    DBG("leaving server thread, calling cleanup function now\n");
-    pthread_cleanup_pop(1);
-
-    return NULL;
+  return NULL;
 }
 
 
