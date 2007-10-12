@@ -43,12 +43,12 @@
 #define OUTPUT_PLUGIN_NAME "FILE output plugin"
 #define MAX_ARGUMENTS 32
 
-pthread_t   worker;
-globals     *global;
-int         fd, delay, bytes;
-char        *folder = "/tmp";
-unsigned char *frame=NULL;
-char        *command = NULL;
+static pthread_t worker;
+static globals *pglobal;
+static int fd, delay, bytes;
+static char *folder = "/tmp";
+static unsigned char *frame=NULL;
+static char *command = NULL;
 
 /******************************************************************************
 Description.: 
@@ -107,15 +107,15 @@ void *worker_thread( void *arg ) {
   /* set cleanup handler to cleanup allocated ressources */
   pthread_cleanup_push(worker_cleanup, NULL);
 
-  while ( ok >= 0 && !global->stop ) {
+  while ( ok >= 0 && !pglobal->stop ) {
     DBG("waiting for fresh frame\n");
-    pthread_cond_wait(&global->db_update, &global->db);
+    pthread_cond_wait(&pglobal->db_update, &pglobal->db);
 
     /* read buffer */
-    frame_size = global->size;
-    memcpy(frame, global->buf, frame_size);
+    frame_size = pglobal->size;
+    memcpy(frame, pglobal->buf, frame_size);
 
-    pthread_mutex_unlock( &global->db );
+    pthread_mutex_unlock( &pglobal->db );
 
     /*
        if previous picture and current picture differ more than "--bytes" bytes
@@ -295,7 +295,7 @@ int output_init(output_parameter *param) {
     }
   }
 
-  global = param->global;
+  pglobal = param->global;
 
   OPRINT("output folder.....: %s\n", folder);
   OPRINT("delay after save..: %d\n", delay);

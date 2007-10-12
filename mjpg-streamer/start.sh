@@ -24,15 +24,18 @@
 
 ## This example shows how to invoke mjpg-streamer from the command line
 
+export LD_LIBRARY_PATH=.
+./mjpg_streamer -o "output_http.so -w ./www"
+
 ## pwd echos the current path you are working at,
 ## the backticks open a subshell to execute the command pwd first
 ## the exported variable name configures ldopen() to search a certain
 ## folder for *.so modules
-export LD_LIBRARY_PATH=`pwd`
+#export LD_LIBRARY_PATH=`pwd`
 
 ## this is the minimum command line to start mjpg-streamer with webpages
 ## for the input-plugin default parameters are used
-./mjpg_streamer -o "output_http.so -w `pwd`/www"
+#./mjpg_streamer -o "output_http.so -w `pwd`/www"
 
 ## to query help for the core:
 # ./mjpg_streamer --help
