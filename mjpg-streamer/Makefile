@@ -10,8 +10,8 @@
 CC=gcc
 APP_BINARY=mjpg_streamer
 
-CFLAGS += -O2 -DLINUX -D_GNU_SOURCE -Wall
-#CFLAGS += -O2 -DDEBUG -DLINUX -D_GNU_SOURCE -Wall
+#CFLAGS += -O2 -DLINUX -D_GNU_SOURCE -Wall
+CFLAGS += -O2 -DDEBUG -DLINUX -D_GNU_SOURCE -Wall
 LFLAGS += -lpthread -ldl
 
 OBJECTS=mjpg_streamer.o utils.o

@@ -42,8 +42,8 @@
 #define OUTPUT_PLUGIN_NAME "HTTP output plugin"
 #define MAX_ARGUMENTS 32
 
-pthread_t   server;
-globals     *global;
+static pthread_t   server;
+static globals     *pglobal;
 
 extern int  port;
 extern char *credentials, *www_folder;
@@ -170,7 +170,7 @@ int output_init(output_parameter *param) {
     }
   }
 
-  global = param->global;
+  pglobal = param->global;
 
   OPRINT("www-folder-path...: %s\n", (www_folder==NULL)?"disabled":www_folder);
   OPRINT("HTTP TCP port.....: %d\n", ntohs(port));
@@ -197,7 +197,7 @@ Return Value:
 ******************************************************************************/
 int output_run(void) {
   DBG("launching server thread\n");
-  pthread_create(&server, 0, server_thread, NULL);
+  pthread_create(&server, 0, server_thread, pglobal);
   pthread_detach(server);
   return 0;
 }

@@ -41,7 +41,7 @@
 #include "mjpg_streamer.h"
 
 /* globals */
-globals global;
+static globals global;
 
 /******************************************************************************
 Description.: 
@@ -266,6 +266,7 @@ int main(int argc, char *argv[])
 
   global.in.param.parameter_string = strchr(input, ' ');
   global.in.param.global = &global;
+
   if ( global.in.init(&global.in.param) ) {
     DBG("input_init() return value signals to exit\n");
     exit(0);

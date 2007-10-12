@@ -51,7 +51,7 @@
 pthread_t   cam;
 pthread_mutex_t controls_mutex;
 struct vdIn *videoIn;
-globals     *global;
+static globals *pglobal;
 
 void *cam_thread( void *);
 void cam_cleanup(void *);
@@ -173,7 +173,7 @@ int input_init(input_parameter *param) {
     }
   }
 
-  global = param->global;
+  pglobal = param->global;
 
   /* allocate webcam datastructure */
   videoIn = malloc(sizeof(struct vdIn));
@@ -209,8 +209,8 @@ Input Value.:
 Return Value: 
 ******************************************************************************/
 int input_run(void) {
-  global->buf = malloc(videoIn->framesizeIn);
-  if (global->buf == NULL) {
+  pglobal->buf = malloc(videoIn->framesizeIn);
+  if (pglobal->buf == NULL) {
     fprintf(stderr, "could not allocate memory\n");
     exit(EXIT_FAILURE);
   }
@@ -459,7 +459,7 @@ void *cam_thread( void *arg ) {
   /* set cleanup handler to cleanup allocated ressources */
   pthread_cleanup_push(cam_cleanup, NULL);
 
-  while( !global->stop ) {
+  while( !pglobal->stop ) {
 
     /* grab a frame */
     if( uvcGrab(videoIn) < 0 ) {
@@ -468,8 +468,8 @@ void *cam_thread( void *arg ) {
     }
 
     /* copy JPG picture to global buffer */
-    pthread_mutex_lock( &global->db );
-    global->size = memcpy_picture(global->buf, videoIn->tmpbuffer, videoIn->buf.bytesused);
+    pthread_mutex_lock( &pglobal->db );
+    pglobal->size = memcpy_picture(pglobal->buf, videoIn->tmpbuffer, videoIn->buf.bytesused);
 
 #if 0
     /* motion detection can be done just by comparing the picture size, but it is not very accurate!! */
@@ -480,8 +480,8 @@ void *cam_thread( void *arg ) {
 #endif
 
     /* signal fresh_frame */
-    pthread_cond_broadcast(&global->db_update);
-    pthread_mutex_unlock( &global->db );
+    pthread_cond_broadcast(&pglobal->db_update);
+    pthread_mutex_unlock( &pglobal->db );
 
     /* only use usleep if the fps is below 5, otherwise the overhead is too long */
     if ( videoIn->fps < 5 ) {
@@ -514,7 +514,7 @@ void cam_cleanup(void *arg) {
   close_v4l2(videoIn);
   if (videoIn->tmpbuffer != NULL) free(videoIn->tmpbuffer);
   if (videoIn != NULL) free(videoIn);
-  if (global->buf != NULL) free(global->buf);
+  if (pglobal->buf != NULL) free(pglobal->buf);
 }
 
 

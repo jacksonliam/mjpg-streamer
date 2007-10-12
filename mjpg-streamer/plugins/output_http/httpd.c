@@ -38,7 +38,7 @@
 #include "../output.h"
 #include "../input.h"
 
-extern globals *global;
+static globals *pglobal;
 int  sd, port;
 char *credentials, *www_folder;
 
@@ -230,14 +230,14 @@ void send_snapshot(int fd) {
   }
 
   /* wait for a fresh frame */
-  pthread_cond_wait(&global->db_update, &global->db);
+  pthread_cond_wait(&pglobal->db_update, &pglobal->db);
 
   /* read buffer */
-  frame_size = global->size;
-  memcpy(frame, global->buf, frame_size);
+  frame_size = pglobal->size;
+  memcpy(frame, pglobal->buf, frame_size);
   DBG("got frame (size: %d kB)\n", frame_size/1024);
 
-  pthread_mutex_unlock( &global->db );
+  pthread_mutex_unlock( &pglobal->db );
 
   /* write the response */
   sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
@@ -282,17 +282,17 @@ void send_stream(int fd) {
     return;
   }
 
-  while ( !global->stop ) {
+  while ( !pglobal->stop ) {
 
     /* wait for fresh frames */
-    pthread_cond_wait(&global->db_update, &global->db);
+    pthread_cond_wait(&pglobal->db_update, &pglobal->db);
 
     /* read buffer */
-    frame_size = global->size;
-    memcpy(frame, global->buf, frame_size);
+    frame_size = pglobal->size;
+    memcpy(frame, pglobal->buf, frame_size);
     DBG("got frame (size: %d kB)\n", frame_size/1024);
 
-    pthread_mutex_unlock( &global->db );
+    pthread_mutex_unlock( &pglobal->db );
 
     sprintf(buffer, "Content-type: image/jpeg\n\n");
     if ( write(fd, buffer, strlen(buffer)) < 0 ) break;
@@ -451,12 +451,12 @@ void command(int fd, char *parameter) {
   for ( i=0; i < LENGTH_OF(in_cmd_mapping); i++ ) {
     if ( strcmp(in_cmd_mapping[i].string, parameter) == 0 ) {
 
-      if ( global->in.cmd == NULL ) {
+      if ( pglobal->in.cmd == NULL ) {
         send_error(fd, 501, "input plugin can not process commands");
         return;
       }
 
-      res = global->in.cmd(in_cmd_mapping[i].cmd);
+      res = pglobal->in.cmd(in_cmd_mapping[i].cmd);
       break;
     }
   }
@@ -534,8 +534,11 @@ void *client_thread( void *arg ) {
     /* req.parameter = strdup(strsep(&pb, " ")+strlen("command=")); */
     /* i prefer to validate against the character set using strspn() */
     pb += strlen("command=");
-    len = strspn(pb, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_1234567890");
+    len = MIN(MAX(strspn(pb, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_1234567890"), 0), 100);
     req.parameter = malloc(len+1);
+    if ( req.parameter == NULL ) {
+      exit(EXIT_FAILURE);
+    }
     memset(req.parameter, 0, len+1);
     strncpy(req.parameter, pb, len);
 
@@ -555,8 +558,11 @@ void *client_thread( void *arg ) {
     }
 
     pb += strlen("GET /");
-    len = strspn(pb, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ._-1234567890");
+    len = MIN(MAX(strspn(pb, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ._-1234567890"), 0), 100);
     req.parameter = malloc(len+1);
+    if ( req.parameter == NULL ) {
+      exit(EXIT_FAILURE);
+    }
     memset(req.parameter, 0, len+1);
     strncpy(req.parameter, pb, len);
 
@@ -648,13 +654,15 @@ void server_cleanup(void *arg) {
 /******************************************************************************
 Description.: Open a TCP socket and wait for clients to connect. If clients
               connect, start a new thread for each accepted connection.
-Input Value.: arg is not used
+Input Value.: arg is a pointer to the globals struct
 Return Value: always NULL, will only return on exit
 ******************************************************************************/
 void *server_thread( void *arg ) {
   struct sockaddr_in addr;
   int on;
   pthread_t client;
+
+  pglobal = arg;
 
   /* set cleanup handler to cleanup ressources */
   pthread_cleanup_push(server_cleanup, NULL);
@@ -694,7 +702,7 @@ void *server_thread( void *arg ) {
   }
 
   /* create a child for every client that connects */
-  while ( !global->stop ) {
+  while ( !pglobal->stop ) {
     int *pfd = (int *)malloc(sizeof(int));
 
     if (pfd == NULL) {
