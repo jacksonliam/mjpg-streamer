@@ -198,7 +198,7 @@ int output_init(output_parameter *param) {
   /* convert the single parameter-string to an array of strings */
   argv[0] = OUTPUT_PLUGIN_NAME;
   if ( param->parameter_string != NULL && strlen(param->parameter_string) != 0 ) {
-    char *arg, *saveptr, *token;
+    char *arg=NULL, *saveptr=NULL, *token=NULL;
 
     arg=(char *)strdup(param->parameter_string);
 
