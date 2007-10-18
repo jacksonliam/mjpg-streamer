@@ -45,5 +45,5 @@ tgz: clean
 
 .SUFFIXES: .c .lo
 .c.lo:
-	cc -c -shared -fPIC -o $@ $<
+	$(CC) -c -shared -fPIC -o $@ $<
 
