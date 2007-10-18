@@ -30,13 +30,13 @@ uga_buga: $(OBJECTS) input_uvc.so output_http.so output_file.so
 
 #Plugins
 input_uvc.so: plugins/input_uvc/input_uvc.c plugins/input.h plugins/input_uvc/v4l2uvc.o
-	$(CC) -shared $(CFLAGS) -o $@ $< plugins/input_uvc/v4l2uvc.o
+	$(CC) -shared -fPIC $(CFLAGS) -o $@ $< plugins/input_uvc/v4l2uvc.o
 
 output_http.so: plugins/output_http/output_http.c plugins/output_http/httpd.o plugins/output_http/httpd.h plugins/output.h
-	$(CC) -shared $(CFLAGS) -o $@ $< plugins/output_http/httpd.o
+	$(CC) -shared -fPIC $(CFLAGS) -o $@ $< plugins/output_http/httpd.o
 
 output_file.so: plugins/output_file/output_file.c plugins/output.h
-	$(CC) -shared $(CFLAGS) -o $@ $<
+	$(CC) -shared -fPIC $(CFLAGS) -o $@ $<
 
 # useful to make a backup "make tgz"
 tgz: clean

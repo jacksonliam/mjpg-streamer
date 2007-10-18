@@ -491,14 +491,16 @@ Return Value: always NULL
 ******************************************************************************/
 /* thread for clients that connected to this server */
 void *client_thread( void *arg ) {
-  int fd = *((int *)arg), cnt;
+  int fd, cnt;
   char buffer[256]={0}, *pb=buffer;
   iobuffer iobuf;
   request req;
 
   /* we really need the fildescriptor and it must be freeable by us */
-  if (arg != NULL)
+  if (arg != NULL) {
+    fd = *((int *)arg);
     free(arg);
+  }
   else
     return NULL;
 
@@ -508,7 +510,10 @@ void *client_thread( void *arg ) {
 
   /* What does the client want to receive? Read the request. */
   memset(buffer, 0, sizeof(buffer));
-  cnt = _readline(fd, &iobuf, buffer, sizeof(buffer)-1, 5);
+  if ( (cnt = _readline(fd, &iobuf, buffer, sizeof(buffer)-1, 5)) == -1 ) {
+    close(fd);
+    return NULL;
+  }
 
   /* determine what to deliver */
   if ( strstr(buffer, "GET /?action=snapshot") != NULL ) {
@@ -575,7 +580,11 @@ void *client_thread( void *arg ) {
    */
   do {
     memset(buffer, 0, sizeof(buffer));
-    cnt = _readline(fd, &iobuf, buffer, sizeof(buffer)-1, 5);
+    if ( (cnt = _readline(fd, &iobuf, buffer, sizeof(buffer)-1, 5)) == -1 ) {
+      free_request(&req);
+      close(fd);
+      return NULL;
+    }
 
     if ( strstr(buffer, "User-Agent: ") != NULL ) {
       req.client = strdup(buffer+strlen("User-Agent: "));
