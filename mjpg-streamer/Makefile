@@ -21,7 +21,7 @@ all: uga_buga
 clean:
 	@echo "Cleaning up directory."
 	rm -f *.a *.o $(APP_BINARY) core *~ *.so *.lo
-	rm -f plugins/*/*.a plugins/*/*.o plugins/*/core plugins/*/*~ plugins/*/*.so
+	rm -f plugins/*/*.a plugins/*/*.o plugins/*/core plugins/*/*~ plugins/*/*.so plugins/*/*.lo
 
 # Applications:
 uga_buga: $(OBJECTS) input_uvc.so output_http.so output_file.so
