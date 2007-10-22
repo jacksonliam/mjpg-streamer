@@ -1,14 +1,45 @@
-<html>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
   <head>
-    <title>MJPG-Streamer</title>
+    <title>MJPG-streamer</title>
+    <meta http-equiv="content-type" content="text/html; charset=iso-8859-1" />
+    <link rel="stylesheet" href="style.css" type="text/css" />
+    <!--[if IE 6]>
+    <link rel="stylesheet" href="fix.css" type="text/css" />
+    <![endif]-->
   </head>
+
   <body>
-    <center>
-      <h1>Welcome to MJPG-Streamer!</h1>
-      <img src="/?action=stream" />
-      <br />
-      This stream works with Mozilla and Firefox, perhaps you need to reload the page at first time.<br />
-      <a href="/java.html">go to java.html</a>
-    <center>
+    <div id="sidebar">
+      <h1>MJPG-Streamer Demo Pages</h1>
+      <h2>a ressource friendly streaming application</h2>
+
+      <div id="menu">
+		<a href="index.html">Home</a>
+		<a href="static.html">Static</a> 
+		<a class="active" href="stream.html">Stream</a> 
+		<a href="java.html">Java</a> 
+		<a href="javascript.html">Javascript</a>
+      </div>
+
+      <h3>Version info:</h3>
+      <p>v0.1 (Okt 22, 2007)</p>
+    </div>
+
+    <div id="content">
+      <h1>Stream</h1>
+      <h2>Display the stream</h2>
+      
+      <h3>Hints</h3>
+      <p>This example shows a stream. It works with just a few browsers like Firefox for example. To see a simple example click <a href="stream_simple.html">here</a>. You may have to reload this page by pressing F5 one or more times.
+      
+      <h3>Source snippet</h3>
+      <pre>&lt;img src="/?action=stream" /&gt;</pre></p>
+      
+      <img src="/?action=stream" width="512px" height="384px" />
+
+      <p>&copy; The <a href="http://mjpg-streamer.sf.net">MJPG-streamer team</a> | Design by <a href="http://andreasviklund.com">Andreas Viklund</a></p>
+    </div>
   </body>
 </html>

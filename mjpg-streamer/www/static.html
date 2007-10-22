@@ -17,9 +17,9 @@
 
       <div id="menu">
 		<a href="index.html">Home</a>
-		<a href="static.html">Static</a> 
+		<a class="active" href="static.html">Static</a> 
 		<a href="stream.html">Stream</a> 
-		<a class="active" href="java.html">Java</a> 
+		<a href="java.html">Java</a> 
 		<a href="javascript.html">Javascript</a>
       </div>
 
@@ -28,31 +28,18 @@
     </div>
 
     <div id="content">
-      <h1>Java</h1>
-      <h2>Display the stream with java</h2>
+      <h1>Static</h1>
+      <h2>A static snapshot</h2>
       
       <h3>Hints</h3>
-      <p>This example shows the stream by using a java applet. It works with any browsers supporting java. To see a simple example click <a href="java_simple.html">here</a>.
+      <p>This example shows a static snapshot. It should work with any browser. To see a simple example click <a href="static_simple.html">here</a>.
       
       <h3>Source snippet</h3>
-      <pre>&lt;applet code="com.charliemouse.cambozola.Viewer" archive="/cambozola.jar" width="512" height="384"&gt;
-&lt;param name="url" value="/?action=stream"/&gt;
-&lt;/applet&gt;</pre></p>
+      <pre>&lt;img src="/?action=snapshot" alt="This is a static snapshot" /&gt;</pre></p>
       
-      <applet code="com.charliemouse.cambozola.Viewer" archive="/cambozola.jar" width="512" height="384">
-        <param name="url" value="/?action=stream"/>
-      </applet>
-      
-      <h3>About the Java applet</h3>
-      <p>The used java applet is called <a href="http://www.charliemouse.com/code/cambozola/"><i>cambozola</i></a>. 
-      Here is the license:<br />
-      <iframe src="LICENSE.txt" name="LICENSE" width="512" height="200" scrolling="yes">
-        <p><a href="LICENSE.txt">license</a></p>
-      </iframe>
-      </p>
+      <img src="/?action=snapshot" alt="This is a static snapshot" width="512px" height="384px" />
 
       <p>&copy; The <a href="http://mjpg-streamer.sf.net">MJPG-streamer team</a> | Design by <a href="http://andreasviklund.com">Andreas Viklund</a></p>
     </div>
   </body>
 </html>
-

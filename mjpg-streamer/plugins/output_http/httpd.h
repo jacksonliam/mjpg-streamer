@@ -53,6 +53,7 @@ static const struct {
   { ".jpg",  "image/jpeg" },
   { ".jpeg", "image/jpeg" },
   { ".png",  "image/png"},
+  { ".gif",  "image/gif" },
   { ".ico",  "image/x-icon" },
   { ".swf",  "application/x-shockwave-flash" },
   { ".cab",  "application/x-shockwave-flash" },
