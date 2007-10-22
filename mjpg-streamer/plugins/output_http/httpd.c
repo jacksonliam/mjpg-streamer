@@ -242,8 +242,11 @@ void send_snapshot(int fd) {
   /* write the response */
   sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
                   "Connection: close\r\n" \
-                  "Server: MJPG-Streamer\r\n" \
+                  "Server: MJPG-Streamer/0.1\r\n" \
                   "Content-type: image/jpeg\r\n" \
+                  "Cache-Control: no-store, no-cache, must-revalidate\r\n" \
+                  "Pragma: no-cache\r\n" \
+                  "Expires: Mon, 31 Jan 2000 05:00:00 GMT\r\n" \
                   "\r\n");
 
   /* send header and image now */
@@ -724,7 +727,11 @@ void *server_thread( void *arg ) {
 
     /* start new thread that will handle this TCP connected client */
     DBG("create thread to handle client that just established a connection\n");
-    pthread_create(&client, NULL, &client_thread, pfd);
+    if( pthread_create(&client, NULL, &client_thread, pfd) != 0 ) {
+      close(*pfd);
+      free(pfd);
+      continue;
+    }
     pthread_detach(client);
   }
 
