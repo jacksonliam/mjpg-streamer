@@ -25,12 +25,20 @@
 #include "../output.h"
 
 #define IO_BUFFER 256
+#define BUFFER_SIZE 512
 
 /* the boundary is used for the M-JPEG stream, it separates the pictures */
 #define BOUNDARY "boundarydonotcross"
 
 /* this defines the buffer size for a JPG-frame */
 #define MAX_FRAME_SIZE (256*1024)
+
+/* standard header to be send along with other header information like mimetype */
+#define STD_HEADER "Connection: close\r\n" \
+                   "Server: MJPG-Streamer/0.1\r\n" \
+                   "Cache-Control: no-store, no-cache, must-revalidate\r\n" \
+                   "Pragma: no-cache\r\n" \
+                   "Expires: Mon, 3 Jan 2000 12:34:56 GMT\r\n"
 
 /* only the following filestypes are supported */
 static const struct {

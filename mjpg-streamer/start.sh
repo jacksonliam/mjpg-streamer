@@ -55,3 +55,6 @@ export LD_LIBRARY_PATH=.
 ## to start both, the http-output-plugin and write to files every 15 second:
 # mkdir pics
 # ./mjpg_streamer -o "output_http.so -w `pwd`/www" -o "output_file.so -f pics -d 15000"
+
+## to protect the webserver with a username and password (!! can easily get sniffed and decoded, it is just base64 encoded !!)
+# ./mjpg-streamer -o "output_http.so -w ./www -c UsErNaMe:SeCrEt"

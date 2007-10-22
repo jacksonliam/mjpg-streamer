@@ -123,8 +123,13 @@ int _read(int fd, iobuffer *iobuf, void *buffer, size_t len, int timeout) {
 
     init_iobuffer(iobuf);
 
-    /* there should be at least one byte, because select signalled it */
-    if ( (iobuf->level = read(fd, &iobuf->buffer, IO_BUFFER)) < 0 ) {
+    /*
+     * there should be at least one byte, because select signalled it.
+     * But: It may happen (very seldomly), that the socket gets closed remotly between
+     * the select() and the following read. That is the reason for not relying
+     * on reading at least one byte.
+     */
+    if ( (iobuf->level = read(fd, &iobuf->buffer, IO_BUFFER)) <= 0 ) {
       /* an error occured */
       return -1;
     }
@@ -222,7 +227,7 @@ Return Value: -
 void send_snapshot(int fd) {
   unsigned char *frame=NULL;
   int frame_size=0;
-  char buffer[256] = {0};
+  char buffer[BUFFER_SIZE] = {0};
 
   if ( (frame = (unsigned char *)malloc(MAX_FRAME_SIZE)) == NULL ) {
     fprintf(stderr, "not enough memory\n");
@@ -241,12 +246,8 @@ void send_snapshot(int fd) {
 
   /* write the response */
   sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
-                  "Connection: close\r\n" \
-                  "Server: MJPG-Streamer/0.1\r\n" \
+                  STD_HEADER \
                   "Content-type: image/jpeg\r\n" \
-                  "Cache-Control: no-store, no-cache, must-revalidate\r\n" \
-                  "Pragma: no-cache\r\n" \
-                  "Expires: Mon, 31 Jan 2000 05:00:00 GMT\r\n" \
                   "\r\n");
 
   /* send header and image now */
@@ -267,7 +268,9 @@ Return Value: -
 void send_stream(int fd) {
   unsigned char *frame=NULL;
   int frame_size=0;
-  char buffer[256] = {0};
+  char buffer[BUFFER_SIZE] = {0};
+
+  DBG("preparing header\n");
 
   if ( (frame = (unsigned char *)malloc(MAX_FRAME_SIZE)) == NULL ) {
     fprintf(stderr, "not enough memory\n");
@@ -275,7 +278,7 @@ void send_stream(int fd) {
   }
 
   sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
-                  "Server: MJPG-Streamer\r\n" \
+                  STD_HEADER \
                   "Content-Type: multipart/x-mixed-replace;boundary=" BOUNDARY "\r\n" \
                   "\r\n" \
                   "--" BOUNDARY "\n");
@@ -284,6 +287,8 @@ void send_stream(int fd) {
     free(frame);
     return;
   }
+
+  DBG("Headers send, sending stream now\n");
 
   while ( !pglobal->stop ) {
 
@@ -317,30 +322,27 @@ Input Value.: * fd.....: is the filedescriptor to send the message to
 Return Value: -
 ******************************************************************************/
 void send_error(int fd, int which, char *message) {
-  char buffer[256] = {0};
+  char buffer[BUFFER_SIZE] = {0};
 
   if ( which == 401 ) {
     sprintf(buffer, "HTTP/1.0 401 Unauthorized\r\n" \
                     "Content-type: text/plain\r\n" \
-                    "Connection: close\r\n" \
-                    "Server: MJPG-Streamer\r\n" \
+                    STD_HEADER \
                     "WWW-Authenticate: Basic realm=\"MJPG-Streamer\"\r\n" \
                     "\r\n" \
                     "401: Not Authenticated!\r\n" \
                     "%s", message);
-  } if ( which == 404 ) {
+  } else if ( which == 404 ) {
     sprintf(buffer, "HTTP/1.0 404 Not Found\r\n" \
                     "Content-type: text/plain\r\n" \
-                    "Connection: close\r\n" \
-                    "Server: MJPG-Streamer\r\n" \
+                    STD_HEADER \
                     "\r\n" \
                     "404: Not Found!\r\n" \
                     "%s", message);
   } else {
     sprintf(buffer, "HTTP/1.0 501 Not Implemented\r\n" \
                     "Content-type: text/plain\r\n" \
-                    "Connection: close\r\n" \
-                    "Server: MJPG-Streamer\r\n" \
+                    STD_HEADER \
                     "\r\n" \
                     "501: Not Implemented!\r\n" \
                     "%s", message);
@@ -359,7 +361,7 @@ Input Value.: * fd.......: filedescriptor to send data to
 Return Value: -
 ******************************************************************************/
 void send_file(int fd, char *parameter) {
-  char buffer[256] = {0};
+  char buffer[BUFFER_SIZE] = {0};
   char *extension, *mimetype=NULL;
   int i, lfd;
 
@@ -405,8 +407,7 @@ void send_file(int fd, char *parameter) {
   /* prepare HTTP header */
   sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
                   "Content-type: %s\r\n" \
-                  "Connection: close\r\n" \
-                  "Server: MJPG-Streamer\r\n" \
+                  STD_HEADER \
                   "\r\n", mimetype);
   i = strlen(buffer);
 
@@ -429,15 +430,14 @@ Input Value.: * fd.......: filedescriptor to send HTTP response to.
 Return Value: -
 ******************************************************************************/
 void command(int fd, char *parameter) {
-  char buffer[256] = {0};
+  char buffer[BUFFER_SIZE] = {0};
   int i, res=-100;
 
   /* sanity check for parameter */
   if ( parameter == NULL || strlen(parameter) > 50 || strlen(parameter) == 0 ) {
     sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
                     "Content-type: text/plain\r\n" \
-                    "Connection: close\r\n" \
-                    "Server: MJPG-Streamer\r\n" \
+                    STD_HEADER \
                     "\r\n" \
                     "ERROR: parameter length is wrong");
 
@@ -475,8 +475,7 @@ void command(int fd, char *parameter) {
   /* Send HTTP-response, it will send the return value of res mapped to OK or ERROR */
   sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
                   "Content-type: text/plain\r\n" \
-                  "Connection: close\r\n" \
-                  "Server: MJPG-Streamer\r\n" \
+                  STD_HEADER \
                   "\r\n" \
                   "%s: %s", (res==0)?"OK":"ERROR", parameter);
 
@@ -495,7 +494,7 @@ Return Value: always NULL
 /* thread for clients that connected to this server */
 void *client_thread( void *arg ) {
   int fd, cnt;
-  char buffer[256]={0}, *pb=buffer;
+  char buffer[BUFFER_SIZE]={0}, *pb=buffer;
   iobuffer iobuf;
   request req;
 
@@ -583,6 +582,7 @@ void *client_thread( void *arg ) {
    */
   do {
     memset(buffer, 0, sizeof(buffer));
+
     if ( (cnt = _readline(fd, &iobuf, buffer, sizeof(buffer)-1, 5)) == -1 ) {
       free_request(&req);
       close(fd);
@@ -728,6 +728,7 @@ void *server_thread( void *arg ) {
     /* start new thread that will handle this TCP connected client */
     DBG("create thread to handle client that just established a connection\n");
     if( pthread_create(&client, NULL, &client_thread, pfd) != 0 ) {
+      DBG("could not launch another client thread\n");
       close(*pfd);
       free(pfd);
       continue;
