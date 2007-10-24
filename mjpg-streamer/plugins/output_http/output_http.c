@@ -49,9 +49,9 @@ extern int  port;
 extern char *credentials, *www_folder;
 
 /******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
+Description.: print help for this plugin to stdout
+Input Value.: -
+Return Value: -
 ******************************************************************************/
 void help(void) {
   fprintf(stderr, " ---------------------------------------------------------------\n" \
@@ -67,9 +67,11 @@ void help(void) {
 
 /*** plugin interface functions ***/
 /******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
+Description.: Initialize this plugin.
+              parse configuration parameters,
+              store the parsed values in global variables
+Input Value.: all parameters to work with
+Return Value: 0 if everything is OK, other values signal an error
 ******************************************************************************/
 int output_init(output_parameter *param) {
   char *argv[MAX_ARGUMENTS]={NULL};
@@ -180,9 +182,12 @@ int output_init(output_parameter *param) {
 }
 
 /******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
+Description.: this will stop the server thread, client threads
+              will not get cleaned properly, because they run detached and
+              no pointer is kept. This is not a huge issue, because this
+              funtion is intended to clean up the biggest mess on shutdown.
+Input Value.: -
+Return Value: always 0
 ******************************************************************************/
 int output_stop(void) {
   DBG("will cancel server thread\n");
@@ -191,9 +196,9 @@ int output_stop(void) {
 }
 
 /******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
+Description.: This creates and starts the server thread
+Input Value.: -
+Return Value: always 0
 ******************************************************************************/
 int output_run(void) {
   DBG("launching server thread\n");
@@ -202,6 +207,14 @@ int output_run(void) {
   return 0;
 }
 
+/******************************************************************************
+Description.: This is just an example function, to show how the output
+              plugin could implement some special command.
+              If you want to control some GPIO Pin this is a good place to
+              implement it. Dont forget to add command types and a mapping.
+Input Value.: the command type
+Return Value: 0 indicates success, other values indicate an error
+******************************************************************************/
 int output_cmd(out_cmd_type cmd) {
   fprintf(stderr, "Hello command triggered\n");
   return 0;

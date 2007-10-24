@@ -36,6 +36,7 @@
 #include <pthread.h>
 #include <dlfcn.h>
 #include <fcntl.h>
+#include <syslog.h>
 
 #include "utils.h"
 #include "mjpg_streamer.h"
@@ -111,6 +112,7 @@ void signal_handler(int sig)
 
   fprintf(stderr, "done\n");
 
+  closelog();
   exit(0);
   return;
 }
@@ -197,8 +199,12 @@ int main(int argc, char *argv[])
     }
   }
 
+  openlog("MJPG-streamer", LOG_PID|LOG_CONS, LOG_USER);
+  syslog(LOG_INFO, "starting application");
+
   /* fork to the background */
   if ( daemon ) {
+    syslog(LOG_INFO, "enabling daemon mode");
     daemon_mode();
   }
 
@@ -210,10 +216,14 @@ int main(int argc, char *argv[])
 
   if( pthread_mutex_init(&global.db, NULL) != 0 ) {
     fprintf(stderr, "could not initialize mutex variable\n");
+    syslog(LOG_ERR, "could not initialize mutex variable");
+    closelog();
     exit(EXIT_FAILURE);
   }
   if( pthread_cond_init(&global.db_update, NULL) != 0 ) {
     fprintf(stderr, "could not initialize condition variable\n");
+    syslog(LOG_ERR, "could not initialize mutex variable");
+    closelog();
     exit(EXIT_FAILURE);
   }
 
@@ -223,11 +233,14 @@ int main(int argc, char *argv[])
   /* register signal handler for <CTRL>+C in order to clean up */
   if (signal(SIGINT, signal_handler) == SIG_ERR) {
     fprintf(stderr, "could not register signal handler\n");
+    syslog(LOG_ERR, "could not register signal handler");
+    closelog();
     exit(EXIT_FAILURE);
   }
 
   /* messages like the following will only be visible if not running in daemon mode */
   fprintf(stderr, "MJPG Streamer Version.: %s\n", SOURCE_VERSION);
+  syslog(LOG_INFO, "MJPG Streamer Version.: %s", SOURCE_VERSION);
 
   /* check if at least one output plugin was selected */
   if ( global.outcnt == 0 ) {
@@ -244,6 +257,8 @@ int main(int argc, char *argv[])
     fprintf(stderr, "       Perhaps you want to adjust the search path with:\n");
     fprintf(stderr, "       # export LD_LIBRARY_PATH=/path/to/plugin/folder\n");
     fprintf(stderr, "dlopen: %s\n", dlerror() );
+    syslog(LOG_INFO, "could not find input plugin: %s (dlopen: %s)", global.in.plugin, dlerror());
+    closelog();
     exit(EXIT_FAILURE);
   }
   global.in.init = dlsym(global.in.handle, "input_init");
@@ -269,6 +284,8 @@ int main(int argc, char *argv[])
 
   if ( global.in.init(&global.in.param) ) {
     DBG("input_init() return value signals to exit\n");
+    syslog(LOG_INFO, "input_init() return value signals to exit");
+    closelog();
     exit(0);
   }
 
@@ -282,6 +299,8 @@ int main(int argc, char *argv[])
       fprintf(stderr, "       Perhaps you want to adjust the search path with:\n");
       fprintf(stderr, "       # export LD_LIBRARY_PATH=/path/to/plugin/folder\n");
       fprintf(stderr, "dlopen: %s\n", dlerror() );
+      syslog(LOG_INFO, "could not find output plugin: %s (dlopen: %s)", global.out[i].plugin, dlerror());
+      closelog();
       exit(EXIT_FAILURE);
     }
     global.out[i].init = dlsym(global.out[i].handle, "output_init");
@@ -306,17 +325,22 @@ int main(int argc, char *argv[])
     global.out[i].param.global = &global;
     if ( global.out[i].init(&global.out[i].param) ) {
       DBG("output_init() return value signals to exit\n");
+      syslog(LOG_INFO, "output_init() return value signals to exit");
+      closelog();
       exit(0);
     }
   }
 
   /* start to read the camera, push picture buffers into global buffer */
   DBG("starting input plugin\n");
+  syslog(LOG_INFO, "starting input plugin");
   global.in.run();
 
   DBG("starting %d output plugin(s)\n", global.outcnt);
-  for(i=0; i<global.outcnt; i++)
+  for(i=0; i<global.outcnt; i++) {
+    syslog(LOG_INFO, "starting output plugin: %s", global.out[i].plugin);
     global.out[i].run();
+  }
 
   /* wait for signals */
   pause();

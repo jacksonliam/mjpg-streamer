@@ -31,6 +31,7 @@
 #include <arpa/inet.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <syslog.h>
 
 #include "httpd.h"
 #include "../../mjpg_streamer.h"
@@ -467,7 +468,7 @@ void command(int fd, char *parameter) {
   /* if the command is for the output plugin itself */
   for ( i=0; i < LENGTH_OF(out_cmd_mapping); i++ ) {
     if ( strcmp(out_cmd_mapping[i].string, parameter) == 0 ) {
-      res = output_cmd(in_cmd_mapping[i].cmd);
+      res = output_cmd(out_cmd_mapping[i].cmd);
       break;
     }
   }
@@ -704,6 +705,8 @@ void *server_thread( void *arg ) {
   if ( bind(sd, (struct sockaddr*)&addr, sizeof(addr)) != 0 ) {
     fprintf(stderr, "bind(%d) failed\n", htons(port));
     perror("bind: ");
+    syslog(LOG_INFO, "%s(): bind(%d) failed", __FUNCTION__, htons(port));
+    closelog();
     exit(EXIT_FAILURE);
   }
 

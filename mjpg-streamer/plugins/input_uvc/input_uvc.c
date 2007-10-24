@@ -37,6 +37,7 @@
 #include <sys/stat.h>
 #include <getopt.h>
 #include <pthread.h>
+#include <syslog.h>
 
 #include "../../utils.h"
 #include "../../mjpg_streamer.h"
@@ -185,7 +186,9 @@ int input_init(input_parameter *param) {
   /* open video device and prepare data structure */
   if (init_videoIn(videoIn, dev, width, height, fps, V4L2_PIX_FMT_MJPEG, 1) < 0) {
     fprintf(stderr, "init_VideoIn failed\n");
-    exit(1);
+    syslog(LOG_INFO, "%s(): init_VideoIn failed", __FUNCTION__);
+    closelog();
+    exit(EXIT_FAILURE);
   }
 
   return 0;
