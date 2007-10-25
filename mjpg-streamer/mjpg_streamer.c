@@ -91,12 +91,12 @@ void signal_handler(int sig)
   int i;
 
   /* signal "stop" to threads */
-  fprintf(stderr, "setting signal to stop\n");
+  LOG("setting signal to stop\n");
   global.stop = 1;
   usleep(1000*1000);
 
   /* clean up threads */
-  fprintf(stderr, "force cancelation of threads and cleanup ressources\n");
+  LOG("force cancelation of threads and cleanup ressources\n");
   global.in.stop();
   for(i=0; i<global.outcnt; i++)
     global.out[i].stop();
@@ -110,7 +110,7 @@ void signal_handler(int sig)
   pthread_cond_destroy(&global.db_update);
   pthread_mutex_destroy(&global.db);
 
-  fprintf(stderr, "done\n");
+  LOG("done\n");
 
   closelog();
   exit(0);
@@ -199,12 +199,12 @@ int main(int argc, char *argv[])
     }
   }
 
-  openlog("MJPG-streamer", LOG_PID|LOG_CONS, LOG_USER);
+  openlog("MJPG-streamer ", LOG_PID|LOG_CONS, LOG_USER);
   syslog(LOG_INFO, "starting application");
 
   /* fork to the background */
   if ( daemon ) {
-    syslog(LOG_INFO, "enabling daemon mode");
+    LOG("enabling daemon mode");
     daemon_mode();
   }
 
@@ -215,14 +215,12 @@ int main(int argc, char *argv[])
   global.in.plugin = NULL;
 
   if( pthread_mutex_init(&global.db, NULL) != 0 ) {
-    fprintf(stderr, "could not initialize mutex variable\n");
-    syslog(LOG_ERR, "could not initialize mutex variable");
+    LOG("could not initialize mutex variable\n");
     closelog();
     exit(EXIT_FAILURE);
   }
   if( pthread_cond_init(&global.db_update, NULL) != 0 ) {
-    fprintf(stderr, "could not initialize condition variable\n");
-    syslog(LOG_ERR, "could not initialize mutex variable");
+    LOG("could not initialize condition variable\n");
     closelog();
     exit(EXIT_FAILURE);
   }
@@ -232,15 +230,16 @@ int main(int argc, char *argv[])
 
   /* register signal handler for <CTRL>+C in order to clean up */
   if (signal(SIGINT, signal_handler) == SIG_ERR) {
-    fprintf(stderr, "could not register signal handler\n");
-    syslog(LOG_ERR, "could not register signal handler");
+    LOG("could not register signal handler\n");
     closelog();
     exit(EXIT_FAILURE);
   }
 
-  /* messages like the following will only be visible if not running in daemon mode */
-  fprintf(stderr, "MJPG Streamer Version.: %s\n", SOURCE_VERSION);
-  syslog(LOG_INFO, "MJPG Streamer Version.: %s", SOURCE_VERSION);
+  /*
+   * messages like the following will only be visible on your terminal
+   * if not running in daemon mode
+   */
+  LOG("MJPG Streamer Version.: %s\n", SOURCE_VERSION);
 
   /* check if at least one output plugin was selected */
   if ( global.outcnt == 0 ) {
@@ -253,27 +252,26 @@ int main(int argc, char *argv[])
   global.in.plugin = (tmp > 0)?strndup(input, tmp):strdup(input);
   global.in.handle = dlopen(global.in.plugin, RTLD_LAZY);
   if ( !global.in.handle ) {
-    fprintf(stderr, "ERROR: could not find input plugin\n");
-    fprintf(stderr, "       Perhaps you want to adjust the search path with:\n");
-    fprintf(stderr, "       # export LD_LIBRARY_PATH=/path/to/plugin/folder\n");
-    fprintf(stderr, "dlopen: %s\n", dlerror() );
-    syslog(LOG_INFO, "could not find input plugin: %s (dlopen: %s)", global.in.plugin, dlerror());
+    LOG("ERROR: could not find input plugin\n");
+    LOG("       Perhaps you want to adjust the search path with:\n");
+    LOG("       # export LD_LIBRARY_PATH=/path/to/plugin/folder\n");
+    LOG("       dlopen: %s\n", dlerror() );
     closelog();
     exit(EXIT_FAILURE);
   }
   global.in.init = dlsym(global.in.handle, "input_init");
   if ( global.in.init == NULL ) {
-    fprintf(stderr, "%s\n", dlerror());
+    LOG("%s\n", dlerror());
     exit(EXIT_FAILURE);
   }
   global.in.stop = dlsym(global.in.handle, "input_stop");
   if ( global.in.stop == NULL ) {
-    fprintf(stderr, "%s\n", dlerror());
+    LOG("%s\n", dlerror());
     exit(EXIT_FAILURE);
   }
   global.in.run = dlsym(global.in.handle, "input_run");
   if ( global.in.run == NULL ) {
-    fprintf(stderr, "%s\n", dlerror());
+    LOG("%s\n", dlerror());
     exit(EXIT_FAILURE);
   }
   /* try to find optional command */
@@ -283,8 +281,7 @@ int main(int argc, char *argv[])
   global.in.param.global = &global;
 
   if ( global.in.init(&global.in.param) ) {
-    DBG("input_init() return value signals to exit\n");
-    syslog(LOG_INFO, "input_init() return value signals to exit");
+    LOG("input_init() return value signals to exit");
     closelog();
     exit(0);
   }
@@ -295,27 +292,26 @@ int main(int argc, char *argv[])
     global.out[i].plugin = (tmp > 0)?strndup(output[i], tmp):strdup(output[i]);
     global.out[i].handle = dlopen(global.out[i].plugin, RTLD_LAZY);
     if ( !global.out[i].handle ) {
-      fprintf(stderr, "ERROR: could not find output plugin\n");
-      fprintf(stderr, "       Perhaps you want to adjust the search path with:\n");
-      fprintf(stderr, "       # export LD_LIBRARY_PATH=/path/to/plugin/folder\n");
-      fprintf(stderr, "dlopen: %s\n", dlerror() );
-      syslog(LOG_INFO, "could not find output plugin: %s (dlopen: %s)", global.out[i].plugin, dlerror());
+      LOG("ERROR: could not find output plugin %s\n", global.out[i].plugin);
+      LOG("       Perhaps you want to adjust the search path with:\n");
+      LOG("       # export LD_LIBRARY_PATH=/path/to/plugin/folder\n");
+      LOG("       dlopen: %s\n", dlerror() );
       closelog();
       exit(EXIT_FAILURE);
     }
     global.out[i].init = dlsym(global.out[i].handle, "output_init");
     if ( global.out[i].init == NULL ) {
-      fprintf(stderr, "%s\n", dlerror());
+      LOG("%s\n", dlerror());
       exit(EXIT_FAILURE);
     }
     global.out[i].stop = dlsym(global.out[i].handle, "output_stop");
     if ( global.out[i].stop == NULL ) {
-      fprintf(stderr, "%s\n", dlerror());
+      LOG("%s\n", dlerror());
       exit(EXIT_FAILURE);
     }
     global.out[i].run = dlsym(global.out[i].handle, "output_run");
     if ( global.out[i].run == NULL ) {
-      fprintf(stderr, "%s\n", dlerror());
+      LOG("%s\n", dlerror());
       exit(EXIT_FAILURE);
     }
     /* try to find optional command */
@@ -324,8 +320,7 @@ int main(int argc, char *argv[])
     global.out[i].param.parameter_string = strchr(output[i], ' ');
     global.out[i].param.global = &global;
     if ( global.out[i].init(&global.out[i].param) ) {
-      DBG("output_init() return value signals to exit\n");
-      syslog(LOG_INFO, "output_init() return value signals to exit");
+      LOG("output_init() return value signals to exit");
       closelog();
       exit(0);
     }

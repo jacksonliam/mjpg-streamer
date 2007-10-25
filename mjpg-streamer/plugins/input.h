@@ -23,7 +23,7 @@
 #define INPUT_H
 
 #define INPUT_PLUGIN_PREFIX " i: "
-#define IPRINT(...) fprintf(stderr, "%s", INPUT_PLUGIN_PREFIX); fprintf(stderr, __VA_ARGS__)
+#define IPRINT(...) { char _bf[1024] = {0}; snprintf(_bf, sizeof(_bf)-1, __VA_ARGS__); fprintf(stderr, "%s", INPUT_PLUGIN_PREFIX); fprintf(stderr, "%s", _bf); syslog(LOG_INFO, "%s", _bf); }
 
 /* parameters for input plugin */
 typedef struct {

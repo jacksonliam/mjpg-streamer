@@ -28,6 +28,8 @@
 #define DBG(...)
 #endif
 
+#define LOG(...) { char _bf[1024] = {0}; snprintf(_bf, sizeof(_bf)-1, __VA_ARGS__); fprintf(stderr, "%s", _bf); syslog(LOG_INFO, "%s", _bf); }
+
 #include "plugins/input.h"
 #include "plugins/output.h"
 

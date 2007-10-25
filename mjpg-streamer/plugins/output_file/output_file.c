@@ -35,6 +35,7 @@
 #include <pthread.h>
 #include <fcntl.h>
 #include <time.h>
+#include <syslog.h>
 
 #include "../../mjpg_streamer.h"
 #include "../../utils.h"
@@ -51,9 +52,9 @@ static unsigned char *frame=NULL;
 static char *command = NULL;
 
 /******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
+Description.: print a help message
+Input Value.: -
+Return Value: -
 ******************************************************************************/
 void help(void) {
   fprintf(stderr, " ---------------------------------------------------------------\n" \
@@ -68,9 +69,9 @@ void help(void) {
 }
 
 /******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
+Description.: clean up allocated ressources
+Input Value.: unused argument
+Return Value: -
 ******************************************************************************/
 void worker_cleanup(void *arg) {
   static unsigned char first_run=1;
@@ -88,7 +89,8 @@ void worker_cleanup(void *arg) {
 }
 
 /******************************************************************************
-Description.: 
+Description.: this is the main worker thread
+              it loops forever, grabs a fresh frame and stores it to file
 Input Value.: 
 Return Value: 
 ******************************************************************************/
@@ -99,9 +101,9 @@ void *worker_thread( void *arg ) {
   time_t t;
   struct tm *tmp;
 
-  if ((frame = (unsigned char *)calloc(1, 256*1024)) == NULL) {
-    fprintf(stderr, "not enough memory\n");
-    exit(1);
+  if ( (frame = malloc(256*1024)) == NULL ) {
+    OPRINT("not enough memory for worker thread\n");
+    exit(EXIT_FAILURE);
   }
 
   /* set cleanup handler to cleanup allocated ressources */
@@ -145,7 +147,7 @@ void *worker_thread( void *arg ) {
 
     if (strftime(buffer1, sizeof(buffer1), "%%s/%Y_%m_%d_%H_%M_%S_picture_%%09llu.jpg", tmp) == 0) {
       OPRINT("strftime returned 0\n");
-      exit(1);
+      exit(EXIT_FAILURE);
     }
 
     snprintf(buffer2, sizeof(buffer2), buffer1, folder, counter++);
@@ -184,9 +186,10 @@ void *worker_thread( void *arg ) {
 
 /*** plugin interface functions ***/
 /******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
+Description.: this function is called first, in order to initialise
+              this plugin and pass a parameter string
+Input Value.: parameters
+Return Value: 0 if everything is ok, non-zero otherwise
 ******************************************************************************/
 int output_init(output_parameter *param) {
   char *argv[MAX_ARGUMENTS]={NULL};
@@ -305,9 +308,9 @@ int output_init(output_parameter *param) {
 }
 
 /******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
+Description.: calling this function stops the worker thread
+Input Value.: -
+Return Value: always 0
 ******************************************************************************/
 int output_stop(void) {
   DBG("will cancel worker thread\n");
@@ -316,9 +319,9 @@ int output_stop(void) {
 }
 
 /******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
+Description.: calling this function creates and starts the worker thread
+Input Value.: -
+Return Value: always 0
 ******************************************************************************/
 int output_run(void) {
   DBG("launching worker thread\n");

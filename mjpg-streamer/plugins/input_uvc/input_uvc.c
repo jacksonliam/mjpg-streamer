@@ -185,8 +185,7 @@ int input_init(input_parameter *param) {
 
   /* open video device and prepare data structure */
   if (init_videoIn(videoIn, dev, width, height, fps, V4L2_PIX_FMT_MJPEG, 1) < 0) {
-    fprintf(stderr, "init_VideoIn failed\n");
-    syslog(LOG_INFO, "%s(): init_VideoIn failed", __FUNCTION__);
+    IPRINT("init_VideoIn failed\n");
     closelog();
     exit(EXIT_FAILURE);
   }

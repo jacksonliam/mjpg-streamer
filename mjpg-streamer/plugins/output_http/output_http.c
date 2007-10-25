@@ -33,6 +33,7 @@
 #include <sys/stat.h>
 #include <getopt.h>
 #include <pthread.h>
+#include <syslog.h>
 
 #include "../../mjpg_streamer.h"
 #include "../../utils.h"

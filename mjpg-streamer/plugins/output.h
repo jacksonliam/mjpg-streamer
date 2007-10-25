@@ -23,7 +23,7 @@
 #define OUTPUT_H
 
 #define OUTPUT_PLUGIN_PREFIX " o: "
-#define OPRINT(...) fprintf(stderr, "%s", OUTPUT_PLUGIN_PREFIX); fprintf(stderr, __VA_ARGS__)
+#define OPRINT(...) { char _bf[1024] = {0}; snprintf(_bf, sizeof(_bf)-1, __VA_ARGS__); fprintf(stderr, "%s", OUTPUT_PLUGIN_PREFIX); fprintf(stderr, "%s", _bf); syslog(LOG_INFO, "%s", _bf); }
 
 /* parameters for output plugin */
 typedef struct {

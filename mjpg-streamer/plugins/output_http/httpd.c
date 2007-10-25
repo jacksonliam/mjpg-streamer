@@ -671,9 +671,10 @@ Input Value.: arg is a pointer to the globals struct
 Return Value: always NULL, will only return on exit
 ******************************************************************************/
 void *server_thread( void *arg ) {
-  struct sockaddr_in addr;
+  struct sockaddr_in addr, client_addr;
   int on;
   pthread_t client;
+  socklen_t addr_len = sizeof(struct sockaddr_in);
 
   pglobal = arg;
 
@@ -703,9 +704,8 @@ void *server_thread( void *arg ) {
   addr.sin_port = port; /* is already in right byteorder */
   addr.sin_addr.s_addr = htonl(INADDR_ANY);
   if ( bind(sd, (struct sockaddr*)&addr, sizeof(addr)) != 0 ) {
-    fprintf(stderr, "bind(%d) failed\n", htons(port));
     perror("bind: ");
-    syslog(LOG_INFO, "%s(): bind(%d) failed", __FUNCTION__, htons(port));
+    OPRINT("%s(): bind(%d) failed", __FUNCTION__, htons(port));
     closelog();
     exit(EXIT_FAILURE);
   }
@@ -726,10 +726,12 @@ void *server_thread( void *arg ) {
     }
 
     DBG("waiting for clients to connect\n");
-    *pfd = accept(sd, 0, 0);
+    *pfd = accept(sd, (struct sockaddr *)&client_addr, &addr_len);
 
     /* start new thread that will handle this TCP connected client */
     DBG("create thread to handle client that just established a connection\n");
+    syslog(LOG_INFO, "serving client: %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
+
     if( pthread_create(&client, NULL, &client_thread, pfd) != 0 ) {
       DBG("could not launch another client thread\n");
       close(*pfd);
