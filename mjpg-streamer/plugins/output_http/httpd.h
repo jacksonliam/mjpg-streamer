@@ -20,10 +20,6 @@
 #                                                                              #
 *******************************************************************************/
 
-/* this output plugin can send commands to the input plugin, so include it */
-#include "../input.h"
-#include "../output.h"
-
 #define IO_BUFFER 256
 #define BUFFER_SIZE 512
 

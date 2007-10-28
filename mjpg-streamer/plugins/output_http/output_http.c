@@ -37,7 +37,6 @@
 
 #include "../../mjpg_streamer.h"
 #include "../../utils.h"
-#include "../output.h"
 #include "httpd.h"
 
 #define OUTPUT_PLUGIN_NAME "HTTP output plugin"

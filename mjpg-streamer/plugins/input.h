@@ -19,20 +19,20 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA    #
 #                                                                              #
 *******************************************************************************/
-#ifndef INPUT_H
-#define INPUT_H
 
 #define INPUT_PLUGIN_PREFIX " i: "
 #define IPRINT(...) { char _bf[1024] = {0}; snprintf(_bf, sizeof(_bf)-1, __VA_ARGS__); fprintf(stderr, "%s", INPUT_PLUGIN_PREFIX); fprintf(stderr, "%s", _bf); syslog(LOG_INFO, "%s", _bf); }
 
 /* parameters for input plugin */
-typedef struct {
+typedef struct _input_parameter input_parameter;
+struct _input_parameter {
   char *parameter_string;
-  void *global;
-} input_parameter;
+  struct _globals *global;
+};
 
 /* commands which can be send to the input plugin */
-typedef enum {
+typedef enum _in_cmd_type in_cmd_type;
+enum _in_cmd_type {
   IN_CMD_UNKNOWN = 0,
   IN_CMD_HELLO,
   IN_CMD_RESET,
@@ -49,10 +49,11 @@ typedef enum {
   IN_CMD_BRIGHTNESS_MINUS,
   IN_CMD_GAIN_PLUS,
   IN_CMD_GAIN_MINUS
-} in_cmd_type;
+};
 
 /* structure to store variables/functions for input plugin */
-typedef struct {
+typedef struct _input input;
+struct _input {
   char *plugin;
   void *handle;
   input_parameter param;
@@ -61,6 +62,4 @@ typedef struct {
   int (*stop)(void);
   int (*run)(void);
   int (*cmd)(in_cmd_type cmd);
-} input;
-
-#endif
+};

@@ -19,6 +19,7 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA    #
 #                                                                              #
 *******************************************************************************/
+
 #define SOURCE_VERSION "2.0"
 #define MAX_OUTPUT_PLUGINS 10
 
@@ -33,7 +34,8 @@
 #include "plugins/input.h"
 #include "plugins/output.h"
 
-typedef struct {
+typedef struct _globals globals;
+struct _globals {
   int stop;
 
   /* signal fresh frames */
@@ -51,4 +53,4 @@ typedef struct {
   output out[MAX_OUTPUT_PLUGINS];
   int outcnt;
 
-} globals;
+};

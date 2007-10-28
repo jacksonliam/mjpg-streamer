@@ -37,9 +37,8 @@
 #include <time.h>
 #include <syslog.h>
 
-#include "../../mjpg_streamer.h"
 #include "../../utils.h"
-#include "../output.h"
+#include "../../mjpg_streamer.h"
 
 #define OUTPUT_PLUGIN_NAME "FILE output plugin"
 #define MAX_ARGUMENTS 32

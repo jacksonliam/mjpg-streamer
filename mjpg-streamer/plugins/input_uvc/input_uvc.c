@@ -41,7 +41,6 @@
 
 #include "../../utils.h"
 #include "../../mjpg_streamer.h"
-#include "../input.h"
 #include "v4l2uvc.h"
 #include "huffman.h"
 

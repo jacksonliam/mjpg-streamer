@@ -33,11 +33,9 @@
 #include <fcntl.h>
 #include <syslog.h>
 
-#include "httpd.h"
 #include "../../mjpg_streamer.h"
 #include "../../utils.h"
-#include "../output.h"
-#include "../input.h"
+#include "httpd.h"
 
 static globals *pglobal;
 int  sd, port;

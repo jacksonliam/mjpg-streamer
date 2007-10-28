@@ -34,9 +34,8 @@
 #include <getopt.h>
 #include <pthread.h>
 
-#include "../../utils.h"
 #include "../../mjpg_streamer.h"
-#include "../input.h"
+#include "../../utils.h"
 
 #define INPUT_PLUGIN_NAME "FILE input plugin"
 #define MAX_ARGUMENTS 32
