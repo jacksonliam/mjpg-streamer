@@ -9,15 +9,14 @@
 
 CC = gcc
 
-APP_BINARY=mjpg_streamer
-
 CFLAGS += -O2 -DLINUX -D_GNU_SOURCE -Wall
 #CFLAGS += -O2 -DDEBUG -DLINUX -D_GNU_SOURCE -Wall
 LFLAGS += -lpthread -ldl
 
+APP_BINARY=mjpg_streamer
 OBJECTS=mjpg_streamer.o utils.o
 
-all: world
+all: application plugins
 
 clean:
 	make -C plugins/input_uvc $@
@@ -25,15 +24,23 @@ clean:
 	make -C plugins/output_http $@
 	rm -f *.a *.o $(APP_BINARY) core *~ *.so *.lo
 
-compile_plugins:
+plugins: input_uvc.so output_file.so output_http.so
+
+application: $(APP_BINARY)
+
+input_uvc.so: mjpg_streamer.h utils.h
 	make -C plugins/input_uvc all
 	cp plugins/input_uvc/input_uvc.so .
+
+output_file.so: mjpg_streamer.h utils.h
 	make -C plugins/output_file all
 	cp plugins/output_file/output_file.so .
+
+output_http.so: mjpg_streamer.h utils.h
 	make -C plugins/output_http all
 	cp plugins/output_http/output_http.so .
 
-world: compile_plugins $(OBJECTS)
+$(APP_BINARY): mjpg_streamer.c mjpg_streamer.h mjpg_streamer.o utils.c utils.h utils.o
 	$(CC) $(CFLAGS) $(LFLAGS) $(OBJECTS) -o $(APP_BINARY)
 	chmod 755 $(APP_BINARY)
 

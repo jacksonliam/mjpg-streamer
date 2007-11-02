@@ -9,17 +9,15 @@
 
 CC = gcc
 
+OTHER_HEADERS = ../../mjpg_streamer.h ../../utils.h ../output.h ../input.h
+
 CFLAGS += -O2 -DLINUX -D_GNU_SOURCE -Wall -shared -fPIC
 LFLAGS += -lpthread -ldl
 
-all world: output_file.so
+all: output_file.so
 
 clean:
 	rm -f *.a *.o core *~ *.so *.lo
 
-output_file.so: ../output.h ../input.h output_file.c
+output_file.so: $(OTHER_HEADERS) output_file.c
 	$(CC) $(CFLAGS) -o $@ output_file.c
-
-.SUFFIXES: .c .lo
-.c.lo:
-	$(CC) -c $(CFLAGS) -o $@ $<

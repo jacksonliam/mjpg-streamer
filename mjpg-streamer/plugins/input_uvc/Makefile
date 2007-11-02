@@ -9,17 +9,18 @@
 
 CC = gcc
 
+OTHER_HEADERS = ../../mjpg_streamer.h ../../utils.h ../output.h ../input.h
+
 CFLAGS += -O2 -DLINUX -D_GNU_SOURCE -Wall -shared -fPIC
 LFLAGS += -lpthread -ldl
 
-all world: input_uvc.so
+all: input_uvc.so
 
 clean:
 	rm -f *.a *.o core *~ *.so *.lo
 
-input_uvc.so: ../input.h input_uvc.c v4l2uvc.lo
+input_uvc.so: $(OTHER_HEADERS) input_uvc.c v4l2uvc.lo
 	$(CC) $(CFLAGS) -o $@ input_uvc.c v4l2uvc.lo
 
-.SUFFIXES: .c .lo
-.c.lo:
-	$(CC) -c $(CFLAGS) -o $@ $<
+v4l2uvc.lo: huffman.h uvc_compat.h uvcvideo.h v4l2uvc.c v4l2uvc.h
+	$(CC) -c $(CFLAGS) -o $@ v4l2uvc.c
