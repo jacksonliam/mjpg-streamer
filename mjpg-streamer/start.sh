@@ -58,3 +58,7 @@ export LD_LIBRARY_PATH=.
 
 ## to protect the webserver with a username and password (!! can easily get sniffed and decoded, it is just base64 encoded !!)
 # ./mjpg-streamer -o "output_http.so -w ./www -c UsErNaMe:SeCrEt"
+
+## If you want to track down errors, use this simple testpicture plugin as input source.
+## to use the testpicture input plugin instead of a webcam or folder:
+# ./mjpg_streamer -i "./input_testpicture.so -r 320x240 -d 500" -o "./output_http.so -w www"

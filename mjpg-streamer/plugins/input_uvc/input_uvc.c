@@ -510,7 +510,7 @@ void cam_cleanup(void *arg) {
   }
 
   first_run = 0;
-  DBG("cleaning up ressources allocated by input thread\n");
+  IPRINT("cleaning up ressources allocated by input thread\n");
 
   close_v4l2(videoIn);
   if (videoIn->tmpbuffer != NULL) free(videoIn->tmpbuffer);

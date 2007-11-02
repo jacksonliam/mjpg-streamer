@@ -657,7 +657,7 @@ void server_cleanup(void *arg) {
   }
 
   first_run = 0;
-  DBG("cleaning up ressources allocated by server thread\n");
+  OPRINT("cleaning up ressources allocated by server thread\n");
 
   close(sd);
 }

@@ -19,7 +19,7 @@ all: output_http.so
 clean:
 	rm -f *.a *.o core *~ *.so *.lo
 
-output_http.so: $(OTHER_HEADERS) output_http.c output_http.h httpd.lo
+output_http.so: $(OTHER_HEADERS) output_http.c httpd.lo
 	$(CC) $(CFLAGS) -o $@ output_http.c httpd.lo
 
 httpd.lo: $(OTHER_HEADERS) httpd.h httpd.c

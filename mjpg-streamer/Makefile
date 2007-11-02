@@ -20,13 +20,18 @@ all: application plugins
 
 clean:
 	make -C plugins/input_uvc $@
+	make -C plugins/input_testpicture $@
 	make -C plugins/output_file $@
 	make -C plugins/output_http $@
 	rm -f *.a *.o $(APP_BINARY) core *~ *.so *.lo
 
-plugins: input_uvc.so output_file.so output_http.so
+plugins: input_uvc.so output_file.so output_http.so input_testpicture.so
 
 application: $(APP_BINARY)
+
+input_testpicture.so: mjpg_streamer.h utils.h
+	make -C plugins/input_testpicture all
+	cp plugins/input_testpicture/input_testpicture.so .
 
 input_uvc.so: mjpg_streamer.h utils.h
 	make -C plugins/input_uvc all
