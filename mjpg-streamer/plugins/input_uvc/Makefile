@@ -19,8 +19,11 @@ all: input_uvc.so
 clean:
 	rm -f *.a *.o core *~ *.so *.lo
 
-input_uvc.so: $(OTHER_HEADERS) input_uvc.c v4l2uvc.lo
-	$(CC) $(CFLAGS) -o $@ input_uvc.c v4l2uvc.lo
+input_uvc.so: $(OTHER_HEADERS) input_uvc.c v4l2uvc.lo jpeg_utils.lo
+	$(CC) $(CFLAGS) -ljpeg -o $@ input_uvc.c v4l2uvc.lo jpeg_utils.lo
 
 v4l2uvc.lo: huffman.h uvc_compat.h uvcvideo.h v4l2uvc.c v4l2uvc.h
 	$(CC) -c $(CFLAGS) -o $@ v4l2uvc.c
+
+jpeg_utils.lo: jpeg_utils.c jpeg_utils.h
+	$(CC) -c $(CFLAGS) -o $@ jpeg_utils.c

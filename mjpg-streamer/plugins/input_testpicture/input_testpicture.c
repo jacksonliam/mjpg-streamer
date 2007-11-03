@@ -74,6 +74,12 @@ static struct pictures {
 struct pictures *pics;
 
 /*** plugin interface functions ***/
+
+/******************************************************************************
+Description.: parse input parameters
+Input Value.: param contains the command line string and a pointer to globals
+Return Value: 0 if everything is ok
+******************************************************************************/
 int input_init(input_parameter *param) {
   char *argv[MAX_ARGUMENTS]={NULL};
   int argc=1, i;
@@ -177,6 +183,11 @@ int input_init(input_parameter *param) {
   return 0;
 }
 
+/******************************************************************************
+Description.: stops the execution of the worker thread
+Input Value.: -
+Return Value: 0
+******************************************************************************/
 int input_stop(void) {
   DBG("will cancel input thread\n");
   pthread_cancel(worker);
@@ -184,6 +195,11 @@ int input_stop(void) {
   return 0;
 }
 
+/******************************************************************************
+Description.: starts the worker thread and allocates memory
+Input Value.: -
+Return Value: 0
+******************************************************************************/
 int input_run(void) {
   pglobal->buf = malloc(256*1024);
   if (pglobal->buf == NULL) {
@@ -201,7 +217,11 @@ int input_run(void) {
   return 0;
 }
 
-/*** private functions for this plugin below ***/
+/******************************************************************************
+Description.: print help message
+Input Value.: -
+Return Value: -
+******************************************************************************/
 void help(void) {
     fprintf(stderr, " ---------------------------------------------------------------\n" \
                     " Help for input plugin..: "INPUT_PLUGIN_NAME"\n" \
@@ -212,7 +232,12 @@ void help(void) {
                     " ---------------------------------------------------------------\n");
 }
 
-/* the single writer thread */
+/******************************************************************************
+Description.: copy a picture from testpictures.h and signal this to all output
+              plugins, afterwards switch to the next frame of the animation.
+Input Value.: arg is not used
+Return Value: NULL
+******************************************************************************/
 void *worker_thread( void *arg ) {
   int i=0;
 
@@ -241,6 +266,11 @@ void *worker_thread( void *arg ) {
   return NULL;
 }
 
+/******************************************************************************
+Description.: this functions cleans up allocated ressources
+Input Value.: arg is unused
+Return Value: -
+******************************************************************************/
 void worker_cleanup(void *arg) {
   static unsigned char first_run=1;
 

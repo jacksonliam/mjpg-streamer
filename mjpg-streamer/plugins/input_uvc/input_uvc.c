@@ -43,15 +43,17 @@
 #include "../../mjpg_streamer.h"
 #include "v4l2uvc.h"
 #include "huffman.h"
+#include "jpeg_utils.h"
 
 #define INPUT_PLUGIN_NAME "UVC webcam M-JPEG grabber"
 #define MAX_ARGUMENTS 32
 
 /* private functions and variables to this plugin */
-pthread_t   cam;
+pthread_t cam;
 pthread_mutex_t controls_mutex;
 struct vdIn *videoIn;
 static globals *pglobal;
+static int gquality = 80;
 
 void *cam_thread( void *);
 void cam_cleanup(void *);
@@ -65,7 +67,7 @@ Return Value:
 ******************************************************************************/
 int input_init(input_parameter *param) {
   char *argv[MAX_ARGUMENTS]={NULL}, *dev = "/dev/video0";
-  int argc=1, width=640, height=480, fps=5, i;
+  int argc=1, width=640, height=480, fps=5, format=V4L2_PIX_FMT_MJPEG, i;
 
   if( pthread_mutex_init(&controls_mutex, NULL) != 0 ) {
     fprintf(stderr, "could not initialize mutex variable\n");
@@ -114,6 +116,10 @@ int input_init(input_parameter *param) {
       {"resolution", required_argument, 0, 0},
       {"f", required_argument, 0, 0},
       {"fps", required_argument, 0, 0},
+      {"y", no_argument, 0, 0},
+      {"yuv", no_argument, 0, 0},
+      {"q", required_argument, 0, 0},
+      {"quality", required_argument, 0, 0},
       {0, 0, 0, 0}
     };
 
@@ -166,6 +172,21 @@ int input_init(input_parameter *param) {
         fps=atoi(optarg);
         break;
 
+      /* y, yuv */
+      case 8:
+      case 9:
+        DBG("case 8,9\n");
+        format = V4L2_PIX_FMT_YUYV;
+        break;
+
+      /* q, quality */
+      case 10:
+      case 11:
+        DBG("case 10,11\n");
+        format = V4L2_PIX_FMT_YUYV;
+        gquality = MIN(MAX(atoi(optarg), 0), 100);
+        break;
+
       default:
         DBG("default case\n");
         help();
@@ -173,17 +194,22 @@ int input_init(input_parameter *param) {
     }
   }
 
+  /* keep a pointer to the global variables */
   pglobal = param->global;
 
   /* allocate webcam datastructure */
   videoIn = malloc(sizeof(struct vdIn));
 
+  /* display the parsed values */
   IPRINT("Using V4L2 device.: %s\n", dev);
   IPRINT("Resolution........: %i x %i\n", width, height);
-  IPRINT("frames per second.: %i\n", fps);
+  IPRINT("Frames Per Second.: %i\n", fps);
+  IPRINT("Format............: %s\n", (format==V4L2_PIX_FMT_YUYV)?"YUV":"MJPEG");
+  if ( format == V4L2_PIX_FMT_YUYV )
+    IPRINT("JPEG Quality......: %d\n", gquality);
 
   /* open video device and prepare data structure */
-  if (init_videoIn(videoIn, dev, width, height, fps, V4L2_PIX_FMT_MJPEG, 1) < 0) {
+  if (init_videoIn(videoIn, dev, width, height, fps, format, 1) < 0) {
     IPRINT("init_VideoIn failed\n");
     closelog();
     exit(EXIT_FAILURE);
@@ -376,78 +402,10 @@ void help(void) {
                     " [-d | --device ].......: video device to open (your camera)\n" \
                     " [-r | --resolution ]...: 960x720, 640x480, 320x240, 160x120\n" \
                     " [-f | --fps ]..........: frames per second\n" \
+                    " [-y | --yuv ]..........: enable YUV mode and disable MJPEG mode\n" \
+                    " [-q | --quality ]......: JPEG compression quality in percent \n \
+                                               (activates YUV format, disables MJPEG)\n" \
                     " ---------------------------------------------------------------\n");
-}
-
-/******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
-******************************************************************************/
-int is_huffman(unsigned char *buf)
-{
-    unsigned char *ptbuf;
-    int i = 0;
-    ptbuf = buf;
-    while (((ptbuf[0] << 8) | ptbuf[1]) != 0xffda) {
-        if (i++ > 2048)
-            return 0;
-        if (((ptbuf[0] << 8) | ptbuf[1]) == 0xffc4)
-            return 1;
-        ptbuf++;
-    }
-    return 0;
-}
-
-#if 0
-/******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
-******************************************************************************/
-int print_picture(int fd, unsigned char *buf, int size)
-{
-    unsigned char *ptdeb, *ptcur = buf;
-    int sizein;
-
-    if (!is_huffman(buf)) {
-        ptdeb = ptcur = buf;
-        while (((ptcur[0] << 8) | ptcur[1]) != 0xffc0)
-            ptcur++;
-        sizein = ptcur - ptdeb;
-        if( write(fd, buf, sizein) <= 0) return -1;
-        if( write(fd, dht_data, DHT_SIZE) <= 0) return -1;
-        if( write(fd, ptcur, size - sizein) <= 0) return -1;
-    } else {
-        if( write(fd, ptcur, size) <= 0) return -1;
-    }
-    return 0;
-}
-#endif
-
-/******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
-******************************************************************************/
-int memcpy_picture(unsigned char *out, unsigned char *buf, int size)
-{
-    unsigned char *ptdeb, *ptcur = buf;
-    int sizein, pos=0;
-
-    if (!is_huffman(buf)) {
-        ptdeb = ptcur = buf;
-        while (((ptcur[0] << 8) | ptcur[1]) != 0xffc0)
-            ptcur++;
-        sizein = ptcur - ptdeb;
-
-        memcpy(out+pos, buf, sizein); pos += sizein;
-        memcpy(out+pos, dht_data, DHT_SIZE); pos += DHT_SIZE;
-        memcpy(out+pos, ptcur, size - sizein); pos += size-sizein;
-    } else {
-        memcpy(out+pos, ptcur, size); pos += size;
-    }
-    return pos;
 }
 
 /******************************************************************************
@@ -465,12 +423,25 @@ void *cam_thread( void *arg ) {
     /* grab a frame */
     if( uvcGrab(videoIn) < 0 ) {
       fprintf(stderr, "Error grabbing frames\n");
-      exit(1);
+      exit(EXIT_FAILURE);
     }
 
     /* copy JPG picture to global buffer */
     pthread_mutex_lock( &pglobal->db );
-    pglobal->size = memcpy_picture(pglobal->buf, videoIn->tmpbuffer, videoIn->buf.bytesused);
+
+    /*
+     * If capturing in YUV mode convert to JPEG now.
+     * This compression requires many CPU cycles, so try to avoid YUV format.
+     * Getting JPEGs straight from the webcam, is one of the major advantages of
+     * Linux-UVC compatible devices.
+     */
+    if (videoIn->formatIn == V4L2_PIX_FMT_YUYV) {
+      pglobal->size = compress_yuyv_to_jpeg(videoIn, pglobal->buf, videoIn->framesizeIn, gquality);
+    }
+    else {
+      pglobal->size = videoIn->buf.bytesused + DHT_SIZE;
+      memcpy(pglobal->buf, videoIn->tmpbuffer, pglobal->size);
+    }
 
 #if 0
     /* motion detection can be done just by comparing the picture size, but it is not very accurate!! */

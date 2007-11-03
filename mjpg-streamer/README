@@ -28,3 +28,6 @@ To compile and start the tool:
 # ./mjpg_streamer -o "output_http.so -w ./www"
 
 More examples can be found in the start.sh bash script.
+
+In case of error:
+ * the input plugin "input_uvc.so" depends on libjpeg, make sure it is installed.
