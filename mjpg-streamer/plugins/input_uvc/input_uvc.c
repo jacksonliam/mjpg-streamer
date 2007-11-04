@@ -45,8 +45,38 @@
 #include "huffman.h"
 #include "jpeg_utils.h"
 
-#define INPUT_PLUGIN_NAME "UVC webcam M-JPEG grabber"
+#define INPUT_PLUGIN_NAME "UVC webcam grabber"
 #define MAX_ARGUMENTS 32
+
+/*
+ * UVC resolutions mentioned at: (at least for some webcams)
+ * http://www.quickcamteam.net/hcl/frame-format-matrix/
+ */
+static const struct {
+  const char *string;
+  const int width, height;
+} resolutions[] = {
+  { "160x120",  160, 120 },
+  { "QSIF",     160, 120 },
+  { "176x144",  176, 144 },
+  { "QCIF",     176, 144 },
+  { "320x240",  320, 240 },
+  { "QVGA",     320, 240 },
+  { "352x288",  352, 288 },
+  { "CIF",      352, 288 },
+  { "432x240",  432, 240 },
+  { "480x360",  480, 360 },
+  { "512x288",  512, 288 },
+  { "640x360",  640, 360 },
+  { "640x480",  640, 480 },
+  { "VGA",      640, 480 },
+  { "704x576",  704, 576 },
+  { "864x480",  864, 480 },
+  { "960x720",  960, 720 },
+  { "1024x576", 1024, 576 },
+  { "1280x960", 1280, 960 },
+  { "SXGA",     1280, 960 }
+};
 
 /* private functions and variables to this plugin */
 pthread_t cam;
@@ -154,15 +184,12 @@ int input_init(input_parameter *param) {
       case 4:
       case 5:
         DBG("case 4,5\n");
-        /*
-         * interesting resolutions, others are mentioned at:
-         * http://www.quickcamteam.net/hcl/frame-format-matrix/
-         */
-        if ( strcmp("960x720", optarg) == 0 ) { width=960; height=720; }
-        else if ( strcmp("640x480", optarg) == 0 ) { width=640; height=480; }
-        else if ( strcmp("320x240", optarg) == 0 ) { width=320; height=240; }
-        else if ( strcmp("160x120", optarg) == 0 ) { width=160; height=120; }
-        else fprintf(stderr, "ignoring unsupported resolution\n");
+        for ( i=0; i < LENGTH_OF(resolutions); i++ ) {
+          if ( strcmp(resolutions[i].string, optarg) == 0 ) {
+            width  = resolutions[i].width;
+            height = resolutions[i].height;
+          }
+        }
         break;
 
       /* f, fps */
@@ -390,30 +417,39 @@ int input_cmd(in_cmd_type cmd) {
 
 /*** private functions for this plugin below ***/
 /******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
+Description.: print a help message to stderr
+Input Value.: -
+Return Value: -
 ******************************************************************************/
 void help(void) {
-    fprintf(stderr, " ---------------------------------------------------------------\n" \
-                    " Help for input plugin..: "INPUT_PLUGIN_NAME"\n" \
-                    " ---------------------------------------------------------------\n" \
-                    " The following parameters can be passed to this plugin:\n\n" \
-                    " [-d | --device ].......: video device to open (your camera)\n" \
-                    " [-r | --resolution ]...: 960x720, 640x480, 320x240, 160x120\n" \
-                    " [-f | --fps ]..........: frames per second\n" \
-                    " [-y | --yuv ]..........: enable YUV mode and disable MJPEG mode\n" \
-                    " [-q | --quality ]......: JPEG compression quality in percent \n \
-                                               (activates YUV format, disables MJPEG)\n" \
-                    " ---------------------------------------------------------------\n");
+  int i;
+
+  fprintf(stderr, " ---------------------------------------------------------------\n" \
+                  " Help for input plugin..: "INPUT_PLUGIN_NAME"\n" \
+                  " ---------------------------------------------------------------\n" \
+                  " The following parameters can be passed to this plugin:\n\n" \
+                  " [-d | --device ].......: video device to open (your camera)\n" \
+                  " [-r | --resolution ]...: ");
+
+  for ( i=0; i < LENGTH_OF(resolutions); i++ ) {
+    fprintf(stderr, "%s ", resolutions[i].string);
+    if ( (i+1)%4 == 0)
+      fprintf(stderr, "\n                          ");
+  }
+  fprintf(stderr, "\n");
+
+  fprintf(stderr, " [-f | --fps ]..........: frames per second\n" \
+                  " [-y | --yuv ]..........: enable YUYV format and disable MJPEG mode\n" \
+                  " [-q | --quality ]......: JPEG compression quality in percent \n" \
+                  "                          (activates YUYV format, disables MJPEG)\n" \
+                  " ---------------------------------------------------------------\n\n");
 }
 
 /******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
+Description.: this thread worker grabs a frame and copies it to the global buffer
+Input Value.: unused
+Return Value: unused, always NULL
 ******************************************************************************/
-/* the single writer thread */
 void *cam_thread( void *arg ) {
   /* set cleanup handler to cleanup allocated ressources */
   pthread_cleanup_push(cam_cleanup, NULL);
@@ -422,7 +458,7 @@ void *cam_thread( void *arg ) {
 
     /* grab a frame */
     if( uvcGrab(videoIn) < 0 ) {
-      fprintf(stderr, "Error grabbing frames\n");
+      IPRINT("Error grabbing frames\n");
       exit(EXIT_FAILURE);
     }
 

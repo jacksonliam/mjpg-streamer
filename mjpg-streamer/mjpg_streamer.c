@@ -187,7 +187,7 @@ int main(int argc, char *argv[])
         return 0;
         break;
 
-      /* v, version */
+      /* b, background */
       case 8:
       case 9:
         daemon=1;

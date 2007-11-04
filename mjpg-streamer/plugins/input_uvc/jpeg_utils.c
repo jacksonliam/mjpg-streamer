@@ -123,11 +123,12 @@ GLOBAL(void) dest_buffer(j_compress_ptr cinfo, unsigned char *buffer, int size, 
 Description.: yuv2jpeg function is based on compress_yuyv_to_jpeg written by
               Gabriel A. Devenyi.
               It uses the destination manager implemented above to compress
-              YUV data to JPEG. Most other implementations use the
+              YUYV data to JPEG. Most other implementations use the
               "jpeg_stdio_dest" from libjpeg, which can not store compressed
               pictures to memory instead of a file.
-Input Value.: 
-Return Value: 
+Input Value.: video structure from v4l2uvc.c/h, destination buffer and buffersize
+              the buffer must be large enough, no error/size checking is done!
+Return Value: the buffer will contain the compressed data
 ******************************************************************************/
 int compress_yuyv_to_jpeg(struct vdIn *vd, unsigned char *buffer, int size, int quality) {
   struct jpeg_compress_struct cinfo;
