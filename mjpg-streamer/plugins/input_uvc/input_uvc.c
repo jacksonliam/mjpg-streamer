@@ -56,26 +56,15 @@ static const struct {
   const char *string;
   const int width, height;
 } resolutions[] = {
-  { "160x120",  160, 120 },
-  { "QSIF",     160, 120 },
-  { "176x144",  176, 144 },
-  { "QCIF",     176, 144 },
-  { "320x240",  320, 240 },
-  { "QVGA",     320, 240 },
-  { "352x288",  352, 288 },
-  { "CIF",      352, 288 },
-  { "432x240",  432, 240 },
-  { "480x360",  480, 360 },
-  { "512x288",  512, 288 },
-  { "640x360",  640, 360 },
-  { "640x480",  640, 480 },
-  { "VGA",      640, 480 },
-  { "704x576",  704, 576 },
-  { "864x480",  864, 480 },
-  { "960x720",  960, 720 },
-  { "1024x576", 1024, 576 },
-  { "1280x960", 1280, 960 },
-  { "SXGA",     1280, 960 }
+  { "QSIF", 160,  120  },
+  { "QCIF", 176,  144  },
+  { "CGA",  320,  200  },
+  { "QVGA", 320,  240  },
+  { "CIF",  352,  288  },
+  { "VGA",  640,  480  },
+  { "SVGA", 800,  600  },
+  { "XGA",  1024, 768  },
+  { "SXGA", 1280, 1024 }
 };
 
 /* private functions and variables to this plugin */
@@ -96,11 +85,11 @@ Input Value.:
 Return Value: 
 ******************************************************************************/
 int input_init(input_parameter *param) {
-  char *argv[MAX_ARGUMENTS]={NULL}, *dev = "/dev/video0";
-  int argc=1, width=640, height=480, fps=5, format=V4L2_PIX_FMT_MJPEG, i;
+  char *argv[MAX_ARGUMENTS]={NULL}, *dev = "/dev/video0", *s;
+  int argc=1, width=640, height=640, fps=5, format=V4L2_PIX_FMT_MJPEG, i;
 
   if( pthread_mutex_init(&controls_mutex, NULL) != 0 ) {
-    fprintf(stderr, "could not initialize mutex variable\n");
+    IPRINT("could not initialize mutex variable\n");
     exit(EXIT_FAILURE);
   }
 
@@ -184,12 +173,22 @@ int input_init(input_parameter *param) {
       case 4:
       case 5:
         DBG("case 4,5\n");
+        width = -1;
+        height = -1;
+
+        /* try to find the resolution in lookup table "resolutions" */
         for ( i=0; i < LENGTH_OF(resolutions); i++ ) {
           if ( strcmp(resolutions[i].string, optarg) == 0 ) {
             width  = resolutions[i].width;
             height = resolutions[i].height;
           }
         }
+        /* done if width and height were set */
+        if(width != -1 && height != -1)
+          break;
+        /* parse value as decimal value */
+        width  = strtol(optarg, &s, 10);
+        height = strtol(s+1, NULL, 10);
         break;
 
       /* f, fps */
@@ -226,10 +225,14 @@ int input_init(input_parameter *param) {
 
   /* allocate webcam datastructure */
   videoIn = malloc(sizeof(struct vdIn));
+  if ( videoIn == NULL ) {
+    IPRINT("not enough memory for videoIn\n");
+    exit(EXIT_FAILURE);
+  }
 
   /* display the parsed values */
   IPRINT("Using V4L2 device.: %s\n", dev);
-  IPRINT("Resolution........: %i x %i\n", width, height);
+  IPRINT("Desired Resolution: %i x %i\n", width, height);
   IPRINT("Frames Per Second.: %i\n", fps);
   IPRINT("Format............: %s\n", (format==V4L2_PIX_FMT_YUYV)?"YUV":"MJPEG");
   if ( format == V4L2_PIX_FMT_YUYV )
@@ -429,14 +432,17 @@ void help(void) {
                   " ---------------------------------------------------------------\n" \
                   " The following parameters can be passed to this plugin:\n\n" \
                   " [-d | --device ].......: video device to open (your camera)\n" \
-                  " [-r | --resolution ]...: ");
+                  " [-r | --resolution ]...: the resolution of the video device,\n" \
+                  "                          can be one of the following strings:\n" \
+                  "                          ");
 
   for ( i=0; i < LENGTH_OF(resolutions); i++ ) {
     fprintf(stderr, "%s ", resolutions[i].string);
-    if ( (i+1)%4 == 0)
+    if ( (i+1)%6 == 0)
       fprintf(stderr, "\n                          ");
   }
-  fprintf(stderr, "\n");
+  fprintf(stderr, "\n                          or a custom value like the following" \
+                  "\n                          example: 640x480\n");
 
   fprintf(stderr, " [-f | --fps ]..........: frames per second\n" \
                   " [-y | --yuv ]..........: enable YUYV format and disable MJPEG mode\n" \
