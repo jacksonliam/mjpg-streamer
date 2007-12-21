@@ -315,7 +315,7 @@ int input_cmd(in_cmd_type cmd) {
         break;
       }
       pan_tilt_valid = 1;
-	  pan = tilt = 0;
+      pan = tilt = 0;
       break;
 
     case IN_CMD_PAN_PLUS:
@@ -327,9 +327,8 @@ int input_cmd(in_cmd_type cmd) {
         }
         pan_tilt_valid = 1;
       }
-//      pan = ( (MAX_PAN) < (pan+one_degree) ) ? (MAX_PAN) : (pan+one_degree);
       if ( (MAX_PAN) > (pan+one_degree) ) {
-	    pan += one_degree;
+        pan += one_degree;
         res = uvcPanTilt(videoIn, one_degree, 0, 0);
       }
       DBG("pan: %d\n", pan);
@@ -344,7 +343,6 @@ int input_cmd(in_cmd_type cmd) {
         }
         pan_tilt_valid = 1;
       }
-//      pan = ( (MIN_PAN) > (pan-one_degree) )? (MIN_PAN) : (pan-one_degree);
       if ( (MIN_PAN) < (pan-one_degree) ) {
         pan -= one_degree;
         res = uvcPanTilt(videoIn, -one_degree, 0, 0);
@@ -361,7 +359,6 @@ int input_cmd(in_cmd_type cmd) {
         }
         pan_tilt_valid = 1;
       }
-//      tilt = ( (MAX_TILT) < (tilt+one_degree) )? (MAX_TILT) : (tilt+one_degree);
       if ( (MAX_TILT) > (tilt+one_degree) ) {
           tilt += one_degree;
           res = uvcPanTilt(videoIn, 0, one_degree, 0);
@@ -378,7 +375,6 @@ int input_cmd(in_cmd_type cmd) {
         }
         pan_tilt_valid = 1;
       }
-//      tilt = ( (MIN_TILT) > (tilt-one_degree) )? (MIN_TILT) : (tilt-one_degree);
       if ( (MIN_TILT) < (tilt-one_degree) ) {
         tilt -= one_degree;
         res = uvcPanTilt(videoIn, 0, -one_degree, 0);

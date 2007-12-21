@@ -109,6 +109,28 @@ typedef struct {
   char buffer[IO_BUFFER]; /* the data */
 } iobuffer;
 
+/* store configuration per instance */
+typedef struct {
+  int port;
+  char *credentials;
+  char *www_folder;
+} config;
+
+/* context of each server thread */
+typedef struct {
+  int sd;
+  int id;
+  globals *pglobal;
+  pthread_t threadID;
+
+  config conf;
+} context;
+
+typedef struct {
+  context *pc;
+  int fd;
+} cfd;
+
 /* prototypes */
 void *server_thread(void *arg);
 

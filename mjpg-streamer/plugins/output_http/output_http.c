@@ -42,11 +42,8 @@
 #define OUTPUT_PLUGIN_NAME "HTTP output plugin"
 #define MAX_ARGUMENTS 32
 
-static pthread_t   server;
-static globals     *pglobal;
-
-extern int  port;
-extern char *credentials, *www_folder;
+/* keep context for each server */
+context servers[MAX_OUTPUT_PLUGINS];
 
 /******************************************************************************
 Description.: print help for this plugin to stdout
@@ -75,7 +72,11 @@ Return Value: 0 if everything is OK, other values signal an error
 ******************************************************************************/
 int output_init(output_parameter *param) {
   char *argv[MAX_ARGUMENTS]={NULL};
-  int argc=1, i;
+  int  argc=1, i;
+  int  port;
+  char *credentials, *www_folder;
+
+  DBG("output #%02d\n", param->id);
 
   port = htons(8080);
   credentials = NULL;
@@ -172,7 +173,11 @@ int output_init(output_parameter *param) {
     }
   }
 
-  pglobal = param->global;
+  servers[param->id].id = param->id;
+  servers[param->id].pglobal = param->global;
+  servers[param->id].conf.port = port;
+  servers[param->id].conf.credentials = credentials;
+  servers[param->id].conf.www_folder = www_folder;
 
   OPRINT("www-folder-path...: %s\n", (www_folder==NULL)?"disabled":www_folder);
   OPRINT("HTTP TCP port.....: %d\n", ntohs(port));
@@ -189,9 +194,11 @@ Description.: this will stop the server thread, client threads
 Input Value.: -
 Return Value: always 0
 ******************************************************************************/
-int output_stop(void) {
-  DBG("will cancel server thread\n");
-  pthread_cancel(server);
+int output_stop(int id) {
+
+  DBG("will cancel server thread #%02d\n", id);
+  pthread_cancel(servers[id].threadID);
+
   return 0;
 }
 
@@ -200,10 +207,13 @@ Description.: This creates and starts the server thread
 Input Value.: -
 Return Value: always 0
 ******************************************************************************/
-int output_run(void) {
-  DBG("launching server thread\n");
-  pthread_create(&server, 0, server_thread, pglobal);
-  pthread_detach(server);
+int output_run(int id) {
+  DBG("launching server thread #%02d\n", id);
+
+  /* create thread and pass context to thread function */
+  pthread_create(&(servers[id].threadID), NULL, server_thread, &(servers[id]));
+  pthread_detach(servers[id].threadID);
+
   return 0;
 }
 
@@ -215,7 +225,7 @@ Description.: This is just an example function, to show how the output
 Input Value.: the command type
 Return Value: 0 indicates success, other values indicate an error
 ******************************************************************************/
-int output_cmd(out_cmd_type cmd) {
-  fprintf(stderr, "Hello command triggered\n");
+int output_cmd(int id, out_cmd_type cmd) {
+  fprintf(stderr, "command (%d) triggered for plugin #%02d\n", cmd, id);
   return 0;
 }

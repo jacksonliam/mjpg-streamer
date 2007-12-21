@@ -45,9 +45,9 @@
 static globals global;
 
 /******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
+Description.: Display a help message
+Input Value.: argv[0] is the program name and the parameter progname
+Return Value: -
 ******************************************************************************/
 void help(char *progname)
 {
@@ -82,9 +82,12 @@ void help(char *progname)
 }
 
 /******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
+Description.: pressing CTRL+C sends signals to this process instead of just
+              killing it plugins can tidily shutdown and free allocated
+              ressources. The function prototype is defined by the system,
+              because it is a callback function.
+Input Value.: sig tells us which signal was received
+Return Value: -
 ******************************************************************************/
 void signal_handler(int sig)
 {
@@ -98,9 +101,9 @@ void signal_handler(int sig)
   /* clean up threads */
   LOG("force cancelation of threads and cleanup ressources\n");
   global.in.stop();
-  for(i=0; i<global.outcnt; i++)
-    global.out[i].stop();
-
+  for(i=0; i<global.outcnt; i++) {
+    global.out[i].stop(global.out[i].param.id);
+  }
   usleep(1000*1000);
 
   dlclose(&global.in.handle);
@@ -214,6 +217,7 @@ int main(int argc, char *argv[])
   global.size      = 0;
   global.in.plugin = NULL;
 
+  /* this mutex and the conditional variable are used to synchronize access to the global picture buffer */
   if( pthread_mutex_init(&global.db, NULL) != 0 ) {
     LOG("could not initialize mutex variable\n");
     closelog();
@@ -319,6 +323,7 @@ int main(int argc, char *argv[])
 
     global.out[i].param.parameter_string = strchr(output[i], ' ');
     global.out[i].param.global = &global;
+    global.out[i].param.id = i;
     if ( global.out[i].init(&global.out[i].param) ) {
       LOG("output_init() return value signals to exit");
       closelog();
@@ -333,8 +338,8 @@ int main(int argc, char *argv[])
 
   DBG("starting %d output plugin(s)\n", global.outcnt);
   for(i=0; i<global.outcnt; i++) {
-    syslog(LOG_INFO, "starting output plugin: %s", global.out[i].plugin);
-    global.out[i].run();
+    syslog(LOG_INFO, "starting output plugin: %s (ID: %d)", global.out[i].plugin, global.out[i].param.id);
+    global.out[i].run(global.out[i].param.id);
   }
 
   /* wait for signals */

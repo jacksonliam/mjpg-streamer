@@ -38,8 +38,7 @@
 #include "httpd.h"
 
 static globals *pglobal;
-int  sd, port;
-char *credentials, *www_folder;
+extern context servers[MAX_OUTPUT_PLUGINS];
 
 /******************************************************************************
 Description.: initializes the iobuffer structure properly
@@ -359,10 +358,11 @@ Input Value.: * fd.......: filedescriptor to send data to
               * parameter: string that consists of the filename
 Return Value: -
 ******************************************************************************/
-void send_file(int fd, char *parameter) {
+void send_file(int id, int fd, char *parameter) {
   char buffer[BUFFER_SIZE] = {0};
   char *extension, *mimetype=NULL;
   int i, lfd;
+  config conf = servers[id].conf;
 
   /* in case no parameter was given */
   if ( parameter == NULL || strlen(parameter) == 0 )
@@ -392,7 +392,7 @@ void send_file(int fd, char *parameter) {
   DBG("trying to serve file \"%s\", extension: \"%s\" mime: \"%s\"\n", parameter, extension, mimetype);
 
   /* build the absolute path to the file */
-  strncat(buffer, www_folder, sizeof(buffer)-1);
+  strncat(buffer, conf.www_folder, sizeof(buffer)-1);
   strncat(buffer, parameter, sizeof(buffer)-strlen(buffer)-1);
 
   /* try to open that file */
@@ -428,7 +428,7 @@ Input Value.: * fd.......: filedescriptor to send HTTP response to.
               * parameter: specifies the command as string.
 Return Value: -
 ******************************************************************************/
-void command(int fd, char *parameter) {
+void command(int id, int fd, char *parameter) {
   char buffer[BUFFER_SIZE] = {0};
   int i, res=-100;
 
@@ -466,7 +466,7 @@ void command(int fd, char *parameter) {
   /* if the command is for the output plugin itself */
   for ( i=0; i < LENGTH_OF(out_cmd_mapping); i++ ) {
     if ( strcmp(out_cmd_mapping[i].string, parameter) == 0 ) {
-      res = output_cmd(out_cmd_mapping[i].cmd);
+      res = output_cmd(id, out_cmd_mapping[i].cmd);
       break;
     }
   }
@@ -496,10 +496,12 @@ void *client_thread( void *arg ) {
   char buffer[BUFFER_SIZE]={0}, *pb=buffer;
   iobuffer iobuf;
   request req;
+  cfd lcfd;
 
   /* we really need the fildescriptor and it must be freeable by us */
   if (arg != NULL) {
-    fd = *((int *)arg);
+    lcfd = *((cfd *)arg);
+    fd = lcfd.fd;
     free(arg);
   }
   else
@@ -600,8 +602,8 @@ void *client_thread( void *arg ) {
   } while( cnt > 2 && !(buffer[0] == '\r' && buffer[1] == '\n') );
 
   /* check for username and password if parameter -c was given */
-  if ( credentials != NULL ) {
-    if ( req.credentials == NULL || strcmp(credentials, req.credentials) != 0 ) {
+  if ( lcfd.pc->conf.credentials != NULL ) {
+    if ( req.credentials == NULL || strcmp(lcfd.pc->conf.credentials, req.credentials) != 0 ) {
       DBG("access denied\n");
       send_error(fd, 401, "username and password do not match to configuration");
       close(fd);
@@ -624,13 +626,13 @@ void *client_thread( void *arg ) {
       send_stream(fd);
       break;
     case A_COMMAND:
-      command(fd, req.parameter);
+      command(lcfd.pc->id, fd, req.parameter);
       break;
     case A_FILE:
-      if ( www_folder == NULL )
+      if ( lcfd.pc->conf.www_folder == NULL )
         send_error(fd, 501, "no www-folder configured");
       else
-        send_file(fd, req.parameter);
+        send_file(lcfd.pc->id, fd, req.parameter);
       break;
     default:
       DBG("unknown request\n");
@@ -650,6 +652,7 @@ Return Value: -
 ******************************************************************************/
 void server_cleanup(void *arg) {
   static unsigned char first_run=1;
+  context *pcontext = arg;
 
   if ( !first_run ) {
     DBG("already cleaned up ressources\n");
@@ -659,7 +662,7 @@ void server_cleanup(void *arg) {
   first_run = 0;
   OPRINT("cleaning up ressources allocated by server thread\n");
 
-  close(sd);
+  close(pcontext->sd);
 }
 
 /******************************************************************************
@@ -674,21 +677,22 @@ void *server_thread( void *arg ) {
   pthread_t client;
   socklen_t addr_len = sizeof(struct sockaddr_in);
 
-  pglobal = arg;
+  context *pcontext = arg;
+  pglobal = pcontext->pglobal;
 
   /* set cleanup handler to cleanup ressources */
-  pthread_cleanup_push(server_cleanup, NULL);
+  pthread_cleanup_push(server_cleanup, pcontext);
 
   /* open socket for server */
-  sd = socket(PF_INET, SOCK_STREAM, 0);
-  if ( sd < 0 ) {
+  pcontext->sd = socket(PF_INET, SOCK_STREAM, 0);
+  if ( pcontext->sd < 0 ) {
     fprintf(stderr, "socket failed\n");
     exit(EXIT_FAILURE);
   }
 
   /* ignore "socket already in use" errors */
   on = 1;
-  if (setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
+  if (setsockopt(pcontext->sd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
     perror("setsockopt(SO_REUSEADDR) failed");
     exit(EXIT_FAILURE);
   }
@@ -699,41 +703,43 @@ void *server_thread( void *arg ) {
   /* configure server address to listen to all local IPs */
   memset(&addr, 0, sizeof(addr));
   addr.sin_family = AF_INET;
-  addr.sin_port = port; /* is already in right byteorder */
+  addr.sin_port = pcontext->conf.port; /* is already in right byteorder */
   addr.sin_addr.s_addr = htonl(INADDR_ANY);
-  if ( bind(sd, (struct sockaddr*)&addr, sizeof(addr)) != 0 ) {
+  if ( bind(pcontext->sd, (struct sockaddr*)&addr, sizeof(addr)) != 0 ) {
     perror("bind: ");
-    OPRINT("%s(): bind(%d) failed", __FUNCTION__, htons(port));
+    OPRINT("%s(): bind(%d) failed", __FUNCTION__, htons(pcontext->conf.port));
     closelog();
     exit(EXIT_FAILURE);
   }
 
   /* start listening on socket */
-  if ( listen(sd, 10) != 0 ) {
+  if ( listen(pcontext->sd, 10) != 0 ) {
     fprintf(stderr, "listen failed\n");
     exit(EXIT_FAILURE);
   }
 
   /* create a child for every client that connects */
   while ( !pglobal->stop ) {
-    int *pfd = (int *)malloc(sizeof(int));
+    //int *pfd = (int *)malloc(sizeof(int));
+    cfd *pcfd = malloc(sizeof(cfd));
 
-    if (pfd == NULL) {
+    if (pcfd == NULL) {
       fprintf(stderr, "failed to allocate (a very small amount of) memory\n");
       exit(EXIT_FAILURE);
     }
 
     DBG("waiting for clients to connect\n");
-    *pfd = accept(sd, (struct sockaddr *)&client_addr, &addr_len);
+    pcfd->fd = accept(pcontext->sd, (struct sockaddr *)&client_addr, &addr_len);
+    pcfd->pc = pcontext;
 
     /* start new thread that will handle this TCP connected client */
     DBG("create thread to handle client that just established a connection\n");
     syslog(LOG_INFO, "serving client: %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
 
-    if( pthread_create(&client, NULL, &client_thread, pfd) != 0 ) {
+    if( pthread_create(&client, NULL, &client_thread, pcfd) != 0 ) {
       DBG("could not launch another client thread\n");
-      close(*pfd);
-      free(pfd);
+      close(pcfd->fd);
+      free(pcfd);
       continue;
     }
     pthread_detach(client);

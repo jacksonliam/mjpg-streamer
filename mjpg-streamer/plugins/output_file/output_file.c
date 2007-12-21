@@ -311,7 +311,7 @@ Description.: calling this function stops the worker thread
 Input Value.: -
 Return Value: always 0
 ******************************************************************************/
-int output_stop(void) {
+int output_stop(int id) {
   DBG("will cancel worker thread\n");
   pthread_cancel(worker);
   return 0;
@@ -322,7 +322,7 @@ Description.: calling this function creates and starts the worker thread
 Input Value.: -
 Return Value: always 0
 ******************************************************************************/
-int output_run(void) {
+int output_run(int id) {
   DBG("launching worker thread\n");
   pthread_create(&worker, 0, worker_thread, NULL);
   pthread_detach(worker);

@@ -26,6 +26,7 @@
 /* parameters for output plugin */
 typedef struct _output_parameter output_parameter;
 struct _output_parameter {
+  int id;
   char *parameter_string;
   struct _globals *global;
 };
@@ -45,12 +46,12 @@ struct _output {
   output_parameter param;
 
   int (*init)(output_parameter *);
-  int (*stop)(void);
-  int (*run)(void);
-  int (*cmd)(out_cmd_type cmd);
+  int (*stop)(int id);
+  int (*run)(int id);
+  int (*cmd)(int id, out_cmd_type cmd);
 };
 
 int output_init(output_parameter *);
-int output_stop(void);
-int output_run(void);
-int output_cmd(out_cmd_type cmd);
+int output_stop(int id);
+int output_run(int id);
+int output_cmd(int id, out_cmd_type cmd);
