@@ -651,16 +651,9 @@ Input Value.: arg is not used
 Return Value: -
 ******************************************************************************/
 void server_cleanup(void *arg) {
-  static unsigned char first_run=1;
   context *pcontext = arg;
 
-  if ( !first_run ) {
-    DBG("already cleaned up ressources\n");
-    return;
-  }
-
-  first_run = 0;
-  OPRINT("cleaning up ressources allocated by server thread\n");
+  OPRINT("cleaning up ressources allocated by server thread #%02d\n", pcontext->id);
 
   close(pcontext->sd);
 }

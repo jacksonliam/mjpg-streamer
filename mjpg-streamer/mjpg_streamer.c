@@ -106,9 +106,27 @@ void signal_handler(int sig)
   }
   usleep(1000*1000);
 
+  /* close handles of input plugins */
   dlclose(&global.in.handle);
-  for(i=0; i<global.outcnt; i++)
-    dlclose(&global.out[i].handle);
+  for(i=0; i<global.outcnt; i++) {
+    /* skip = 0;
+    DBG("about to decrement usage counter for handle of %s, id #%02d, handle: %p\n", \
+        global.out[i].plugin, global.out[i].param.id, global.out[i].handle);
+    for(j=i+1; j<global.outcnt; j++) {
+      if ( global.out[i].handle == global.out[j].handle ) {
+        DBG("handles are pointing to the same destination (%p == %p)\n", global.out[i].handle, global.out[j].handle);
+        skip = 1;
+      }
+    }
+    if ( skip ) {
+      continue;
+    }
+
+    DBG("closing handle %p\n", global.out[i].handle);
+    */
+    dlclose(global.out[i].handle);
+  }
+  DBG("all plugin handles closed\n");
 
   pthread_cond_destroy(&global.db_update);
   pthread_mutex_destroy(&global.db);
@@ -331,14 +349,14 @@ int main(int argc, char *argv[])
     }
   }
 
-  /* start to read the camera, push picture buffers into global buffer */
+  /* start to read the input, push pictures into global buffer */
   DBG("starting input plugin\n");
   syslog(LOG_INFO, "starting input plugin");
   global.in.run();
 
   DBG("starting %d output plugin(s)\n", global.outcnt);
   for(i=0; i<global.outcnt; i++) {
-    syslog(LOG_INFO, "starting output plugin: %s (ID: %d)", global.out[i].plugin, global.out[i].param.id);
+    syslog(LOG_INFO, "starting output plugin: %s (ID: %02d)", global.out[i].plugin, global.out[i].param.id);
     global.out[i].run(global.out[i].param.id);
   }
 
