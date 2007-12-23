@@ -42,7 +42,9 @@
 #define OUTPUT_PLUGIN_NAME "HTTP output plugin"
 #define MAX_ARGUMENTS 32
 
-/* keep context for each server */
+/*
+ * keep context for each server
+ */
 context servers[MAX_OUTPUT_PLUGINS];
 
 /******************************************************************************
@@ -58,7 +60,8 @@ void help(void) {
                   " [-w | --www ]...........: folder that contains webpages in \n" \
                   "                           flat hierarchy (no subfolders)\n" \
                   " [-p | --port ]..........: TCP port for this HTTP server\n" \
-                  " [-c | --credentials ]...: check for \"username:password\"\n" \
+                  " [-c | --credentials ]...: ask for \"username:password\" on connect\n" \
+                  " [-n | --nocommands ]....: disable execution of commands\n"
                   " ---------------------------------------------------------------\n");
 }
 
@@ -67,7 +70,9 @@ void help(void) {
 Description.: Initialize this plugin.
               parse configuration parameters,
               store the parsed values in global variables
-Input Value.: all parameters to work with
+Input Value.: All parameters to work with.
+              Among many other variables the "param->id" is quite important -
+              it is used to distinguish between several server instances
 Return Value: 0 if everything is OK, other values signal an error
 ******************************************************************************/
 int output_init(output_parameter *param) {
@@ -75,12 +80,14 @@ int output_init(output_parameter *param) {
   int  argc=1, i;
   int  port;
   char *credentials, *www_folder;
+  char nocommands;
 
   DBG("output #%02d\n", param->id);
 
   port = htons(8080);
   credentials = NULL;
   www_folder = NULL;
+  nocommands = 0;
 
   /* convert the single parameter-string to an array of strings */
   argv[0] = OUTPUT_PLUGIN_NAME;
@@ -124,6 +131,8 @@ int output_init(output_parameter *param) {
       {"credentials", required_argument, 0, 0},
       {"w", required_argument, 0, 0},
       {"www", required_argument, 0, 0},
+      {"n", no_argument, 0, 0},
+      {"nocommands", no_argument, 0, 0},
       {0, 0, 0, 0}
     };
 
@@ -170,6 +179,13 @@ int output_init(output_parameter *param) {
         if ( optarg[strlen(optarg)-1] != '/' )
           strcat(www_folder, "/");
         break;
+
+      /* n, nocommands */
+      case 8:
+      case 9:
+        DBG("case 8,9\n");
+        nocommands = 1;
+        break;
     }
   }
 
@@ -178,10 +194,12 @@ int output_init(output_parameter *param) {
   servers[param->id].conf.port = port;
   servers[param->id].conf.credentials = credentials;
   servers[param->id].conf.www_folder = www_folder;
+  servers[param->id].conf.nocommands = nocommands;
 
   OPRINT("www-folder-path...: %s\n", (www_folder==NULL)?"disabled":www_folder);
   OPRINT("HTTP TCP port.....: %d\n", ntohs(port));
   OPRINT("username:password.: %s\n", (credentials==NULL)?"disabled":credentials);
+  OPRINT("commands..........: %s\n", (nocommands)?"disabled":"enabled");
 
   return 0;
 }
@@ -191,7 +209,7 @@ Description.: this will stop the server thread, client threads
               will not get cleaned properly, because they run detached and
               no pointer is kept. This is not a huge issue, because this
               funtion is intended to clean up the biggest mess on shutdown.
-Input Value.: -
+Input Value.: id determines which server instance to send commands to
 Return Value: always 0
 ******************************************************************************/
 int output_stop(int id) {
@@ -204,7 +222,7 @@ int output_stop(int id) {
 
 /******************************************************************************
 Description.: This creates and starts the server thread
-Input Value.: -
+Input Value.: id determines which server instance to send commands to
 Return Value: always 0
 ******************************************************************************/
 int output_run(int id) {
@@ -222,7 +240,8 @@ Description.: This is just an example function, to show how the output
               plugin could implement some special command.
               If you want to control some GPIO Pin this is a good place to
               implement it. Dont forget to add command types and a mapping.
-Input Value.: the command type
+Input Value.: cmd is the command type
+              id determines which server instance to send commands to
 Return Value: 0 indicates success, other values indicate an error
 ******************************************************************************/
 int output_cmd(int id, out_cmd_type cmd) {

@@ -356,6 +356,7 @@ Description.: Send HTTP header and copy the content of a file. To keep things
               If no parameter was given, the file "index.html" will be copied.
 Input Value.: * fd.......: filedescriptor to send data to
               * parameter: string that consists of the filename
+              * id.......: specifies which server-context is the right one
 Return Value: -
 ******************************************************************************/
 void send_file(int id, int fd, char *parameter) {
@@ -426,6 +427,7 @@ void send_file(int id, int fd, char *parameter) {
 Description.: Perform a command specified by parameter. Send response to fd.
 Input Value.: * fd.......: filedescriptor to send HTTP response to.
               * parameter: specifies the command as string.
+              * id.......: specifies which server-context is the right one
 Return Value: -
 ******************************************************************************/
 void command(int id, int fd, char *parameter) {
@@ -486,22 +488,22 @@ Description.: Serve a connected TCP-client. This thread function is called
               for each connect of a HTTP client like a webbrowser. It determines
               if it is a valid HTTP request and dispatches between the different
               response options.
-Input Value.: arg is the filedescriptor of the connected TCP socket. It must
-              have been allocated so it is freeable by this thread function.
+Input Value.: arg is the filedescriptor and server-context of the connected TCP
+              socket. It must have been allocated so it is freeable by this
+              thread function.
 Return Value: always NULL
 ******************************************************************************/
 /* thread for clients that connected to this server */
 void *client_thread( void *arg ) {
-  int fd, cnt;
+  int cnt;
   char buffer[BUFFER_SIZE]={0}, *pb=buffer;
   iobuffer iobuf;
   request req;
-  cfd lcfd;
+  cfd lcfd; /* local-connected-file-descriptor */
 
   /* we really need the fildescriptor and it must be freeable by us */
   if (arg != NULL) {
-    lcfd = *((cfd *)arg);
-    fd = lcfd.fd;
+    memcpy(&lcfd, arg, sizeof(cfd));
     free(arg);
   }
   else
@@ -513,8 +515,8 @@ void *client_thread( void *arg ) {
 
   /* What does the client want to receive? Read the request. */
   memset(buffer, 0, sizeof(buffer));
-  if ( (cnt = _readline(fd, &iobuf, buffer, sizeof(buffer)-1, 5)) == -1 ) {
-    close(fd);
+  if ( (cnt = _readline(lcfd.fd, &iobuf, buffer, sizeof(buffer)-1, 5)) == -1 ) {
+    close(lcfd.fd);
     return NULL;
   }
 
@@ -534,8 +536,8 @@ void *client_thread( void *arg ) {
     /* search for second variable "command" that specifies the command */
     if ( (pb = strstr(buffer, "command=")) == NULL ) {
       DBG("no command specified, it should be passed as second variable\n");
-      send_error(fd, 501, "no \"command\" specified");
-      close(fd);
+      send_error(lcfd.fd, 501, "no second parameter \"command\" specified");
+      close(lcfd.fd);
       return NULL;
     }
 
@@ -560,8 +562,8 @@ void *client_thread( void *arg ) {
 
     if ( (pb = strstr(buffer, "GET /")) == NULL ) {
       DBG("HTTP request seems to be malformed\n");
-      send_error(fd, 501, "Malformed HTTP request");
-      close(fd);
+      send_error(lcfd.fd, 501, "Malformed HTTP request");
+      close(lcfd.fd);
       return NULL;
     }
 
@@ -584,9 +586,9 @@ void *client_thread( void *arg ) {
   do {
     memset(buffer, 0, sizeof(buffer));
 
-    if ( (cnt = _readline(fd, &iobuf, buffer, sizeof(buffer)-1, 5)) == -1 ) {
+    if ( (cnt = _readline(lcfd.fd, &iobuf, buffer, sizeof(buffer)-1, 5)) == -1 ) {
       free_request(&req);
-      close(fd);
+      close(lcfd.fd);
       return NULL;
     }
 
@@ -605,8 +607,8 @@ void *client_thread( void *arg ) {
   if ( lcfd.pc->conf.credentials != NULL ) {
     if ( req.credentials == NULL || strcmp(lcfd.pc->conf.credentials, req.credentials) != 0 ) {
       DBG("access denied\n");
-      send_error(fd, 401, "username and password do not match to configuration");
-      close(fd);
+      send_error(lcfd.fd, 401, "username and password do not match to configuration");
+      close(lcfd.fd);
       if ( req.parameter != NULL ) free(req.parameter);
       if ( req.client != NULL ) free(req.client);
       if ( req.credentials != NULL ) free(req.credentials);
@@ -619,26 +621,30 @@ void *client_thread( void *arg ) {
   switch ( req.type ) {
     case A_SNAPSHOT:
       DBG("Request for snapshot\n");
-      send_snapshot(fd);
+      send_snapshot(lcfd.fd);
       break;
     case A_STREAM:
       DBG("Request for stream\n");
-      send_stream(fd);
+      send_stream(lcfd.fd);
       break;
     case A_COMMAND:
-      command(lcfd.pc->id, fd, req.parameter);
+      if ( lcfd.pc->conf.nocommands ) {
+        send_error(lcfd.fd, 501, "this server does not accept commands");
+        break;
+      }
+      command(lcfd.pc->id, lcfd.fd, req.parameter);
       break;
     case A_FILE:
       if ( lcfd.pc->conf.www_folder == NULL )
-        send_error(fd, 501, "no www-folder configured");
+        send_error(lcfd.fd, 501, "no www-folder configured");
       else
-        send_file(lcfd.pc->id, fd, req.parameter);
+        send_file(lcfd.pc->id, lcfd.fd, req.parameter);
       break;
     default:
       DBG("unknown request\n");
   }
 
-  close(fd);
+  close(lcfd.fd);
   free_request(&req);
 
   DBG("leaving HTTP client thread\n");

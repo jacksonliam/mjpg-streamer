@@ -23,20 +23,37 @@
 #define IO_BUFFER 256
 #define BUFFER_SIZE 512
 
-/* the boundary is used for the M-JPEG stream, it separates the pictures */
+/* the boundary is used for the M-JPEG stream, it separates the multipart stream of pictures */
 #define BOUNDARY "boundarydonotcross"
 
-/* this defines the buffer size for a JPG-frame */
+/*
+ * this defines the buffer size for a JPG-frame
+ * selecting to large values will allocate much wasted RAM for each buffer
+ * selecting to small values will lead to crashes due to to small buffers
+ */
 #define MAX_FRAME_SIZE (256*1024)
 
-/* standard header to be send along with other header information like mimetype */
+/*
+ * Standard header to be send along with other header information like mimetype.
+ *
+ * The parameters should ensure the browser does not cache our answer.
+ * A browser should connect for each file and not serve files from his cache.
+ * Using cached pictures would lead to showing old/outdated pictures
+ * Many browser seem to ignore, or at least not always obey those headers
+ * since i observed caching of files from time to time.
+ */
 #define STD_HEADER "Connection: close\r\n" \
                    "Server: MJPG-Streamer/0.1\r\n" \
                    "Cache-Control: no-store, no-cache, must-revalidate, pre-check=0, post-check=0, max-age=0\r\n" \
                    "Pragma: no-cache\r\n" \
                    "Expires: Mon, 3 Jan 2000 12:34:56 GMT\r\n"
 
-/* only the following filestypes are supported */
+/*
+ * Only the following fileypes are supported.
+ *
+ * Other filetypes are simply ignored!
+ * This table is a 1:1 mapping of files extension to a certain mimetype.
+ */
 static const struct {
   const char *dot_extension;
   const char *mimetype;
@@ -92,8 +109,8 @@ static const struct {
 typedef enum { A_UNKNOWN, A_SNAPSHOT, A_STREAM, A_COMMAND, A_FILE } answer_t;
 
 /*
- * the client sends gives information in his request
- * this is used to store it in order to give an answer
+ * the client sends information with each request
+ * this structure is used to store the important parts
  */
 typedef struct {
   answer_t type;
@@ -108,11 +125,12 @@ typedef struct {
   char buffer[IO_BUFFER]; /* the data */
 } iobuffer;
 
-/* store configuration per instance */
+/* store configuration for each server instance */
 typedef struct {
   int port;
   char *credentials;
   char *www_folder;
+  char nocommands;
 } config;
 
 /* context of each server thread */
@@ -125,6 +143,10 @@ typedef struct {
   config conf;
 } context;
 
+/*
+ * this struct is just defined to allow passing all necessary details to a worker thread
+ * "cfd" is for connected/accepted filedescriptor
+ */
 typedef struct {
   context *pc;
   int fd;
