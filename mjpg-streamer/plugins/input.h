@@ -51,7 +51,7 @@ enum _in_cmd_type {
   IN_CMD_BRIGHTNESS_PLUS,
   IN_CMD_BRIGHTNESS_MINUS,
   IN_CMD_GAIN_PLUS,
-  IN_CMD_GAIN_MINUS,
+  IN_CMD_GAIN_MINUS
 };
 
 /* structure to store variables/functions for input plugin */
