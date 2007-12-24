@@ -244,7 +244,7 @@ Input Value.: cmd is the command type
               id determines which server instance to send commands to
 Return Value: 0 indicates success, other values indicate an error
 ******************************************************************************/
-int output_cmd(int id, out_cmd_type cmd) {
-  fprintf(stderr, "command (%d) triggered for plugin #%02d\n", cmd, id);
+int output_cmd(int id, out_cmd_type cmd, int value) {
+  fprintf(stderr, "command (%d, value: %d) triggered for plugin instance #%02d\n", cmd, value, id);
   return 0;
 }

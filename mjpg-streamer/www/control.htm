@@ -16,7 +16,7 @@
 </head>
 <body>
 
-    <form name="command_panel" action="" onsubmit="return false;" style="background-color: navy; position: absolute; top: 30px; width: 300px; height: 200px; padding: 10px">
+  <form name="command_panel" action="" onsubmit="return false;" style="background-color: navy; position: absolute; top: 30px; width: 300px; height: 300px; padding: 10px">
       <input type="button" value="reset" onclick="send_command('reset')">
     <br />
       <input type="button" value="reset_pan_tilt" onclick="send_command('reset_pan_tilt')">
@@ -36,11 +36,17 @@
       <input type="button" value="pan +" onclick="send_command('pan_plus')">
       <input type="button" value="pan -" onclick="send_command('pan_minus')">
     <br />
+      <input type="input" value="0" name="pan">
+      <input type="button" value="set pan" onclick="send_command('pan_set&value='+this.form.pan.value)">
+    <br />
       <input type="button" value="tilt +" onclick="send_command('tilt_plus')">
       <input type="button" value="tilt -" onclick="send_command('tilt_minus')">
+    <br />
+      <input type="input" value="0" name="tilt">
+      <input type="button" value="set tilt" onclick="send_command('tilt_set&value='+this.form.tilt.value)">
   </form>
 
-  <div id="hints" style="background-color: yellow; position: absolute; top: 2px">Hints</div>
+  <div id="hints" style="background-color: yellow; position: absolute; top: 2px">communication hints</div>
 
 </body>
 </html>

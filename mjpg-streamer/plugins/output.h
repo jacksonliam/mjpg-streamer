@@ -46,12 +46,12 @@ struct _output {
   output_parameter param;
 
   int (*init)(output_parameter *);
-  int (*stop)(int id);
-  int (*run)(int id);
-  int (*cmd)(int id, out_cmd_type cmd);
+  int (*stop)(int);
+  int (*run)(int);
+  int (*cmd)(int, out_cmd_type, int);
 };
 
 int output_init(output_parameter *);
 int output_stop(int id);
 int output_run(int id);
-int output_cmd(int id, out_cmd_type cmd);
+int output_cmd(int id, out_cmd_type cmd, int value);

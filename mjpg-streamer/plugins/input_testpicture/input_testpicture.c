@@ -46,6 +46,7 @@
 /* private functions and variables to this plugin */
 static pthread_t   worker;
 static globals     *pglobal;
+static pthread_mutex_t controls_mutex;
 
 void *worker_thread( void *);
 void worker_cleanup(void *);
@@ -85,6 +86,11 @@ int input_init(input_parameter *param) {
   int argc=1, i;
 
   pics = &picture_lookup[1];
+
+  if( pthread_mutex_init(&controls_mutex, NULL) != 0 ) {
+    IPRINT("could not initialize mutex variable\n");
+    exit(EXIT_FAILURE);
+  }
 
   /* convert the single parameter-string to an array of strings */
   argv[0] = INPUT_PLUGIN_NAME;
@@ -283,6 +289,95 @@ void worker_cleanup(void *arg) {
   DBG("cleaning up ressources allocated by input thread\n");
 
   if (pglobal->buf != NULL) free(pglobal->buf);
+}
+
+#define ONE_DEGREE (64);
+#define MAX_PAN  (70*64)
+#define MIN_PAN  (-70*64)
+#define MAX_TILT (30*64)
+#define MIN_TILT (-30*64)
+
+int input_cmd(in_cmd_type cmd, int value) {
+  int res=0;
+  static int pan=0;
+  static int tilt=0;
+  static int pan_tilt_valid=-1;
+  const int one_degree = ONE_DEGREE;
+
+  IPRINT("received command %d (value: %d) for input plugin\n", cmd, value);
+
+  if ( cmd != IN_CMD_RESET_PAN_TILT_NO_MUTEX )
+    pthread_mutex_lock( &controls_mutex );
+
+  DBG("pan: %d, tilt: %d, valid: %d\n", pan, tilt, pan_tilt_valid);
+
+  switch (cmd) {
+    case IN_CMD_HELLO:
+      fprintf(stderr, "Hello from input plugin\n");
+      break;
+
+    case IN_CMD_RESET_PAN_TILT:
+    case IN_CMD_RESET_PAN_TILT_NO_MUTEX:
+      DBG("about to set all pan/tilt to default position\n");
+      DBG("uvcPanTilt(videoIn, 0, 0, 3) != 0 )\n");
+      pan_tilt_valid = 1;
+      pan = tilt = 0;
+      break;
+
+    case IN_CMD_PAN_SET:
+      DBG("set pan to %d\n", value);
+
+      if ( pan_tilt_valid != 1 ) input_cmd(IN_CMD_RESET_PAN_TILT_NO_MUTEX, 0);
+
+      /* limit pan-value to min and max */
+      value = MIN(MAX(value*one_degree, MIN_PAN), MAX_PAN);
+
+      /* calculate the relative degrees to move to the desired absolute pan-value */
+      if( (res = value - pan) == 0 ) {
+        /* do not move if this would mean to move by 0 degrees */
+        res = pan;
+        break;
+      }
+
+      /* move it */
+      pan = value;
+      DBG("res = uvcPanTilt(videoIn, %d, 0, 0)\n", res);
+
+      DBG("pan: %d\n", pan);
+      break;
+
+    case IN_CMD_PAN_PLUS:
+      DBG("pan +\n");
+
+      if ( pan_tilt_valid != 1 ) input_cmd(IN_CMD_RESET_PAN_TILT_NO_MUTEX, 0);
+
+      if ( (MAX_PAN) > (pan+one_degree) ) {
+        pan += one_degree;
+        DBG("res = uvcPanTilt(videoIn, one_degree, 0, 0)\n");
+      }
+      DBG("pan: %d\n", pan);
+      break;
+
+    case IN_CMD_PAN_MINUS:
+      DBG("pan -\n");
+
+      if ( pan_tilt_valid != 1 ) input_cmd(IN_CMD_RESET_PAN_TILT_NO_MUTEX, 0);
+
+      if ( (MIN_PAN) < (pan-one_degree) ) {
+        pan -= one_degree;
+        DBG("res = uvcPanTilt(videoIn, -one_degree, 0, 0)\n");
+      }
+      DBG("pan: %d\n", pan);
+      break;
+
+    default:
+      DBG("some other value, ignored\n");
+  }
+
+  if ( cmd != IN_CMD_RESET_PAN_TILT_NO_MUTEX )
+    pthread_mutex_unlock( &controls_mutex );
+
+  return res;
 }
 
 

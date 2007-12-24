@@ -337,6 +337,20 @@ void send_error(int fd, int which, char *message) {
                     "\r\n" \
                     "404: Not Found!\r\n" \
                     "%s", message);
+  } else if ( which == 500 ) {
+    sprintf(buffer, "HTTP/1.0 500 Internal Server Error\r\n" \
+                    "Content-type: text/plain\r\n" \
+                    STD_HEADER \
+                    "\r\n" \
+                    "500: Internal Server Error!\r\n" \
+                    "%s", message);
+  } else if ( which == 400 ) {
+    sprintf(buffer, "HTTP/1.0 400 Bad Request\r\n" \
+                    "Content-type: text/plain\r\n" \
+                    STD_HEADER \
+                    "\r\n" \
+                    "400: Not Found!\r\n" \
+                    "%s", message);
   } else {
     sprintf(buffer, "HTTP/1.0 501 Not Implemented\r\n" \
                     "Content-type: text/plain\r\n" \
@@ -371,7 +385,7 @@ void send_file(int id, int fd, char *parameter) {
 
   /* find file-extension */
   if ( (extension = strstr(parameter, ".")) == NULL ) {
-    send_error(fd, 404, "No file extension found");
+    send_error(fd, 400, "No file extension found");
     return;
   }
 
@@ -426,24 +440,53 @@ void send_file(int id, int fd, char *parameter) {
 /******************************************************************************
 Description.: Perform a command specified by parameter. Send response to fd.
 Input Value.: * fd.......: filedescriptor to send HTTP response to.
-              * parameter: specifies the command as string.
-              * id.......: specifies which server-context is the right one
+              * parameter: contains the command and value as string.
+              * id.......: specifies which server-context to choose.
 Return Value: -
 ******************************************************************************/
 void command(int id, int fd, char *parameter) {
-  char buffer[BUFFER_SIZE] = {0};
-  int i, res=-100;
+  char buffer[BUFFER_SIZE] = {0}, *command=NULL, *svalue=NULL;
+  int i=0, res=0, ivalue=0, len=0;
 
-  /* sanity check for parameter */
-  if ( parameter == NULL || strlen(parameter) > 50 || strlen(parameter) == 0 ) {
-    sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
-                    "Content-type: text/plain\r\n" \
-                    STD_HEADER \
-                    "\r\n" \
-                    "ERROR: parameter length is wrong");
+  DBG("parameter is: %s\n", parameter);
 
-    write(fd, buffer, strlen(buffer));
+  /* sanity check of parameter-string */
+  if ( parameter == NULL || strlen(parameter) >= 100 || strlen(parameter) == 0 ) {
+    DBG("parameter string looks bad\n");
+    send_error(fd, 400, "Parameter-string of command does not look valid.");
     return;
+  }
+
+  /* search for required variable "command" */
+  if ( (command = strstr(parameter, "command=")) == NULL ) {
+    DBG("no command specified\n");
+    send_error(fd, 400, "no GET variable \"command=...\" found, it is required to specify which command to execute");
+    return;
+  }
+
+  /* allocate and copy command string */
+  command += strlen("command=");
+  len = strspn(command, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_1234567890");
+  if ( (command = strndup(command, len)) == NULL ) {
+    send_error(fd, 500, "could not allocate memory");
+    LOG("could not allocate memory\n");
+    return;
+  }
+  DBG("command string: %s\n", command);
+
+  /* find and convert optional parameter "value" */
+  if ( (svalue = strstr(parameter, "value=")) != NULL ) {
+    svalue += strlen("value=");
+    len = strspn(svalue, "-1234567890");
+    if ( (svalue = strndup(svalue, len)) == NULL ) {
+      if (command != NULL) free(command);
+      send_error(fd, 500, "could not allocate memory");
+      LOG("could not allocate memory\n");
+      return;
+    }
+    ivalue = MAX(MIN(strtol(svalue, NULL, 10), 999), -999);
+    DBG("converted value form string %s to integer %d\n", svalue, ivalue);
+    free(svalue);
   }
 
   /*
@@ -453,34 +496,37 @@ void command(int id, int fd, char *parameter) {
    * function, a short error is reported to the HTTP-client.
    */
   for ( i=0; i < LENGTH_OF(in_cmd_mapping); i++ ) {
-    if ( strcmp(in_cmd_mapping[i].string, parameter) == 0 ) {
+    if ( strcmp(in_cmd_mapping[i].string, command) == 0 ) {
 
       if ( pglobal->in.cmd == NULL ) {
-        send_error(fd, 501, "input plugin can not process commands");
+        send_error(fd, 501, "input plugin does not implement commands");
+        if (command != NULL) free(command);
         return;
       }
 
-      res = pglobal->in.cmd(in_cmd_mapping[i].cmd);
+      res = pglobal->in.cmd(in_cmd_mapping[i].cmd, ivalue);
       break;
     }
   }
 
-  /* if the command is for the output plugin itself */
+  /* check if the command is for the output plugin itself */
   for ( i=0; i < LENGTH_OF(out_cmd_mapping); i++ ) {
-    if ( strcmp(out_cmd_mapping[i].string, parameter) == 0 ) {
-      res = output_cmd(id, out_cmd_mapping[i].cmd);
+    if ( strcmp(out_cmd_mapping[i].string, command) == 0 ) {
+      res = output_cmd(id, out_cmd_mapping[i].cmd, ivalue);
       break;
     }
   }
 
-  /* Send HTTP-response, it will send the return value of res mapped to OK or ERROR */
+  /* Send HTTP-response */
   sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
                   "Content-type: text/plain\r\n" \
                   STD_HEADER \
                   "\r\n" \
-                  "%s: %s", (res==0)?"OK":"ERROR", parameter);
+                  "%s: %d", command, res);
 
   write(fd, buffer, strlen(buffer));
+
+  if (command != NULL) free(command);
 }
 
 /******************************************************************************
@@ -529,22 +575,19 @@ void *client_thread( void *arg ) {
   }
   else if ( strstr(buffer, "GET /?action=command") != NULL ) {
     int len;
-
-    DBG("Request for command\n");
     req.type = A_COMMAND;
 
-    /* search for second variable "command" that specifies the command */
-    if ( (pb = strstr(buffer, "command=")) == NULL ) {
-      DBG("no command specified, it should be passed as second variable\n");
-      send_error(lcfd.fd, 501, "no second parameter \"command\" specified");
+    /* advance by the length of known string */
+    if ( (pb = strstr(buffer, "GET /?action=command")) == NULL ) {
+      DBG("HTTP request seems to be malformed\n");
+      send_error(lcfd.fd, 400, "Malformed HTTP request");
       close(lcfd.fd);
       return NULL;
     }
+    pb += strlen("GET /?action=command");
 
-    /* req.parameter = strdup(strsep(&pb, " ")+strlen("command=")); */
-    /* i prefer to validate against the character set using strspn() */
-    pb += strlen("command=");
-    len = MIN(MAX(strspn(pb, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_1234567890"), 0), 100);
+    /* only accept certain characters */
+    len = MIN(MAX(strspn(pb, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-=&1234567890"), 0), 100);
     req.parameter = malloc(len+1);
     if ( req.parameter == NULL ) {
       exit(EXIT_FAILURE);
@@ -552,7 +595,7 @@ void *client_thread( void *arg ) {
     memset(req.parameter, 0, len+1);
     strncpy(req.parameter, pb, len);
 
-    DBG("parameter (len: %d): \"%s\"\n", len, req.parameter);
+    DBG("command parameter (len: %d): \"%s\"\n", len, req.parameter);
   }
   else {
     int len;
@@ -562,7 +605,7 @@ void *client_thread( void *arg ) {
 
     if ( (pb = strstr(buffer, "GET /")) == NULL ) {
       DBG("HTTP request seems to be malformed\n");
-      send_error(lcfd.fd, 501, "Malformed HTTP request");
+      send_error(lcfd.fd, 400, "Malformed HTTP request");
       close(lcfd.fd);
       return NULL;
     }
@@ -581,7 +624,7 @@ void *client_thread( void *arg ) {
 
   /*
    * parse the rest of the HTTP-request
-   * the end of the request-header is a single, empty line with "\r\n"
+   * the end of the request-header is marked by a single, empty line with "\r\n"
    */
   do {
     memset(buffer, 0, sizeof(buffer));
@@ -629,7 +672,7 @@ void *client_thread( void *arg ) {
       break;
     case A_COMMAND:
       if ( lcfd.pc->conf.nocommands ) {
-        send_error(lcfd.fd, 501, "this server does not accept commands");
+        send_error(lcfd.fd, 501, "this server is configured to not accept commands");
         break;
       }
       command(lcfd.pc->id, lcfd.fd, req.parameter);

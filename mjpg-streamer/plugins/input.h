@@ -37,8 +37,11 @@ enum _in_cmd_type {
   IN_CMD_HELLO,
   IN_CMD_RESET,
   IN_CMD_RESET_PAN_TILT,
+  IN_CMD_RESET_PAN_TILT_NO_MUTEX,
+  IN_CMD_PAN_SET,
   IN_CMD_PAN_PLUS,
   IN_CMD_PAN_MINUS,
+  IN_CMD_TILT_SET,
   IN_CMD_TILT_PLUS,
   IN_CMD_TILT_MINUS,
   IN_CMD_SATURATION_PLUS,
@@ -48,7 +51,7 @@ enum _in_cmd_type {
   IN_CMD_BRIGHTNESS_PLUS,
   IN_CMD_BRIGHTNESS_MINUS,
   IN_CMD_GAIN_PLUS,
-  IN_CMD_GAIN_MINUS
+  IN_CMD_GAIN_MINUS,
 };
 
 /* structure to store variables/functions for input plugin */
@@ -61,5 +64,5 @@ struct _input {
   int (*init)(input_parameter *);
   int (*stop)(void);
   int (*run)(void);
-  int (*cmd)(in_cmd_type cmd);
+  int (*cmd)(in_cmd_type, int);
 };

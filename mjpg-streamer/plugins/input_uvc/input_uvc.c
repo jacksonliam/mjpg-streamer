@@ -80,9 +80,13 @@ void help(void);
 
 /*** plugin interface functions ***/
 /******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
+Description.: This function initializes the plugin. It parses the commandline-
+              parameter and stores the default and parsed values in the
+              appropriate variables.
+Input Value.: param contains among others the command-line string
+Return Value: 0 if everything is fine
+              1 if "--help" was triggered, in this case the calling programm
+              should stop running and leave.
 ******************************************************************************/
 int input_init(input_parameter *param) {
   char *argv[MAX_ARGUMENTS]={NULL}, *dev = "/dev/video0", *s;
@@ -249,9 +253,9 @@ int input_init(input_parameter *param) {
 }
 
 /******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
+Description.: Stops the execution of worker thread
+Input Value.: -
+Return Value: always 0
 ******************************************************************************/
 int input_stop(void) {
   DBG("will cancel input thread\n");
@@ -261,9 +265,9 @@ int input_stop(void) {
 }
 
 /******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
+Description.: spins of a worker thread
+Input Value.: -
+Return Value: always 0
 ******************************************************************************/
 int input_run(void) {
   pglobal->buf = malloc(videoIn->framesizeIn);
@@ -279,18 +283,22 @@ int input_run(void) {
 }
 
 /******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
+Description.: process commands, allows to set certain runtime configurations
+              and settings like pan/tilt, colors, saturation etc.
+Input Value.: * cmd specifies the command, a complete list is maintained in
+                the file "input.h"
+              * value is used for commands that make use of a parameter.
+Return Value: depends in the command, for most cases 0 means no errors and
+              -1 signals an error. This is just rule of thumb, not more!
 ******************************************************************************/
-int input_cmd(in_cmd_type cmd) {
+int input_cmd(in_cmd_type cmd, int value) {
   int res=0;
-  static int pan=0;
-  static int tilt=0;
-  static int pan_tilt_valid=-1;
+  static int pan=0, tilt=0, pan_tilt_valid=-1;
   const int one_degree = ONE_DEGREE;
 
-  pthread_mutex_lock( &controls_mutex );
+  /* certain commands do not need the mutex */
+  if ( cmd != IN_CMD_RESET_PAN_TILT_NO_MUTEX )
+    pthread_mutex_lock( &controls_mutex );
 
   DBG("pan: %d, tilt: %d, valid: %d\n", pan, tilt, pan_tilt_valid);
 
@@ -309,7 +317,8 @@ int input_cmd(in_cmd_type cmd) {
       break;
 
     case IN_CMD_RESET_PAN_TILT:
-      DBG("about to set all pan/tilt to default position\n");
+    case IN_CMD_RESET_PAN_TILT_NO_MUTEX:
+      DBG("about to set pan/tilt to default position\n");
       if ( uvcPanTilt(videoIn, 0, 0, 3) != 0 ) {
         res = -1;
         break;
@@ -318,67 +327,130 @@ int input_cmd(in_cmd_type cmd) {
       pan = tilt = 0;
       break;
 
-    case IN_CMD_PAN_PLUS:
-      DBG("pan +\n");
+    case IN_CMD_PAN_SET:
+      DBG("set pan to %d degrees\n", value);
+
+      /* in order to calculate absolute positions we must check for initialized values */
       if ( pan_tilt_valid != 1 ) {
-        if ( uvcPanTilt(videoIn, 0, 0, 3) != 0 ) {
+        if ( input_cmd(IN_CMD_RESET_PAN_TILT_NO_MUTEX, 0) == -1 ) {
           res = -1;
           break;
         }
-        pan_tilt_valid = 1;
       }
+
+      /* limit pan-value to min and max, multiply it with constant "one_degree" */
+      value = MIN(MAX(value*one_degree, MIN_PAN), MAX_PAN);
+
+      /* calculate the relative degrees to move to the desired absolute pan-value */
+      if( (res = value - pan) == 0 ) {
+        /* do not move if this would mean to move by 0 degrees */
+        res = pan;
+        break;
+      }
+
+      /* move it */
+      pan = value;
+      res = uvcPanTilt(videoIn, res, 0, 0);
+
+      DBG("pan: %d\n", pan);
+      break;
+
+    case IN_CMD_PAN_PLUS:
+      DBG("pan +\n");
+
+      if ( pan_tilt_valid != 1 ) {
+        if ( input_cmd(IN_CMD_RESET_PAN_TILT_NO_MUTEX, 0) == -1 ) {
+          res = -1;
+          break;
+        }
+      }
+
       if ( (MAX_PAN) > (pan+one_degree) ) {
         pan += one_degree;
         res = uvcPanTilt(videoIn, one_degree, 0, 0);
       }
+
       DBG("pan: %d\n", pan);
       break;
 
     case IN_CMD_PAN_MINUS:
       DBG("pan -\n");
+
       if ( pan_tilt_valid != 1 ) {
-        if ( uvcPanTilt(videoIn, 0, 0, 3) != 0 ) {
+        if ( input_cmd(IN_CMD_RESET_PAN_TILT_NO_MUTEX, 0) == -1 ) {
           res = -1;
           break;
         }
-        pan_tilt_valid = 1;
       }
+
       if ( (MIN_PAN) < (pan-one_degree) ) {
         pan -= one_degree;
         res = uvcPanTilt(videoIn, -one_degree, 0, 0);
       }
+
       DBG("pan: %d\n", pan);
+      break;
+
+    case IN_CMD_TILT_SET:
+      DBG("set tilt to %d degrees\n", value);
+
+      if ( pan_tilt_valid != 1 ) {
+        if ( input_cmd(IN_CMD_RESET_PAN_TILT_NO_MUTEX, 0) == -1 ) {
+          res = -1;
+          break;
+        }
+      }
+
+      /* limit pan-value to min and max, multiply it with constant "one_degree" */
+      value = MIN(MAX(value*one_degree, MIN_TILT), MAX_TILT);
+
+      /* calculate the relative degrees to move to the desired absolute pan-value */
+      if( (res = value - tilt) == 0 ) {
+        /* do not move if this would mean to move by 0 degrees */
+        res = tilt;
+        break;
+      }
+
+      /* move it */
+      tilt = value;
+      res = uvcPanTilt(videoIn, 0, res, 0);
+
+      DBG("tilt: %d\n", tilt);
       break;
 
     case IN_CMD_TILT_PLUS:
       DBG("tilt +\n");
+
       if ( pan_tilt_valid != 1 ) {
-        if ( uvcPanTilt(videoIn, 0, 0, 3) != 0 ) {
+        if ( input_cmd(IN_CMD_RESET_PAN_TILT_NO_MUTEX, 0) == -1 ) {
           res = -1;
           break;
         }
-        pan_tilt_valid = 1;
       }
+
       if ( (MAX_TILT) > (tilt+one_degree) ) {
           tilt += one_degree;
           res = uvcPanTilt(videoIn, 0, one_degree, 0);
       }
+
       DBG("tilt: %d\n", tilt);
       break;
 
     case IN_CMD_TILT_MINUS:
       DBG("tilt -\n");
+
       if ( pan_tilt_valid != 1 ) {
-        if ( uvcPanTilt(videoIn, 0, 0, 3) != 0 ) {
+        if ( input_cmd(IN_CMD_RESET_PAN_TILT_NO_MUTEX, 0) == -1 ) {
           res = -1;
           break;
         }
-        pan_tilt_valid = 1;
       }
+
       if ( (MIN_TILT) < (tilt-one_degree) ) {
         tilt -= one_degree;
         res = uvcPanTilt(videoIn, 0, -one_degree, 0);
       }
+
       DBG("tilt: %d\n", tilt);
       break;
 
@@ -427,7 +499,9 @@ int input_cmd(in_cmd_type cmd) {
       res = -1;
   }
 
-  pthread_mutex_unlock( &controls_mutex );
+  if ( cmd != IN_CMD_RESET_PAN_TILT_NO_MUTEX )
+    pthread_mutex_unlock( &controls_mutex );
+
   return res;
 }
 

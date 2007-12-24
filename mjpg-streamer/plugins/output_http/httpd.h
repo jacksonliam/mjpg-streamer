@@ -83,8 +83,10 @@ static const struct {
 } in_cmd_mapping[] = {
   { "reset", IN_CMD_RESET },
   { "reset_pan_tilt", IN_CMD_RESET_PAN_TILT },
+  { "pan_set", IN_CMD_PAN_SET },
   { "pan_plus", IN_CMD_PAN_PLUS },
   { "pan_minus", IN_CMD_PAN_MINUS },
+  { "tilt_set", IN_CMD_TILT_SET },
   { "tilt_plus", IN_CMD_TILT_PLUS },
   { "tilt_minus", IN_CMD_TILT_MINUS },
   { "saturation_plus", IN_CMD_SATURATION_PLUS },
