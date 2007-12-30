@@ -748,7 +748,7 @@ void *server_thread( void *arg ) {
   addr.sin_port = pcontext->conf.port; /* is already in right byteorder */
   addr.sin_addr.s_addr = htonl(INADDR_ANY);
   if ( bind(pcontext->sd, (struct sockaddr*)&addr, sizeof(addr)) != 0 ) {
-    perror("bind: ");
+    perror("bind");
     OPRINT("%s(): bind(%d) failed", __FUNCTION__, htons(pcontext->conf.port));
     closelog();
     exit(EXIT_FAILURE);

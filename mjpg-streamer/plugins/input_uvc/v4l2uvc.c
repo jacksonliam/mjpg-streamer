@@ -94,7 +94,7 @@ static int init_v4l2(struct vdIn *vd)
   int ret = 0;
 
   if ((vd->fd = open(vd->videodevice, O_RDWR)) == -1) {
-    perror("ERROR opening V4L interface \n");
+    perror("ERROR opening V4L interface");
     return -1;
   }
 
@@ -134,7 +134,7 @@ static int init_v4l2(struct vdIn *vd)
   vd->fmt.fmt.pix.field = V4L2_FIELD_ANY;
   ret = ioctl(vd->fd, VIDIOC_S_FMT, &vd->fmt);
   if (ret < 0) {
-    fprintf(stderr, "Unable to set format: %d.\n", errno);
+    perror("Unable to set format");
     goto fatal;
   }
 
@@ -170,7 +170,7 @@ static int init_v4l2(struct vdIn *vd)
 
   ret = ioctl(vd->fd, VIDIOC_REQBUFS, &vd->rb);
   if (ret < 0) {
-    fprintf(stderr, "Unable to allocate buffers: %d.\n", errno);
+    perror("Unable to allocate buffers");
     goto fatal;
   }
 
@@ -184,7 +184,7 @@ static int init_v4l2(struct vdIn *vd)
     vd->buf.memory = V4L2_MEMORY_MMAP;
     ret = ioctl(vd->fd, VIDIOC_QUERYBUF, &vd->buf);
     if (ret < 0) {
-      fprintf(stderr, "Unable to query buffer (%d).\n", errno);
+      perror("Unable to query buffer");
       goto fatal;
     }
 
@@ -195,7 +195,7 @@ static int init_v4l2(struct vdIn *vd)
                       vd->buf.length, PROT_READ, MAP_SHARED, vd->fd,
                       vd->buf.m.offset);
     if (vd->mem[i] == MAP_FAILED) {
-      fprintf(stderr, "Unable to map buffer (%d)\n", errno);
+      perror("Unable to map buffer");
       goto fatal;
     }
     if (debug)
@@ -212,7 +212,7 @@ static int init_v4l2(struct vdIn *vd)
     vd->buf.memory = V4L2_MEMORY_MMAP;
     ret = ioctl(vd->fd, VIDIOC_QBUF, &vd->buf);
     if (ret < 0) {
-      fprintf(stderr, "Unable to queue buffer (%d).\n", errno);
+      perror("Unable to queue buffer");
       goto fatal;;
     }
   }
@@ -230,7 +230,7 @@ static int video_enable(struct vdIn *vd)
 
   ret = ioctl(vd->fd, VIDIOC_STREAMON, &type);
   if (ret < 0) {
-    fprintf(stderr, "Unable to %s capture: %d.\n", "start", errno);
+    perror("Unable to start capture");
     return ret;
   }
   vd->isstreaming = 1;
@@ -244,7 +244,7 @@ static int video_disable(struct vdIn *vd)
 
   ret = ioctl(vd->fd, VIDIOC_STREAMOFF, &type);
   if (ret < 0) {
-    fprintf(stderr, "Unable to %s capture: %d.\n", "stop", errno);
+    perror("Unable to stop capture");
     return ret;
   }
   vd->isstreaming = 0;
@@ -267,7 +267,7 @@ int uvcGrab(struct vdIn *vd)
 
   ret = ioctl(vd->fd, VIDIOC_DQBUF, &vd->buf);
   if (ret < 0) {
-    fprintf(stderr, "Unable to dequeue buffer (%d).\n", errno);
+    perror("Unable to dequeue buffer");
     goto err;
   }
 
@@ -303,7 +303,7 @@ int uvcGrab(struct vdIn *vd)
 
   ret = ioctl(vd->fd, VIDIOC_QBUF, &vd->buf);
   if (ret < 0) {
-    fprintf(stderr, "Unable to requeue buffer (%d).\n", errno);
+    perror("Unable to requeue buffer");
     goto err;
   }
 

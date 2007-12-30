@@ -90,7 +90,7 @@ Return Value: 0 if everything is fine
 ******************************************************************************/
 int input_init(input_parameter *param) {
   char *argv[MAX_ARGUMENTS]={NULL}, *dev = "/dev/video0", *s;
-  int argc=1, width=640, height=640, fps=5, format=V4L2_PIX_FMT_MJPEG, i;
+  int argc=1, width=640, height=480, fps=5, format=V4L2_PIX_FMT_MJPEG, i;
 
   if( pthread_mutex_init(&controls_mutex, NULL) != 0 ) {
     IPRINT("could not initialize mutex variable\n");
