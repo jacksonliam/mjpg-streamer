@@ -73,6 +73,7 @@ pthread_mutex_t controls_mutex;
 struct vdIn *videoIn;
 static globals *pglobal;
 static int gquality = 80;
+static unsigned int minimum_size = 0;
 
 void *cam_thread( void *);
 void cam_cleanup(void *);
@@ -143,6 +144,8 @@ int input_init(input_parameter *param) {
       {"yuv", no_argument, 0, 0},
       {"q", required_argument, 0, 0},
       {"quality", required_argument, 0, 0},
+      {"m", required_argument, 0, 0},
+      {"minimum_size", required_argument, 0, 0},
       {0, 0, 0, 0}
     };
 
@@ -215,6 +218,13 @@ int input_init(input_parameter *param) {
         DBG("case 10,11\n");
         format = V4L2_PIX_FMT_YUYV;
         gquality = MIN(MAX(atoi(optarg), 0), 100);
+        break;
+
+      /* m, minimum_size */
+      case 12:
+      case 13:
+        DBG("case 12,13\n");
+        minimum_size = MAX(atoi(optarg), 0);
         break;
 
       default:
@@ -535,6 +545,9 @@ void help(void) {
                   " [-y | --yuv ]..........: enable YUYV format and disable MJPEG mode\n" \
                   " [-q | --quality ]......: JPEG compression quality in percent \n" \
                   "                          (activates YUYV format, disables MJPEG)\n" \
+                  " [-m | --minimum_size ].: drop frames smaller then this limit, useful\n" \
+                  "                          if the webcam produces small-sized garbage frames\n" \
+                  "                          may happen under low light conditions\n" \
                   " ---------------------------------------------------------------\n\n");
 }
 
@@ -553,6 +566,18 @@ void *cam_thread( void *arg ) {
     if( uvcGrab(videoIn) < 0 ) {
       IPRINT("Error grabbing frames\n");
       exit(EXIT_FAILURE);
+    }
+
+    /*
+     * Workaround for broken, corrupted frames:
+     * Under low light conditions corrupted frames may get captured.
+     * The good thing is such frames are quite small compared to the regular pictures.
+     * For example a VGA (640x480) webcam picture is normally >= 8kByte large,
+     * corrupted frames are smaller.
+     */
+    if ( videoIn->buf.bytesused < minimum_size ) {
+      DBG("dropping too small frame, assuming it as broken\n");
+      continue;
     }
 
     /* copy JPG picture to global buffer */
