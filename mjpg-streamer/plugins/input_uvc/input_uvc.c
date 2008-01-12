@@ -354,13 +354,14 @@ int input_cmd(in_cmd_type cmd, int value) {
       /* calculate the relative degrees to move to the desired absolute pan-value */
       if( (res = value - pan) == 0 ) {
         /* do not move if this would mean to move by 0 degrees */
-        res = pan;
+        res = pan/one_degree;
         break;
       }
 
       /* move it */
       pan = value;
-      res = uvcPanTilt(videoIn, res, 0, 0);
+      uvcPanTilt(videoIn, res, 0, 0);
+      res = pan/one_degree;
 
       DBG("pan: %d\n", pan);
       break;
@@ -375,10 +376,11 @@ int input_cmd(in_cmd_type cmd, int value) {
         }
       }
 
-      if ( (MAX_PAN) > (pan+one_degree) ) {
-        pan += one_degree;
-        res = uvcPanTilt(videoIn, one_degree, 0, 0);
+      if ( (MAX_PAN) >= (pan+MIN_RES) ) {
+        pan += MIN_RES;
+        uvcPanTilt(videoIn, MIN_RES, 0, 0);
       }
+      res = pan/one_degree;
 
       DBG("pan: %d\n", pan);
       break;
@@ -393,10 +395,11 @@ int input_cmd(in_cmd_type cmd, int value) {
         }
       }
 
-      if ( (MIN_PAN) < (pan-one_degree) ) {
-        pan -= one_degree;
-        res = uvcPanTilt(videoIn, -one_degree, 0, 0);
+      if ( (MIN_PAN) <= (pan-MIN_RES) ) {
+        pan -= MIN_RES;
+        uvcPanTilt(videoIn, -MIN_RES, 0, 0);
       }
+      res = pan/one_degree;
 
       DBG("pan: %d\n", pan);
       break;
@@ -417,13 +420,14 @@ int input_cmd(in_cmd_type cmd, int value) {
       /* calculate the relative degrees to move to the desired absolute pan-value */
       if( (res = value - tilt) == 0 ) {
         /* do not move if this would mean to move by 0 degrees */
-        res = tilt;
+        res = tilt/one_degree;
         break;
       }
 
       /* move it */
       tilt = value;
-      res = uvcPanTilt(videoIn, 0, res, 0);
+      uvcPanTilt(videoIn, 0, res, 0);
+      res = tilt/one_degree;
 
       DBG("tilt: %d\n", tilt);
       break;
@@ -438,10 +442,11 @@ int input_cmd(in_cmd_type cmd, int value) {
         }
       }
 
-      if ( (MAX_TILT) > (tilt+one_degree) ) {
-          tilt += one_degree;
-          res = uvcPanTilt(videoIn, 0, one_degree, 0);
+      if ( (MAX_TILT) >= (tilt+MIN_RES) ) {
+        tilt += MIN_RES;
+        uvcPanTilt(videoIn, 0, MIN_RES, 0);
       }
+      res = tilt/one_degree;
 
       DBG("tilt: %d\n", tilt);
       break;
@@ -456,10 +461,11 @@ int input_cmd(in_cmd_type cmd, int value) {
         }
       }
 
-      if ( (MIN_TILT) < (tilt-one_degree) ) {
-        tilt -= one_degree;
-        res = uvcPanTilt(videoIn, 0, -one_degree, 0);
+      if ( (MIN_TILT) <= (tilt-MIN_RES) ) {
+        tilt -= MIN_RES;
+        uvcPanTilt(videoIn, 0, -MIN_RES, 0);
       }
+      res = tilt/one_degree;
 
       DBG("tilt: %d\n", tilt);
       break;

@@ -19,8 +19,9 @@
         <a href="index.html">Home</a>
         <a href="static.html">Static</a> 
         <a href="stream.html">Stream</a> 
-        <a class="active" href="java.html">Java</a> 
+        <a class="active" href="java.html">Java</a>
         <a href="javascript.html">Javascript</a>
+        <a target="_blank" onClick="window.open(this.href, '_blank','width=400,height=400'); return false;" href="control.htm">Control</a>
       </div>
 
       <h3>Version info:</h3>
@@ -32,7 +33,7 @@
       <h2>Display the stream with java</h2>
 
       <h3>Hints</h3>
-      <p>This example shows the stream by using a java applet. It works with any browsers supporting java. To see a simple example click <a href="java_simple.html">here</a>.</p>
+      <p>This example shows the stream by using a java applet. It works with any browser with java support. To see a simple example click <a href="java_simple.html">here</a>.</p>
 
       <h3>Source snippet</h3>
       <p><pre>&lt;applet code="com.charliemouse.cambozola.Viewer" archive="/cambozola.jar" width="512" height="384"&gt;
@@ -41,6 +42,7 @@
 
       <applet code="com.charliemouse.cambozola.Viewer" archive="/cambozola.jar" width="512" height="384">
         <param name="url" value="/?action=stream"/>
+        <param name="watermarks" value="/favicon.png|left,top"/>
       </applet>
 
       <h3>About the Java applet</h3>

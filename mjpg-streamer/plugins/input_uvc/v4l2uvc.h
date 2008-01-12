@@ -42,6 +42,7 @@
 #define MIN_PAN  (-70*64)
 #define MAX_TILT (30*64)
 #define MIN_TILT (-30*64)
+#define MIN_RES  (64*5)
 
 struct vdIn {
     int fd;

@@ -13,12 +13,13 @@
       /* Copyright (C) 2007 Richard Atterer, richard©atterer.net
        * This program is free software; you can redistribute it and/or modify it
        * under the terms of the GNU General Public License, version 2. See the file
-       * COPYING for details. 
+       * COPYING for details.
        */
 
       var imageNr = 0; // Serial number of current image
       var finished = new Array(); // References to img objects which have finished downloading
       var paused = false;
+      var previous_time = new Date();
 
       function createImageLayer() {
         var img = new Image();
@@ -41,6 +42,11 @@
           del.parentNode.removeChild(del);
         }
         finished.push(this);
+        current_time = new Date();
+        delta = current_time.getTime() - previous_time.getTime();
+        fps   = (1000.0 / delta).toFixed(3);
+        document.getElementById('info').firstChild.nodeValue = delta + " ms (" + fps + " fps)";
+        previous_time = current_time;
         if (!paused) createImageLayer();
       }
 
@@ -59,14 +65,18 @@
 
       <div id="menu">
         <a href="index.html">Home</a>
-        <a href="static.html">Static</a> 
-        <a href="stream.html">Stream</a> 
-        <a href="java.html">Java</a> 
+        <a href="static.html">Static</a>
+        <a href="stream.html">Stream</a>
+        <a href="java.html">Java</a>
         <a class="active" href="javascript.html">Javascript</a>
+        <a target="_blank" onClick="window.open(this.href, '_blank','width=400,height=400'); return false;" href="control.htm">Control</a>
       </div>
 
       <h3>Version info:</h3>
       <p>v0.1 (Okt 22, 2007)</p>
+
+      <h3>Runtime info:</h3>
+      <p id="info">-</p>
     </div>
 
     <div id="content">
@@ -76,7 +86,7 @@
       <h3>Hints</h3>
         <p>This example shows the stream by using java script. It works with most browsers. To see a simple example click <a href="javascript_simple.html">here</a>.</p>
 
-      <div id="webcam"><noscript><img src="/?action=snapshot" width="512px" height="384px" /></noscript></div>
+        <div id="webcam" style="width:512px;height:394px"><noscript><img src="/?action=snapshot" width="512px" height="384px" /></noscript></div>
 
       <p>&copy; The <a href="http://mjpg-streamer.sf.net">MJPG-streamer team</a> | Design by <a href="http://andreasviklund.com">Andreas Viklund</a></p>
     </div>

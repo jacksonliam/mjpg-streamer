@@ -17,10 +17,11 @@
 
       <div id="menu">
         <a class="active" href="index.html">Home</a>
-        <a href="static.html">Static</a> 
-        <a href="stream.html">Stream</a> 
-        <a href="java.html">Java</a> 
+        <a href="static.html">Static</a>
+        <a href="stream.html">Stream</a>
+        <a href="java.html">Java</a>
         <a href="javascript.html">Javascript</a>
+        <a target="_blank" onClick="window.open(this.href, '_blank','width=400,height=400'); return false;" href="control.htm">Control</a>
       </div>
 
       <h3>Version info:</h3>
@@ -32,19 +33,19 @@
       <h2>Details about the M-JPEG streamer</h2>
 
       <h3>Congratulations</h3>
-      <p>You sucessfully managed to install this streaming webserver. If you can see this page, you can also access the stream of JPGs, which can originate from your webcam for example. This installation consists just of these example pages and you may customize the look and content.</p>
+      <p>You sucessfully managed to install this streaming webserver. If you can see this page, you can also access the stream of JPGs, which can originate from your webcam for example. This installation consists of these example pages and you may customize the look and content.</p>
 
       <img src="example.jpg" width="512" height="160" alt="just an image" />
-      <p>The most important reason for developing this software was the need of a streaming application for Linux-UVC compatible webcams. The predecessor <i>uvc-streamer</i> is working well, but i wanted to implement a few more ideas. For instance, plugins can be used to process the images. One input plugin copies images to a global variable, multiple output plugins can access those images. For example this webpage is served by the <i>output_http.so</i> plugin.</p>
+      <p>The reason for developing this software was the need of a simple and ressource friendly streaming application for Linux-UVC compatible webcams. The predecessor <i>uvc-streamer</i> is working well, but i wanted to implement a few more ideas. For instance, plugins can be used to process the images. One input plugin copies images to a global variable, multiple output plugins can access those images. For example this webpage is served by the <i>output_http.so</i> plugin.</p>
 
       <a href="static.html"><img src="/?action=snapshot" width="170" height="128" alt="static image example" /></a>
-      <p>The image displayed here was grabbed from the input plugin. The HTTP request contains the GET parameters <i>action=snapshot</i>. This requests one single picture from the input. To display another example, just click on the picture.</p>
+      <p>The image displayed here was grabbed by the input plugin. The HTTP request contains the GET parameters <i>action=snapshot</i>. This requests one single picture from the image-input. To display another example, just click on the picture.</p>
 
       <h3>About the examples</h3>
-      <p>To view the stream with any browser you may try the <i>javascript</i> or <i>java</i> subpages. Firefox is able to display the MJPEG-stream directly, but is not working very reliable under all conditions.</p>
+      <p>To view the stream with any browser you may try the <i>javascript</i> or <i>java</i> subpages. Firefox is able to display the M-JPEG-stream directly.</p>
 
       <h3>About this server</h3>
-      <p>This server is running a software written for the MJPG-streamer project. The MJPG-streamer people can not be made responsible for installations of this software.</p>
+      <p>This server is running a software written for the MJPG-streamer project. The MJPG-streamer developers can not be made responsible for installations of this software.</p>
 
       <p>&copy; The <a href="http://mjpg-streamer.sf.net">MJPG-streamer team</a> | Design by <a href="http://andreasviklund.com">Andreas Viklund</a></p>
     </div>
