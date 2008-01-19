@@ -16,7 +16,7 @@
 </head>
 <body>
 
-  <form name="command_panel" action="" onsubmit="return false;" style="background-color: navy; position: absolute; top: 30px; width: 300px; height: 300px; padding: 10px">
+      <form name="command_panel" action="" onsubmit="alert('bla'); return false;" style="background-color: navy; position: absolute; top: 30px; width: 300px; height: 300px; padding: 10px">
       <input type="button" value="reset" onclick="send_command('reset')">
     <br />
       <input type="button" value="reset_pan_tilt" onclick="send_command('reset_pan_tilt')">
@@ -44,6 +44,12 @@
     <br />
       <input type="input" value="0" name="tilt">
       <input type="button" value="set tilt" onclick="send_command('tilt_set&value='+this.form.tilt.value)">
+    <br />
+      <input type="button" value="focus +" onclick="send_command('focus_plus')">
+      <input type="button" value="focus -" onclick="send_command('focus_minus')">
+    <br />
+      <input type="input" value="0" name="focus">
+      <input type="button" value="set focus" onclick="send_command('focus_set&value='+this.form.focus.value)">
   </form>
 
   <div id="hints" style="background-color: yellow; position: absolute; top: 2px">communication hints</div>

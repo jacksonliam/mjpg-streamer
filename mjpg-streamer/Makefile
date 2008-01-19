@@ -23,11 +23,16 @@ clean:
 	make -C plugins/input_testpicture $@
 	make -C plugins/output_file $@
 	make -C plugins/output_http $@
+	make -C plugins/output_autofocus $@
 	rm -f *.a *.o $(APP_BINARY) core *~ *.so *.lo
 
-plugins: input_uvc.so output_file.so output_http.so input_testpicture.so
+plugins: input_uvc.so output_file.so output_http.so input_testpicture.so output_autofocus.so
 
 application: $(APP_BINARY)
+
+output_autofocus.so: mjpg_streamer.h utils.h
+	make -C plugins/output_autofocus all
+	cp plugins/output_autofocus/output_autofocus.so .
 
 input_testpicture.so: mjpg_streamer.h utils.h
 	make -C plugins/input_testpicture all

@@ -96,7 +96,10 @@ static const struct {
   { "brightness_plus", IN_CMD_BRIGHTNESS_PLUS },
   { "brightness_minus", IN_CMD_BRIGHTNESS_MINUS },
   { "gain_plus", IN_CMD_GAIN_PLUS },
-  { "gain_minus", IN_CMD_GAIN_MINUS }
+  { "gain_minus", IN_CMD_GAIN_MINUS },
+  { "focus_plus", IN_CMD_FOCUS_PLUS },
+  { "focus_minus", IN_CMD_FOCUS_MINUS },
+  { "focus_set", IN_CMD_FOCUS_SET }
 };
 
 /* mapping between command string and command type */

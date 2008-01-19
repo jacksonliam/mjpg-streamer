@@ -1,7 +1,8 @@
 var xmlHttp;
 
 function stateCallback() {
-  var stat, rstate;  if( !xmlHttp ) return;
+  var stat, rstate;
+  if( !xmlHttp ) return;
 
   try {
     rstate = xmlHttp.readyState;
@@ -26,13 +27,16 @@ function stateCallback() {
       try {
         stat = xmlHttp.status;
       }
-      catch (err) {        stat = "xmlHttp.status does not exist";
+      catch (err) {
+        stat = "xmlHttp.status does not exist";
       }
       if( stat == 200 )    // success
-      {          AJAX_response(xmlHttp.responseText);
+      {
+          AJAX_response(xmlHttp.responseText);
       }
       // loading not successfull, e.g. page not available
-      else { }  }
+      else { }
+  }
 }
 
 function init_AJAX() 
@@ -76,7 +80,8 @@ function init_AJAX()
 
   new_xmlHttp.onreadystatechange = stateCallback;
 
-  xmlHttp = new_xmlHttp;}
+  xmlHttp = new_xmlHttp;
+}
 
 function AJAX_get(url) {
   if( xmlHttp ) {

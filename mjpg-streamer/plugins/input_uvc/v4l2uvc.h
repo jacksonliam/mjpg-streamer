@@ -35,6 +35,15 @@
 
 #include "uvcvideo.h"
 
+#ifdef UVC_CONTROL_SET_CUR
+#define UVC_DYN_CONTROLS
+#define V4L2_CID_FOCUS_LOGITECH 0x0A046D04
+#define UVC_GUID_LOGITECH_MOTOR_CONTROL {0x82, 0x06, 0x61, 0x63, 0x70, 0x50, 0xab, 0x49, 0xb8, 0xcc, 0xb3, 0x85, 0x5e, 0x8d, 0x22, 0x56}
+#define XU_MOTORCONTROL_FOCUS 3
+#else
+#define V4L2_CID_FOCUS_LOGITECH V4L2_CID_FOCUS_ABSOLUTE
+#endif
+
 #define NB_BUFFER 4
 
 #define ONE_DEGREE (64);
@@ -89,6 +98,8 @@ int load_controls(int vd);
 
 int uvcGrab(struct vdIn *vd);
 int close_v4l2(struct vdIn *vd);
+
+int initDynCtrls(struct vdIn *vd);
 
 int v4l2GetControl(struct vdIn *vd, int control);
 int v4l2SetControl(struct vdIn *vd, int control, int value);

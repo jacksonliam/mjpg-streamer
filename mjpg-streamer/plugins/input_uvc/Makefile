@@ -11,8 +11,8 @@ CC = gcc
 
 OTHER_HEADERS = ../../mjpg_streamer.h ../../utils.h ../output.h ../input.h
 
-CFLAGS += -O2 -DLINUX -D_GNU_SOURCE -Wall -shared -fPIC
-#CFLAGS += -DDEBUG -O2 -DLINUX -D_GNU_SOURCE -Wall -shared -fPIC
+#CFLAGS += -O2 -DLINUX -D_GNU_SOURCE -Wall -shared -fPIC
+CFLAGS += -DDEBUG -O2 -DLINUX -D_GNU_SOURCE -Wall -shared -fPIC
 LFLAGS += -lpthread -ldl
 
 all: input_uvc.so

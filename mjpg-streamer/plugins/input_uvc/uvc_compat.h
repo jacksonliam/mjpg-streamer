@@ -27,6 +27,11 @@
 #define _UVC_COMPAT_H
 
 #include <linux/version.h>
+#ifndef __KERNEL__
+#ifndef __user
+#define __user
+#endif
+#endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
 /*
@@ -59,6 +64,14 @@ struct v4l2_ext_controls
 #define V4L2_CTRL_ID_MASK		(0x0fffffff)
 #define V4L2_CTRL_ID2CLASS(id)		((id) & 0x0fff0000UL)
 #define V4L2_CTRL_DRIVER_PRIV(id)	(((id) & 0xffff) >= 0x1000)
+/* Control flags */
+#define V4L2_CTRL_FLAG_READ_ONLY	0x0004
+#define V4L2_CTRL_FLAG_UPDATE		0x0008
+#define V4L2_CTRL_FLAG_INACTIVE		0x0010
+#define V4L2_CTRL_FLAG_SLIDER		0x0020
+
+/* Query flags, to be ORed with the control ID */
+#define V4L2_CTRL_FLAG_NEXT_CTRL	0x80000000
 
 /* User-class control IDs defined by V4L2 */
 #undef	V4L2_CID_BASE

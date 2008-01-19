@@ -333,6 +333,54 @@ int close_v4l2(struct vdIn *vd)
   return 0;
 }
 
+int initDynCtrls(struct vdIn *vd) {
+#ifdef UVC_DYN_CONTROLS
+  int err;
+  static struct uvc_xu_control_info ci = {
+    .entity = UVC_GUID_LOGITECH_MOTOR_CONTROL,
+    .selector = XU_MOTORCONTROL_FOCUS,
+    .index = 2,
+    .size = 6,
+    .flags = UVC_CONTROL_SET_CUR|UVC_CONTROL_GET_MIN|UVC_CONTROL_GET_MAX|UVC_CONTROL_GET_DEF
+  };
+
+  errno=0;
+  if ((err=ioctl(vd->fd, UVCIOC_CTRL_ADD, &ci)) < 0) {
+    if (errno!=EEXIST) {
+      printf("uvcioc ctrl add error: errno=%d (retval=%d)\n",errno,err);
+      return -1;
+    } else {
+      return 1; // control exists
+    }
+  }
+
+  static struct uvc_xu_control_mapping cm = {
+    .id = V4L2_CID_FOCUS_LOGITECH,
+    .name = "Focus",
+    .entity = UVC_GUID_LOGITECH_MOTOR_CONTROL,
+    .selector = XU_MOTORCONTROL_FOCUS,
+    .size=8,
+    .offset=0,
+    .v4l2_type=V4L2_CTRL_TYPE_INTEGER,
+    .data_type=UVC_CTRL_DATA_TYPE_UNSIGNED
+  };
+
+  errno=0;
+  if ((err=ioctl(vd->fd, UVCIOC_CTRL_MAP, &cm)) < 0) {
+    if (errno!=EEXIST) {
+      printf("uvcioc ctrl map error: errno=%d (retval=%d)\n",errno,err);
+      return -1;
+    } else {
+      return 2; // mapping exists
+    }
+  }
+  return 0;
+
+#else
+  return 0;
+#endif
+}
+
 /* return >= 0 ok otherwhise -1 */
 static int isv4l2Control(struct vdIn *vd, int control, struct v4l2_queryctrl *queryctrl) {
   int err =0;
@@ -365,8 +413,9 @@ int v4l2GetControl(struct vdIn *vd, int control) {
   struct v4l2_control control_s;
   int err;
 
-  if (isv4l2Control(vd, control, &queryctrl) < 0)
+  if (err = isv4l2Control(vd, control, &queryctrl) < 0) {
     return -1;
+  }
 
   control_s.id = control;
   if ((err = ioctl(vd->fd, VIDIOC_G_CTRL, &control_s)) < 0) {

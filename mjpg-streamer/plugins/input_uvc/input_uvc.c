@@ -259,6 +259,29 @@ int input_init(input_parameter *param) {
     exit(EXIT_FAILURE);
   }
 
+  /*
+   * recent linux-uvc driver (revision > ~#125) requires to use dynctrls
+   * for pan/tilt/focus/...
+   * dynctrls must get initialized
+   */
+  switch ( initDynCtrls(videoIn) ) {
+    case 0:
+      DBG("initDynCtrls() succeeded\n");
+    break;
+
+    case 1:
+      IPRINT("Dynamic control Focus already initialized, using existing control.\n");
+    break;
+
+    case 2:
+      IPRINT("UVC-V4L2 mapping for Focus already initialized, using existing mapping.\n");
+    break;
+
+    default:
+      IPRINT("Initialization of dynamic control Focus failed.\n");
+    break;
+  }
+
   return 0;
 }
 
@@ -304,13 +327,12 @@ Return Value: depends in the command, for most cases 0 means no errors and
 int input_cmd(in_cmd_type cmd, int value) {
   int res=0;
   static int pan=0, tilt=0, pan_tilt_valid=-1;
+  static int focus=-1;
   const int one_degree = ONE_DEGREE;
 
   /* certain commands do not need the mutex */
   if ( cmd != IN_CMD_RESET_PAN_TILT_NO_MUTEX )
     pthread_mutex_lock( &controls_mutex );
-
-  DBG("pan: %d, tilt: %d, valid: %d\n", pan, tilt, pan_tilt_valid);
 
   switch (cmd) {
     case IN_CMD_HELLO:
@@ -508,6 +530,38 @@ int input_cmd(in_cmd_type cmd, int value) {
     case IN_CMD_GAIN_MINUS:
       DBG("gain - (%d)\n", v4l2GetControl (videoIn, V4L2_CID_GAIN));
       res = v4l2DownControl(videoIn, V4L2_CID_GAIN);
+      break;
+
+    case IN_CMD_FOCUS_PLUS:
+      DBG("focus + (%d)\n", focus);
+
+      value=MIN(MAX(focus+10,0),255);
+
+      if ( (res = v4l2SetControl(videoIn, V4L2_CID_FOCUS_LOGITECH, value)) == 0) {
+        focus = value;
+      }
+      res = focus;
+      break;
+
+    case IN_CMD_FOCUS_MINUS:
+      DBG("focus - (%d)\n", focus);
+
+      value=MIN(MAX(focus-10,0),255);
+
+      if ( (res = v4l2SetControl(videoIn, V4L2_CID_FOCUS_LOGITECH, value)) == 0) {
+        focus = value;
+      }
+      res = focus;
+      break;
+
+    case IN_CMD_FOCUS_SET:
+      value=MIN(MAX(value,0),255);
+      DBG("set focus to %d\n", value);
+
+      if ( (res = v4l2SetControl(videoIn, V4L2_CID_FOCUS_LOGITECH, value)) == 0) {
+        focus = value;
+      }
+      res = focus;
       break;
 
     default:
