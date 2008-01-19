@@ -44,6 +44,7 @@
 #include "v4l2uvc.h"
 #include "huffman.h"
 #include "jpeg_utils.h"
+#include "dynctrl.h"
 
 #define INPUT_PLUGIN_NAME "UVC webcam grabber"
 #define MAX_ARGUMENTS 32
@@ -280,6 +281,10 @@ int input_init(input_parameter *param) {
     default:
       IPRINT("Initialization of dynamic control Focus failed.\n");
     break;
+  }
+
+  if (dynctrl_init_xu(videoIn->fd) < 0) {
+    IPRINT("dynctrl_init_xu failed\n");
   }
 
   return 0;
