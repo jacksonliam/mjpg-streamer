@@ -2,14 +2,6 @@
 
 It was written for embedded devices with very limited ressources in terms of RAM and CPU. Its origin, the "uvc_streamer" was written, because Linux-UVC compatible cameras directly produce JPEG-data, allowing fast and perfomant M-JPEG streams even from an embedded device running OpenWRT. The input module "input_uvc.so" captures such JPG frames from a connected webcam.
 
-For example a VGA resolution video stream with 5 frames per second produces about 2-15% CPU load of the 200MHz Mips processor of the Asus WL500gP router. Also RAM usage is quite low.
-
-I would suggest not to open this server to the internet. Use it as input to the programm "motion" (http://motion.sf.net) running at your DMZ instead. Motion has many users and i expect it to be checked more often for security issues. Keep in mind, that motions advanced capabilties like motion-detection, writing of avifiles etc require more ressources.
-
-In contrast to the better known SPCA5XX-LE, UVC-cameras in average produce better image quality See Michel XHaards comparison table and rating at (http://mxhaard.free.fr/embedded.html)
-
-This programm was written in 2007 by Tom Stoeveken, basing on luvcview. The luvcview sources were modified using the tool "indent" and afterwards SDL dependencies were removed to reduce dependencies to other packages. The luvcview sources were used to write the input plugin "input_uvc.so".
-
 This tool can be modified and distributed according to the terms of the GPL v2.
 
 Currently no issues are known, but since this software is quite young and not used widely it may cause problems. You must really know what you are doing, if you use this software. If you want to use the software you are obliged to check if the sourcecode does what you expect it to do and take the risk yourself to use it.
@@ -31,3 +23,10 @@ More examples can be found in the start.sh bash script.
 
 In case of error:
  * the input plugin "input_uvc.so" depends on libjpeg, make sure it is installed.
+
+Dependencies for the input plugin "input_uvc.so":
+ * libjpeg
+ * recent Linux-UVC driver (newer then revision #170)
+
+Dependencies for the output plugin "output_autofocus.so":
+ * libmath

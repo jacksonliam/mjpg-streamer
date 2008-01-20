@@ -75,6 +75,7 @@ struct vdIn *videoIn;
 static globals *pglobal;
 static int gquality = 80;
 static unsigned int minimum_size = 0;
+static dynctrls = 1;
 
 void *cam_thread( void *);
 void cam_cleanup(void *);
@@ -147,6 +148,8 @@ int input_init(input_parameter *param) {
       {"quality", required_argument, 0, 0},
       {"m", required_argument, 0, 0},
       {"minimum_size", required_argument, 0, 0},
+      {"n", no_argument, 0, 0},
+      {"no_dynctrl", no_argument, 0, 0},
       {0, 0, 0, 0}
     };
 
@@ -228,6 +231,13 @@ int input_init(input_parameter *param) {
         minimum_size = MAX(atoi(optarg), 0);
         break;
 
+      /* n, no_dynctrl */
+      case 14:
+      case 15:
+        DBG("case 14,15\n");
+        dynctrls = 0;
+        break;
+
       default:
         DBG("default case\n");
         help();
@@ -265,27 +275,8 @@ int input_init(input_parameter *param) {
    * for pan/tilt/focus/...
    * dynctrls must get initialized
    */
-  switch ( initDynCtrls(videoIn) ) {
-    case 0:
-      DBG("initDynCtrls() succeeded\n");
-    break;
-
-    case 1:
-      IPRINT("Dynamic control Focus already initialized, using existing control.\n");
-    break;
-
-    case 2:
-      IPRINT("UVC-V4L2 mapping for Focus already initialized, using existing mapping.\n");
-    break;
-
-    default:
-      IPRINT("Initialization of dynamic control Focus failed.\n");
-    break;
-  }
-
-  if (dynctrl_init_xu(videoIn->fd) < 0) {
-    IPRINT("dynctrl_init_xu failed\n");
-  }
+  if (dynctrls)
+    initDynCtrls(videoIn->fd);
 
   return 0;
 }
@@ -613,6 +604,7 @@ void help(void) {
                   " [-m | --minimum_size ].: drop frames smaller then this limit, useful\n" \
                   "                          if the webcam produces small-sized garbage frames\n" \
                   "                          may happen under low light conditions\n" \
+                  " [-n | --no_dynctrl ]...: do not initalize dynctrls of Linux-UVC driver\n" \
                   " ---------------------------------------------------------------\n\n");
 }
 
