@@ -75,7 +75,7 @@ struct vdIn *videoIn;
 static globals *pglobal;
 static int gquality = 80;
 static unsigned int minimum_size = 0;
-static dynctrls = 1;
+static int dynctrls = 1;
 
 void *cam_thread( void *);
 void cam_cleanup(void *);
