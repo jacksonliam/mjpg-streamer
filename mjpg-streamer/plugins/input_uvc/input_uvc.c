@@ -347,7 +347,7 @@ int input_cmd(in_cmd_type cmd, int value) {
     case IN_CMD_RESET_PAN_TILT:
     case IN_CMD_RESET_PAN_TILT_NO_MUTEX:
       DBG("about to set pan/tilt to default position\n");
-      if ( uvcPanTilt(videoIn, 0, 0, 3) != 0 ) {
+      if ( uvcPanTilt(videoIn->fd, 0, 0, 3) != 0 ) {
         res = -1;
         break;
       }
@@ -378,7 +378,7 @@ int input_cmd(in_cmd_type cmd, int value) {
 
       /* move it */
       pan = value;
-      uvcPanTilt(videoIn, res, 0, 0);
+      uvcPanTilt(videoIn->fd, res, 0, 0);
       res = pan/one_degree;
 
       DBG("pan: %d\n", pan);
@@ -396,7 +396,7 @@ int input_cmd(in_cmd_type cmd, int value) {
 
       if ( (MAX_PAN) >= (pan+MIN_RES) ) {
         pan += MIN_RES;
-        uvcPanTilt(videoIn, MIN_RES, 0, 0);
+        uvcPanTilt(videoIn->fd, MIN_RES, 0, 0);
       }
       res = pan/one_degree;
 
@@ -415,7 +415,7 @@ int input_cmd(in_cmd_type cmd, int value) {
 
       if ( (MIN_PAN) <= (pan-MIN_RES) ) {
         pan -= MIN_RES;
-        uvcPanTilt(videoIn, -MIN_RES, 0, 0);
+        uvcPanTilt(videoIn->fd, -MIN_RES, 0, 0);
       }
       res = pan/one_degree;
 
@@ -444,7 +444,7 @@ int input_cmd(in_cmd_type cmd, int value) {
 
       /* move it */
       tilt = value;
-      uvcPanTilt(videoIn, 0, res, 0);
+      uvcPanTilt(videoIn->fd, 0, res, 0);
       res = tilt/one_degree;
 
       DBG("tilt: %d\n", tilt);
@@ -462,7 +462,7 @@ int input_cmd(in_cmd_type cmd, int value) {
 
       if ( (MAX_TILT) >= (tilt+MIN_RES) ) {
         tilt += MIN_RES;
-        uvcPanTilt(videoIn, 0, MIN_RES, 0);
+        uvcPanTilt(videoIn->fd, 0, MIN_RES, 0);
       }
       res = tilt/one_degree;
 
@@ -481,7 +481,7 @@ int input_cmd(in_cmd_type cmd, int value) {
 
       if ( (MIN_TILT) <= (tilt-MIN_RES) ) {
         tilt -= MIN_RES;
-        uvcPanTilt(videoIn, 0, -MIN_RES, 0);
+        uvcPanTilt(videoIn->fd, 0, -MIN_RES, 0);
       }
       res = tilt/one_degree;
 

@@ -172,7 +172,7 @@ int output_init(output_parameter *param) {
   char *argv[MAX_ARGUMENTS]={NULL};
   int argc=1, i;
 
-  delay = 0;
+  delay = 10000;
 
   /* convert the single parameter-string to an array of strings */
   argv[0] = OUTPUT_PLUGIN_NAME;

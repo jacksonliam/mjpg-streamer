@@ -63,7 +63,7 @@ static struct uvc_xu_control_info xu_ctrls[] = {
 /* mapping for Pan/Tilt/Focus */
 static struct uvc_xu_control_mapping xu_mappings[] = {
   {
-    .id        = V4L2_CID_PAN_RELATIVE,
+    .id        = V4L2_CID_PAN_RELATIVE_LOGITECH,
     .name      = "Pan (relative)",
     .entity    = UVC_GUID_LOGITECH_MOTOR_CONTROL,
     .selector  = XU_MOTORCONTROL_PANTILT_RELATIVE,
@@ -73,7 +73,7 @@ static struct uvc_xu_control_mapping xu_mappings[] = {
     .data_type = UVC_CTRL_DATA_TYPE_SIGNED
   },
   {
-    .id        = V4L2_CID_TILT_RELATIVE,
+    .id        = V4L2_CID_TILT_RELATIVE_LOGITECH,
     .name      = "Tilt (relative)",
     .entity    = UVC_GUID_LOGITECH_MOTOR_CONTROL,
     .selector  = XU_MOTORCONTROL_PANTILT_RELATIVE,
@@ -83,7 +83,7 @@ static struct uvc_xu_control_mapping xu_mappings[] = {
     .data_type = UVC_CTRL_DATA_TYPE_SIGNED
   },
   {
-    .id        = V4L2_CID_PANTILT_RESET,
+    .id        = V4L2_CID_PANTILT_RESET_LOGITECH,
     .name      = "Pan/Tilt (reset)",
     .entity    = UVC_GUID_LOGITECH_MOTOR_CONTROL,
     .selector  = XU_MOTORCONTROL_PANTILT_RESET,
@@ -134,3 +134,37 @@ void initDynCtrls(int dev) {
   }
 }
 
+/*
+SRC: https://lists.berlios.de/pipermail/linux-uvc-devel/2007-July/001888.html
+
+- dev: the device file descriptor
+- pan: pan angle in 1/64th of degree
+- tilt: tilt angle in 1/64th of degree
+- reset: set to 1 to reset pan/tilt to the device origin, set to 0 otherwise
+*/
+int uvcPanTilt(int dev, int pan, int tilt, int reset) {
+  struct v4l2_ext_control xctrls[2];
+  struct v4l2_ext_controls ctrls;
+
+  if (reset) {
+    xctrls[0].id = V4L2_CID_PANTILT_RESET_LOGITECH;
+    xctrls[0].value = 3;
+
+    ctrls.count = 1;
+    ctrls.controls = xctrls;
+  } else {
+    xctrls[0].id = V4L2_CID_PAN_RELATIVE_LOGITECH;
+    xctrls[0].value = pan;
+    xctrls[1].id = V4L2_CID_TILT_RELATIVE_LOGITECH;
+    xctrls[1].value = tilt;
+
+    ctrls.count = 2;
+    ctrls.controls = xctrls;
+  }
+
+  if ( ioctl(dev, VIDIOC_S_EXT_CTRLS, &ctrls) < 0 ) {
+    return -1;
+  }
+
+  return 0;
+}

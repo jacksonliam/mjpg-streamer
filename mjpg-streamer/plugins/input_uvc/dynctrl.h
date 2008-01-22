@@ -45,3 +45,4 @@
 #define MIN_RES  (64*5)
 
 void initDynCtrls(int dev);
+int uvcPanTilt(int dev, int pan, int tilt, int reset);
