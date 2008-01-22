@@ -353,6 +353,7 @@ int input_cmd(in_cmd_type cmd, int value) {
       }
       pan_tilt_valid = 1;
       pan = tilt = 0;
+      sleep(4);
       break;
 
     case IN_CMD_PAN_SET:
