@@ -1,58 +1,85 @@
 <html>
-<head>
-  <script language="javascript" type="text/javascript" src="/functions.js"></script>
-  <script language="javascript">
+  <head>
+    <script language="javascript" type="text/javascript" src="/functions.js"></script>
+    <script language="javascript">
 
-    function send_command(cmd) {
-      document.getElementById('hints').firstChild.nodeValue = "Send command: " + cmd;
-      AJAX_get('/?action=command&command='+ cmd)
-    }
+      function send_command(cmd) {
+        document.getElementById('hints').firstChild.nodeValue = "Send command: " + cmd;
+        AJAX_get('/?action=command&command='+ cmd)
+      }
 
-    function AJAX_response(text) {
-      document.getElementById('hints').firstChild.nodeValue = "Got response: " + text;
-    }
+      function AJAX_response(text) {
+        document.getElementById('hints').firstChild.nodeValue = "Got response: " + text;
+      }
 
-  </script>
-</head>
-<body>
+      function KeyDown(ev) {
+        ev = ev || window.event;
+        pressed = ev.which || ev.keyCode;
 
-      <form name="command_panel" action="" onsubmit="alert('bla'); return false;" style="background-color: navy; position: absolute; top: 30px; width: 300px; height: 300px; padding: 10px">
+        switch (pressed) {
+          case 37:
+              send_command('pan_plus');
+            break;
+          case 39:
+              send_command('pan_minus');
+            break;
+          case 38:
+              send_command('tilt_minus');
+            break;
+          case 40:
+              send_command('tilt_plus');
+            break;
+          case 32:
+              send_command('reset_pan_tilt');
+          break;
+          default:
+              break;
+        }
+      }
+
+      document.onkeydown = KeyDown;
+
+    </script>
+  </head>
+  <body>
+
+    <form name="command_panel" action="" onsubmit="return false;" style="background-color: navy; position: absolute; top: 30px; width: 300px; height: 300px; padding: 10px">
       <input type="button" value="reset" onclick="send_command('reset')">
-    <br />
+      <br />
       <input type="button" value="reset_pan_tilt" onclick="send_command('reset_pan_tilt')">
-    <br />
+      <br />
       <input type="button" value="saturation +" onclick="send_command('saturation_plus')">
       <input type="button" value="saturation -" onclick="send_command('saturation_minus')">
-    <br />
+      <br />
       <input type="button" value="contrast +" onclick="send_command('contrast_plus')">
       <input type="button" value="contrast -" onclick="send_command('contrast_minus')">
-    <br />
+      <br />
       <input type="button" value="brightness +" onclick="send_command('brightness_plus')">
       <input type="button" value="brightness -" onclick="send_command('brightness_minus')">
-    <br />
+      <br />
       <input type="button" value="gain +" onclick="send_command('gain_plus')">
       <input type="button" value="gain -" onclick="send_command('gain_minus')">
-    <br />
+      <br />
       <input type="button" value="pan +" onclick="send_command('pan_plus')">
       <input type="button" value="pan -" onclick="send_command('pan_minus')">
-    <br />
+      <br />
       <input type="input" value="0" name="pan">
       <input type="button" value="set pan" onclick="send_command('pan_set&value='+this.form.pan.value)">
-    <br />
+      <br />
       <input type="button" value="tilt +" onclick="send_command('tilt_plus')">
       <input type="button" value="tilt -" onclick="send_command('tilt_minus')">
-    <br />
+      <br />
       <input type="input" value="0" name="tilt">
       <input type="button" value="set tilt" onclick="send_command('tilt_set&value='+this.form.tilt.value)">
-    <br />
+      <br />
       <input type="button" value="focus +" onclick="send_command('focus_plus')">
       <input type="button" value="focus -" onclick="send_command('focus_minus')">
-    <br />
+      <br />
       <input type="input" value="0" name="focus">
       <input type="button" value="set focus" onclick="send_command('focus_set&value='+this.form.focus.value)">
-  </form>
+    </form>
 
-  <div id="hints" style="background-color: yellow; position: absolute; top: 2px">communication hints</div>
+    <div id="hints" style="background-color: yellow; position: absolute; top: 2px">communication hints</div>
 
-</body>
+  </body>
 </html>
