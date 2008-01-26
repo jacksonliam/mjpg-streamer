@@ -223,14 +223,9 @@ Input Value.: fildescriptor fd to send the answer to
 Return Value: -
 ******************************************************************************/
 void send_snapshot(int fd) {
-  unsigned char *frame=NULL, *tmp=NULL;
-  int frame_size=0, max_frame_size=MAX_FRAME_SIZE;
+  unsigned char *frame=NULL;
+  int frame_size=0;
   char buffer[BUFFER_SIZE] = {0};
-
-  if ( (frame = (unsigned char *)malloc(MAX_FRAME_SIZE)) == NULL ) {
-    send_error(fd, 500, "not enough memory");
-    return;
-  }
 
   /* wait for a fresh frame */
   pthread_cond_wait(&pglobal->db_update, &pglobal->db);
@@ -238,19 +233,12 @@ void send_snapshot(int fd) {
   /* read buffer */
   frame_size = pglobal->size;
 
-  /* check if framebuffer is large enough */
-  if ( frame_size > max_frame_size ) {
-    DBG("increasing buffer size to %d\n", frame_size);
-
-    if ( (tmp = realloc(frame, frame_size)) == NULL ) {
-      free(frame);
-      pthread_mutex_unlock( &pglobal->db );
-      send_error(fd, 500, "not enough memory");
-      return;
-    }
-
-    max_frame_size = frame_size;
-    frame = tmp;
+  /* allocate a buffer for this single frame */
+  if ( (frame = malloc(frame_size+1)) == NULL ) {
+    free(frame);
+    pthread_mutex_unlock( &pglobal->db );
+    send_error(fd, 500, "not enough memory");
+    return;
   }
 
   memcpy(frame, pglobal->buf, frame_size);
@@ -281,15 +269,10 @@ Return Value: -
 ******************************************************************************/
 void send_stream(int fd) {
   unsigned char *frame=NULL, *tmp=NULL;
-  int frame_size=0, max_frame_size=MAX_FRAME_SIZE;
+  int frame_size=0, max_frame_size=0;
   char buffer[BUFFER_SIZE] = {0};
 
   DBG("preparing header\n");
-
-  if ( (frame = (unsigned char *)malloc(MAX_FRAME_SIZE)) == NULL ) {
-    send_error(fd, 500, "not enough memory");
-    return;
-  }
 
   sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
                   STD_HEADER \
@@ -312,18 +295,18 @@ void send_stream(int fd) {
     /* read buffer */
     frame_size = pglobal->size;
 
-    /* check if framebuffer is large enough */
+    /* check if framebuffer is large enough, increase it if necessary */
     if ( frame_size > max_frame_size ) {
       DBG("increasing buffer size to %d\n", frame_size);
 
-      if ( (tmp = realloc(frame, frame_size)) == NULL ) {
+      max_frame_size = frame_size+TEN_K;
+      if ( (tmp = realloc(frame, max_frame_size)) == NULL ) {
         free(frame);
         pthread_mutex_unlock( &pglobal->db );
         send_error(fd, 500, "not enough memory");
         return;
       }
 
-      max_frame_size = frame_size;
       frame = tmp;
     }
 

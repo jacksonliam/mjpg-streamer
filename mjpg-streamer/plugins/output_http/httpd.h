@@ -32,6 +32,7 @@
  * selecting to small values will lead to crashes due to to small buffers
  */
 #define MAX_FRAME_SIZE (256*1024)
+#define TEN_K (10*1024)
 
 /*
  * Standard header to be send along with other header information like mimetype.

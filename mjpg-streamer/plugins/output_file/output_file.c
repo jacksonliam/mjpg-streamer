@@ -100,7 +100,7 @@ void *worker_thread( void *arg ) {
   time_t t;
   struct tm *tmp;
 
-  if ( (frame = malloc(256*1024)) == NULL ) {
+  if ( (frame = malloc(512*1024)) == NULL ) {
     OPRINT("not enough memory for worker thread\n");
     exit(EXIT_FAILURE);
   }
