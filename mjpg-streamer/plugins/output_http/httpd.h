@@ -159,6 +159,7 @@ typedef struct {
 
 /* prototypes */
 void *server_thread(void *arg);
+void send_error(int fd, int which, char *message);
 
 
 

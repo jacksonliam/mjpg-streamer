@@ -223,13 +223,13 @@ Input Value.: fildescriptor fd to send the answer to
 Return Value: -
 ******************************************************************************/
 void send_snapshot(int fd) {
-  unsigned char *frame=NULL;
-  int frame_size=0;
+  unsigned char *frame=NULL, *tmp=NULL;
+  int frame_size=0, max_frame_size=MAX_FRAME_SIZE;
   char buffer[BUFFER_SIZE] = {0};
 
   if ( (frame = (unsigned char *)malloc(MAX_FRAME_SIZE)) == NULL ) {
-    fprintf(stderr, "not enough memory\n");
-    exit(EXIT_FAILURE);
+    send_error(fd, 500, "not enough memory");
+    return;
   }
 
   /* wait for a fresh frame */
@@ -237,6 +237,22 @@ void send_snapshot(int fd) {
 
   /* read buffer */
   frame_size = pglobal->size;
+
+  /* check if framebuffer is large enough */
+  if ( frame_size > max_frame_size ) {
+    DBG("increasing buffer size to %d\n", frame_size);
+
+    if ( (tmp = realloc(frame, frame_size)) == NULL ) {
+      free(frame);
+      pthread_mutex_unlock( &pglobal->db );
+      send_error(fd, 500, "not enough memory");
+      return;
+    }
+
+    max_frame_size = frame_size;
+    frame = tmp;
+  }
+
   memcpy(frame, pglobal->buf, frame_size);
   DBG("got frame (size: %d kB)\n", frame_size/1024);
 
@@ -264,15 +280,15 @@ Input Value.: fildescriptor fd to send the answer to
 Return Value: -
 ******************************************************************************/
 void send_stream(int fd) {
-  unsigned char *frame=NULL;
-  int frame_size=0;
+  unsigned char *frame=NULL, *tmp=NULL;
+  int frame_size=0, max_frame_size=MAX_FRAME_SIZE;
   char buffer[BUFFER_SIZE] = {0};
 
   DBG("preparing header\n");
 
   if ( (frame = (unsigned char *)malloc(MAX_FRAME_SIZE)) == NULL ) {
-    fprintf(stderr, "not enough memory\n");
-    exit(EXIT_FAILURE);
+    send_error(fd, 500, "not enough memory");
+    return;
   }
 
   sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
@@ -295,6 +311,22 @@ void send_stream(int fd) {
 
     /* read buffer */
     frame_size = pglobal->size;
+
+    /* check if framebuffer is large enough */
+    if ( frame_size > max_frame_size ) {
+      DBG("increasing buffer size to %d\n", frame_size);
+
+      if ( (tmp = realloc(frame, frame_size)) == NULL ) {
+        free(frame);
+        pthread_mutex_unlock( &pglobal->db );
+        send_error(fd, 500, "not enough memory");
+        return;
+      }
+
+      max_frame_size = frame_size;
+      frame = tmp;
+    }
+
     memcpy(frame, pglobal->buf, frame_size);
     DBG("got frame (size: %d kB)\n", frame_size/1024);
 
