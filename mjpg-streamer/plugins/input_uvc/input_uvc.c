@@ -254,6 +254,7 @@ int input_init(input_parameter *param) {
     IPRINT("not enough memory for videoIn\n");
     exit(EXIT_FAILURE);
   }
+  memset(videoIn, 0, sizeof(struct vdIn));
 
   /* display the parsed values */
   IPRINT("Using V4L2 device.: %s\n", dev);
