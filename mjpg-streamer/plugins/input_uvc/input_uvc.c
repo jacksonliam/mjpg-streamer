@@ -652,8 +652,7 @@ void *cam_thread( void *arg ) {
       pglobal->size = compress_yuyv_to_jpeg(videoIn, pglobal->buf, videoIn->framesizeIn, gquality);
     }
     else {
-      pglobal->size = videoIn->buf.bytesused + DHT_SIZE;
-      memcpy(pglobal->buf, videoIn->tmpbuffer, pglobal->size);
+      pglobal->size = memcpy_picture(pglobal->buf, videoIn->tmpbuffer, videoIn->buf.bytesused);
     }
 
 #if 0

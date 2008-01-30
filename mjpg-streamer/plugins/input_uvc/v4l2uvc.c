@@ -250,6 +250,50 @@ static int video_disable(struct vdIn *vd)
   return 0;
 }
 
+/******************************************************************************
+Description.: 
+Input Value.: 
+Return Value: 
+******************************************************************************/
+int is_huffman(unsigned char *buf)
+{
+  unsigned char *ptbuf;
+  int i = 0;
+  ptbuf = buf;
+  while (((ptbuf[0] << 8) | ptbuf[1]) != 0xffda) {
+    if (i++ > 2048)
+      return 0;
+    if (((ptbuf[0] << 8) | ptbuf[1]) == 0xffc4)
+      return 1;
+    ptbuf++;
+  }
+  return 0;
+}
+
+/******************************************************************************
+Description.: 
+Input Value.: 
+Return Value: 
+******************************************************************************/
+int memcpy_picture(unsigned char *out, unsigned char *buf, int size)
+{
+  unsigned char *ptdeb, *ptcur = buf;
+  int sizein, pos=0;
+
+  if (!is_huffman(buf)) {
+    ptdeb = ptcur = buf;
+    while (((ptcur[0] << 8) | ptcur[1]) != 0xffc0)
+      ptcur++;
+    sizein = ptcur - ptdeb;
+
+    memcpy(out+pos, buf, sizein); pos += sizein;
+    memcpy(out+pos, dht_data, DHT_SIZE); pos += DHT_SIZE;
+    memcpy(out+pos, ptcur, size - sizein); pos += size-sizein;
+  } else {
+    memcpy(out+pos, ptcur, size); pos += size;
+  }
+  return pos;
+}
 
 int uvcGrab(struct vdIn *vd)
 {
@@ -278,11 +322,14 @@ int uvcGrab(struct vdIn *vd)
         return 0;
       }
 
-      /* memcpy(vd->tmpbuffer, vd->mem[vd->buf.index], vd->buf.bytesused); */
+      /* memcpy(vd->tmpbuffer, vd->mem[vd->buf.index], vd->buf.bytesused);
 
       memcpy (vd->tmpbuffer, vd->mem[vd->buf.index], HEADERFRAME1);
       memcpy (vd->tmpbuffer + HEADERFRAME1, dht_data, DHT_SIZE);
       memcpy (vd->tmpbuffer + HEADERFRAME1 + DHT_SIZE, vd->mem[vd->buf.index] + HEADERFRAME1, (vd->buf.bytesused - HEADERFRAME1));
+      */
+
+      memcpy(vd->tmpbuffer, vd->mem[vd->buf.index], vd->buf.bytesused);
 
       if (debug)
         fprintf(stderr, "bytes in used %d \n", vd->buf.bytesused);

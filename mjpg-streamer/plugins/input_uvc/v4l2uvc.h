@@ -80,6 +80,7 @@ int enum_controls(int vd);
 int save_controls(int vd);
 int load_controls(int vd);
 
+int memcpy_picture(unsigned char *out, unsigned char *buf, int size);
 int uvcGrab(struct vdIn *vd);
 int close_v4l2(struct vdIn *vd);
 
