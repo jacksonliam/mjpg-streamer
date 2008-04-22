@@ -626,6 +626,8 @@ void *cam_thread( void *arg ) {
       IPRINT("Error grabbing frames\n");
       exit(EXIT_FAILURE);
     }
+  
+    DBG("received frame of size: %d\n", videoIn->buf.bytesused);
 
     /*
      * Workaround for broken, corrupted frames:
@@ -649,9 +651,11 @@ void *cam_thread( void *arg ) {
      * Linux-UVC compatible devices.
      */
     if (videoIn->formatIn == V4L2_PIX_FMT_YUYV) {
+      DBG("compressing frame\n");
       pglobal->size = compress_yuyv_to_jpeg(videoIn, pglobal->buf, videoIn->framesizeIn, gquality);
     }
     else {
+      DBG("copying frame\n");
       pglobal->size = memcpy_picture(pglobal->buf, videoIn->tmpbuffer, videoIn->buf.bytesused);
     }
 
@@ -666,6 +670,8 @@ void *cam_thread( void *arg ) {
     /* signal fresh_frame */
     pthread_cond_broadcast(&pglobal->db_update);
     pthread_mutex_unlock( &pglobal->db );
+
+    DBG("waiting for next frame\n");
 
     /* only use usleep if the fps is below 5, otherwise the overhead is too long */
     if ( videoIn->fps < 5 ) {

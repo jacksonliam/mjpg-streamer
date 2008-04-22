@@ -287,7 +287,7 @@ int memcpy_picture(unsigned char *out, unsigned char *buf, int size)
     sizein = ptcur - ptdeb;
 
     memcpy(out+pos, buf, sizein); pos += sizein;
-    memcpy(out+pos, dht_data, DHT_SIZE); pos += DHT_SIZE;
+    memcpy(out+pos, dht_data, sizeof(dht_data)); pos += sizeof(dht_data);
     memcpy(out+pos, ptcur, size - sizein); pos += size-sizein;
   } else {
     memcpy(out+pos, ptcur, size); pos += size;
@@ -325,8 +325,8 @@ int uvcGrab(struct vdIn *vd)
       /* memcpy(vd->tmpbuffer, vd->mem[vd->buf.index], vd->buf.bytesused);
 
       memcpy (vd->tmpbuffer, vd->mem[vd->buf.index], HEADERFRAME1);
-      memcpy (vd->tmpbuffer + HEADERFRAME1, dht_data, DHT_SIZE);
-      memcpy (vd->tmpbuffer + HEADERFRAME1 + DHT_SIZE, vd->mem[vd->buf.index] + HEADERFRAME1, (vd->buf.bytesused - HEADERFRAME1));
+      memcpy (vd->tmpbuffer + HEADERFRAME1, dht_data, sizeof(dht_data));
+      memcpy (vd->tmpbuffer + HEADERFRAME1 + sizeof(dht_data), vd->mem[vd->buf.index] + HEADERFRAME1, (vd->buf.bytesused - HEADERFRAME1));
       */
 
       memcpy(vd->tmpbuffer, vd->mem[vd->buf.index], vd->buf.bytesused);
