@@ -54,7 +54,11 @@ enum _in_cmd_type {
   IN_CMD_GAIN_MINUS,
   IN_CMD_FOCUS_PLUS,
   IN_CMD_FOCUS_MINUS,
-  IN_CMD_FOCUS_SET
+  IN_CMD_FOCUS_SET,
+  IN_CMD_LED_ON,
+  IN_CMD_LED_OFF,
+  IN_CMD_LED_AUTO,
+  IN_CMD_LED_BLINK
 };
 
 /* structure to store variables/functions for input plugin */

@@ -58,6 +58,13 @@ static struct uvc_xu_control_info xu_ctrls[] = {
     .size     = 6,
     .flags    = UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_DEF
   },
+  {
+    .entity   = UVC_GUID_LOGITECH_USER_HW_CONTROL,
+    .selector = XU_HW_CONTROL_LED1,
+    .index    = 0,
+    .size     = 3,
+    .flags    = UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_CUR | UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_RES | UVC_CONTROL_GET_DEF
+  }
 };
 
 /* mapping for Pan/Tilt/Focus */
@@ -99,6 +106,26 @@ static struct uvc_xu_control_mapping xu_mappings[] = {
     .selector  = XU_MOTORCONTROL_FOCUS,
     .size      = 8,
     .offset    = 0,
+    .v4l2_type = V4L2_CTRL_TYPE_INTEGER,
+    .data_type = UVC_CTRL_DATA_TYPE_UNSIGNED
+  },
+  {
+    .id        = V4L2_CID_LED1_MODE_LOGITECH,
+    .name      = "LED1 Mode",
+    .entity    = UVC_GUID_LOGITECH_USER_HW_CONTROL,
+    .selector  = XU_HW_CONTROL_LED1,
+    .size      = 8,
+    .offset    = 0,
+    .v4l2_type = V4L2_CTRL_TYPE_INTEGER,
+    .data_type = UVC_CTRL_DATA_TYPE_UNSIGNED
+  },
+  {
+    .id        = V4L2_CID_LED1_FREQUENCY_LOGITECH,
+    .name      = "LED1 Frequency",
+    .entity    = UVC_GUID_LOGITECH_USER_HW_CONTROL,
+    .selector  = XU_HW_CONTROL_LED1,
+    .size      = 8,
+    .offset    = 16,
     .v4l2_type = V4L2_CTRL_TYPE_INTEGER,
     .data_type = UVC_CTRL_DATA_TYPE_UNSIGNED
   }

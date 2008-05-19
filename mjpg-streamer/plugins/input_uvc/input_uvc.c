@@ -95,6 +95,7 @@ int input_init(input_parameter *param) {
   char *argv[MAX_ARGUMENTS]={NULL}, *dev = "/dev/video0", *s;
   int argc=1, width=640, height=480, fps=5, format=V4L2_PIX_FMT_MJPEG, i;
 
+  /* initialize the mutes variable */
   if( pthread_mutex_init(&controls_mutex, NULL) != 0 ) {
     IPRINT("could not initialize mutex variable\n");
     exit(EXIT_FAILURE);
@@ -129,6 +130,7 @@ int input_init(input_parameter *param) {
     DBG("argv[%d]=%s\n", i, argv[i]);
   }
 
+  /* parse the parameters */
   reset_getopt();
   while(1) {
     int option_index = 0, c=0;
@@ -153,6 +155,7 @@ int input_init(input_parameter *param) {
       {0, 0, 0, 0}
     };
 
+    /* parsing all parameters according to the list above is sufficent */
     c = getopt_long_only(argc, argv, "", long_options, &option_index);
 
     /* no more options to parse */
@@ -164,6 +167,7 @@ int input_init(input_parameter *param) {
       return 1;
     }
 
+    /* dispatch the given options */
     switch (option_index) {
       /* h, help */
       case 0:
@@ -561,6 +565,27 @@ int input_cmd(in_cmd_type cmd, int value) {
       }
       res = focus;
       break;
+
+    /* switch the webcam LED permanently on */
+    case IN_CMD_LED_ON:
+      res = v4l2SetControl(videoIn, V4L2_CID_LED1_MODE_LOGITECH, 1);
+    break;
+
+    /* switch the webcam LED permanently off */
+    case IN_CMD_LED_OFF:
+      res = v4l2SetControl(videoIn, V4L2_CID_LED1_MODE_LOGITECH, 0);
+    break;
+
+    /* switch the webcam LED on if streaming, off if not streaming */
+    case IN_CMD_LED_AUTO:
+      res = v4l2SetControl(videoIn, V4L2_CID_LED1_MODE_LOGITECH, 3);
+    break;
+
+    /* let the webcam LED blink at a given hardcoded intervall */
+    case IN_CMD_LED_BLINK:
+      res = v4l2SetControl(videoIn, V4L2_CID_LED1_MODE_LOGITECH, 2);
+      res = v4l2SetControl(videoIn, V4L2_CID_LED1_FREQUENCY_LOGITECH, 255);
+    break;
 
     default:
       DBG("nothing matched\n");

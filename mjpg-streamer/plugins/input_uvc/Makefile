@@ -29,5 +29,5 @@ v4l2uvc.lo: huffman.h uvc_compat.h uvcvideo.h v4l2uvc.c v4l2uvc.h
 jpeg_utils.lo: jpeg_utils.c jpeg_utils.h
 	$(CC) -c $(CFLAGS) -o $@ jpeg_utils.c
 
-dynctrl.lo: dynctrl.h uvcvideo.h
+dynctrl.lo: dynctrl.c dynctrl.h uvcvideo.h
 	$(CC) -c $(CFLAGS) -o $@ dynctrl.c
