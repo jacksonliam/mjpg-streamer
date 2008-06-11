@@ -219,8 +219,9 @@ int main(int argc, char *argv[])
         return 0;
     }
   }
-
+  
   openlog("MJPG-streamer ", LOG_PID|LOG_CONS, LOG_USER);
+  //openlog("MJPG-streamer ", LOG_PID|LOG_CONS|LOG_PERROR, LOG_USER);
   syslog(LOG_INFO, "starting application");
 
   /* fork to the background */

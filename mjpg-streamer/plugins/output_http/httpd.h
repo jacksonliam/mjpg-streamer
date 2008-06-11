@@ -100,7 +100,13 @@ static const struct {
   { "gain_minus", IN_CMD_GAIN_MINUS },
   { "focus_plus", IN_CMD_FOCUS_PLUS },
   { "focus_minus", IN_CMD_FOCUS_MINUS },
-  { "focus_set", IN_CMD_FOCUS_SET }
+  { "focus_set", IN_CMD_FOCUS_SET },
+  { "focus_minus", IN_CMD_FOCUS_MINUS },
+  { "focus_set", IN_CMD_FOCUS_SET },
+  { "led_on", IN_CMD_LED_ON },
+  { "led_off", IN_CMD_LED_OFF },
+  { "led_auto", IN_CMD_LED_AUTO },
+  { "led_blink", IN_CMD_LED_BLINK }
 };
 
 /* mapping between command string and command type */

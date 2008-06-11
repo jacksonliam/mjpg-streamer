@@ -94,6 +94,7 @@ Return Value: 0 if everything is fine
 int input_init(input_parameter *param) {
   char *argv[MAX_ARGUMENTS]={NULL}, *dev = "/dev/video0", *s;
   int argc=1, width=640, height=480, fps=5, format=V4L2_PIX_FMT_MJPEG, i;
+  in_cmd_type led = IN_CMD_LED_AUTO;
 
   /* initialize the mutes variable */
   if( pthread_mutex_init(&controls_mutex, NULL) != 0 ) {
@@ -152,6 +153,8 @@ int input_init(input_parameter *param) {
       {"minimum_size", required_argument, 0, 0},
       {"n", no_argument, 0, 0},
       {"no_dynctrl", no_argument, 0, 0},
+      {"l", required_argument, 0, 0},
+      {"led", required_argument, 0, 0},
       {0, 0, 0, 0}
     };
 
@@ -242,6 +245,21 @@ int input_init(input_parameter *param) {
         dynctrls = 0;
         break;
 
+      /* l, led */
+      case 16:
+      case 17:
+        DBG("case 16,17\n");
+        if ( strcmp("on", optarg) == 0 ) {
+          led = IN_CMD_LED_ON;
+        } else if ( strcmp("off", optarg) == 0 ) {
+          led = IN_CMD_LED_OFF;
+        } else if ( strcmp("auto", optarg) == 0 ) {
+          led = IN_CMD_LED_AUTO;
+        } else if ( strcmp("blink", optarg) == 0 ) {
+          led = IN_CMD_LED_BLINK;
+        }
+        break;
+
       default:
         DBG("default case\n");
         help();
@@ -282,6 +300,11 @@ int input_init(input_parameter *param) {
    */
   if (dynctrls)
     initDynCtrls(videoIn->fd);
+
+  /*
+   * switch the LED according to the command line parameters (if any)
+   */
+  input_cmd(led, 0);
 
   return 0;
 }
@@ -632,6 +655,8 @@ void help(void) {
                   "                          if the webcam produces small-sized garbage frames\n" \
                   "                          may happen under low light conditions\n" \
                   " [-n | --no_dynctrl ]...: do not initalize dynctrls of Linux-UVC driver\n" \
+                  " [-l | --led ]..........: switch the LED \"on\", \"off\", let it \"blink\" or leave\n" \
+                  "                          it up to the driver using the value \"auto\"\n" \
                   " ---------------------------------------------------------------\n\n");
 }
 
@@ -725,6 +750,9 @@ void cam_cleanup(void *arg) {
 
   first_run = 0;
   IPRINT("cleaning up ressources allocated by input thread\n");
+
+  /* restore behaviour of the LED to auto */
+  input_cmd(IN_CMD_LED_AUTO, 0);
 
   close_v4l2(videoIn);
   if (videoIn->tmpbuffer != NULL) free(videoIn->tmpbuffer);
