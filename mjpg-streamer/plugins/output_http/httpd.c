@@ -278,7 +278,7 @@ void send_stream(int fd) {
                   STD_HEADER \
                   "Content-Type: multipart/x-mixed-replace;boundary=" BOUNDARY "\r\n" \
                   "\r\n" \
-                  "--" BOUNDARY "\n");
+                  "--" BOUNDARY "\r\n");
 
   if ( write(fd, buffer, strlen(buffer)) < 0 ) {
     free(frame);
@@ -315,12 +315,22 @@ void send_stream(int fd) {
 
     pthread_mutex_unlock( &pglobal->db );
 
-    sprintf(buffer, "Content-type: image/jpeg\n\n");
+    /*
+     * print the individual mimetype and the length
+     * sending the content-length fixes random stream disruption observed
+     * with firefox
+     */
+    sprintf(buffer, "Content-Type: image/jpeg\r\n" \
+                    "Content-Length: %d\r\n" \
+                    "\r\n", frame_size);
+    DBG("sending intemdiate header\n");
     if ( write(fd, buffer, strlen(buffer)) < 0 ) break;
 
+    DBG("sending frame\n");
     if( write(fd, frame, frame_size) < 0 ) break;
 
-    sprintf(buffer, "\n--" BOUNDARY "\n");
+    DBG("sending boundary\n");
+    sprintf(buffer, "\r\n--" BOUNDARY "\r\n");
     if ( write(fd, buffer, strlen(buffer)) < 0 ) break;
   }
 

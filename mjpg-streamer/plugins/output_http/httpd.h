@@ -21,7 +21,7 @@
 *******************************************************************************/
 
 #define IO_BUFFER 256
-#define BUFFER_SIZE 512
+#define BUFFER_SIZE 1024
 
 /* the boundary is used for the M-JPEG stream, it separates the multipart stream of pictures */
 #define BOUNDARY "boundarydonotcross"
@@ -44,7 +44,7 @@
  * since i observed caching of files from time to time.
  */
 #define STD_HEADER "Connection: close\r\n" \
-                   "Server: MJPG-Streamer/0.1\r\n" \
+                   "Server: MJPG-Streamer/0.2\r\n" \
                    "Cache-Control: no-store, no-cache, must-revalidate, pre-check=0, post-check=0, max-age=0\r\n" \
                    "Pragma: no-cache\r\n" \
                    "Expires: Mon, 3 Jan 2000 12:34:56 GMT\r\n"
@@ -99,8 +99,6 @@ static const struct {
   { "gain_plus", IN_CMD_GAIN_PLUS },
   { "gain_minus", IN_CMD_GAIN_MINUS },
   { "focus_plus", IN_CMD_FOCUS_PLUS },
-  { "focus_minus", IN_CMD_FOCUS_MINUS },
-  { "focus_set", IN_CMD_FOCUS_SET },
   { "focus_minus", IN_CMD_FOCUS_MINUS },
   { "focus_set", IN_CMD_FOCUS_SET },
   { "led_on", IN_CMD_LED_ON },
