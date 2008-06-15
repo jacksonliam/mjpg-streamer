@@ -277,13 +277,16 @@ Return Value:
 ******************************************************************************/
 int memcpy_picture(unsigned char *out, unsigned char *buf, int size)
 {
-  unsigned char *ptdeb, *ptcur = buf;
+  unsigned char *ptdeb, *ptlimit, *ptcur = buf;
   int sizein, pos=0;
 
   if (!is_huffman(buf)) {
     ptdeb = ptcur = buf;
-    while (((ptcur[0] << 8) | ptcur[1]) != 0xffc0)
+    ptlimit = buf + size;
+    while ((((ptcur[0] << 8) | ptcur[1]) != 0xffc0) && (ptcur < ptlimit))
       ptcur++;
+    if (ptcur >= ptlimit)
+        return pos;
     sizein = ptcur - ptdeb;
 
     memcpy(out+pos, buf, sizein); pos += sizein;
