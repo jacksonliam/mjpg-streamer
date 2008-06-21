@@ -2,34 +2,49 @@
 #
 # Purpose: Makefile for "M-JPEG Streamer"
 # Author.: Tom Stoeveken (TST)
-# Version: 0.3
+# Version: 0.4
 # License: GPL
 #
 ###############################################################
 
+# specifies where to install the binaries after compilation
+# to use another directory you can specify it with:
+# $ sudo make DESTDIR=/some/path install
+DESTDIR = /usr/local
+
+# set the compiler to use
 CC = gcc
 
+# general compile flags, enable all warnings to make compile more verbose
 CFLAGS += -O2 -DLINUX -D_GNU_SOURCE -Wall
-#CFLAGS += -O2 -DDEBUG -DLINUX -D_GNU_SOURCE -Wall
+#CFLAGS += -DDEBUG
+
+# we are using the libraries "libpthread" and "libdl"
+# libpthread is used to run several tasks (virtually) in parallel
+# libdl is used to load the plugins (shared objects) at runtime
 LFLAGS += -lpthread -ldl
 
-APP_BINARY=mjpg_streamer
+# define the name of the program
+APP_BINARY = mjpg_streamer
+
+# define the names and targets of the plugins
+PLUGINS = input_uvc.so output_file.so output_http.so input_testpicture.so output_autofocus.so input_gspcav1.so
+
+# define the names of object files
 OBJECTS=mjpg_streamer.o utils.o
 
+# this is the first target, thus it will be used implictely if no other target
+# was given. It defines that it is dependent on the application target and
+# the plugins
 all: application plugins
 
-clean:
-	make -C plugins/input_uvc $@
-	make -C plugins/input_testpicture $@
-	make -C plugins/output_file $@
-	make -C plugins/output_http $@
-	make -C plugins/output_autofocus $@
-	make -C plugins/input_gspcav1 $@
-	rm -f *.a *.o $(APP_BINARY) core *~ *.so *.lo
-
-plugins: input_uvc.so output_file.so output_http.so input_testpicture.so output_autofocus.so input_gspcav1.so
-
 application: $(APP_BINARY)
+
+plugins: $(PLUGINS)
+
+$(APP_BINARY): mjpg_streamer.c mjpg_streamer.h mjpg_streamer.o utils.c utils.h utils.o
+	$(CC) $(CFLAGS) $(LFLAGS) $(OBJECTS) -o $(APP_BINARY)
+	chmod 755 $(APP_BINARY)
 
 output_autofocus.so: mjpg_streamer.h utils.h
 	make -C plugins/output_autofocus all
@@ -55,11 +70,31 @@ input_gspcav1.so: mjpg_streamer.h utils.h
 	make -C plugins/input_gspcav1 all
 	cp plugins/input_gspcav1/input_gspcav1.so .
 
-$(APP_BINARY): mjpg_streamer.c mjpg_streamer.h mjpg_streamer.o utils.c utils.h utils.o
-	$(CC) $(CFLAGS) $(LFLAGS) $(OBJECTS) -o $(APP_BINARY)
-	chmod 755 $(APP_BINARY)
+# cleanup
+clean:
+	make -C plugins/input_uvc $@
+	make -C plugins/input_testpicture $@
+	make -C plugins/output_file $@
+	make -C plugins/output_http $@
+	make -C plugins/output_autofocus $@
+	make -C plugins/input_gspcav1 $@
+	rm -f *.a *.o $(APP_BINARY) core *~ *.so *.lo
 
 # useful to make a backup "make tgz"
 tgz: clean
 	mkdir -p backups
-	tar czvf ./backups/mjpg_streamer_`date +"%Y_%m_%d_%H.%M.%S"`.tgz --exclude backups *
+	tar czvf ./backups/mjpg_streamer_`date +"%Y_%m_%d_%H.%M.%S"`.tgz --exclude backups --exclude .svn *
+
+# install MJPG-streamer, the example webfolder will not be copied since it is just an example
+# of course users can use it, but they need to specify where it should be located
+install: all
+	install --mode=755 $(APP_BINARY) $(DESTDIR)/bin
+	install --mode=644 $(PLUGINS) $(DESTDIR)/lib/
+
+# remove the files installed above
+uninstall:
+	rm -f $(DESTDIR)/bin/$(APP_BINARY)
+	for plug in $(PLUGINS); do \
+	  rm -f $(DESTDIR)/lib/$$plug; \
+	done;
+
