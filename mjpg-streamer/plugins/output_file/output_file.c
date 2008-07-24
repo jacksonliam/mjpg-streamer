@@ -45,7 +45,7 @@
 
 static pthread_t worker;
 static globals *pglobal;
-static int fd, delay, bytes;
+static int fd, delay, bytes, size;
 static char *folder = "/tmp";
 static unsigned char *frame=NULL;
 static char *command = NULL;
@@ -63,6 +63,7 @@ void help(void) {
                   " [-f | --folder ]........: folder to save pictures\n" \
                   " [-d | --delay ].........: delay after saving pictures in ms\n" \
                   " [-b | --bytes ].........: save only on change in picture-size\n" \
+                  " [-s | --size ]..........: size of ring buffer (max number of pictures to hold)\n" \
                   " [-c | --command ].......: execute command after saveing picture\n\n" \
                   " ---------------------------------------------------------------\n");
 }
@@ -95,7 +96,7 @@ Return Value:
 ******************************************************************************/
 void *worker_thread( void *arg ) {
   int ok = 1, frame_size=0, previous_frame_size=0;
-  char buffer1[1024] = {0}, buffer2[1024] = {0};
+  char buffer1[1024] = {0}, buffer2[1024] = {0}, delbuf[1024] = {0};
   unsigned long long counter=0;
   time_t t;
   struct tm *tmp;
@@ -150,6 +151,17 @@ void *worker_thread( void *arg ) {
     }
 
     snprintf(buffer2, sizeof(buffer2), buffer1, folder, counter++);
+
+/* prepare filename to delete if ring buffering is active */
+if (size != 0)
+	{
+	memset(delbuf, 0, sizeof(delbuf));
+	sprintf(delbuf, "rm %s/*_picture_%09d.* > /dev/null 2>&1", folder, (counter - 1));
+	system (delbuf);
+
+	counter = counter % 10;
+	}
+
     DBG("writing file: %s\n", buffer2);
 
     /* open file for write */
@@ -196,6 +208,7 @@ int output_init(output_parameter *param) {
 
   delay = 0;
   bytes = 0;
+  size = 0;
 
   /* convert the single parameter-string to an array of strings */
   argv[0] = OUTPUT_PLUGIN_NAME;
@@ -239,6 +252,8 @@ int output_init(output_parameter *param) {
       {"delay", required_argument, 0, 0},
       {"b", required_argument, 0, 0},
       {"bytes", required_argument, 0, 0},
+      {"s", required_argument, 0, 0},
+      {"size", required_argument, 0, 0},
       {"c", required_argument, 0, 0},
       {"command", required_argument, 0, 0},
       {0, 0, 0, 0}
@@ -288,10 +303,17 @@ int output_init(output_parameter *param) {
         bytes = atoi(optarg);
         break;
 
-      /* c, command */
+      /* s, size */
       case 8:
       case 9:
         DBG("case 8,9\n");
+        size = atoi(optarg);
+        break;
+
+      /* c, command */
+      case 10:
+      case 11:
+        DBG("case 10,11\n");
         command = strdup(optarg);
         break;
     }
@@ -299,10 +321,11 @@ int output_init(output_parameter *param) {
 
   pglobal = param->global;
 
-  OPRINT("output folder.....: %s\n", folder);
-  OPRINT("delay after save..: %d\n", delay);
-  OPRINT("picture diff-bytes: %d\n", bytes);
-  OPRINT("command...........: %s\n", (command==NULL)?"disabled":command);
+  OPRINT("output folder.................: %s\n", folder);
+  OPRINT("delay after save..............: %d\n", delay);
+  OPRINT("picture diff-bytes............: %d\n", bytes);
+  OPRINT("max number of pictures to hold: %d\n", size);
+  OPRINT("command.......................: %s\n", (command==NULL)?"disabled":command);
   return 0;
 }
 
