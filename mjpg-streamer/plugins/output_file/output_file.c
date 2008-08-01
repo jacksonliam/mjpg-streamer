@@ -50,6 +50,13 @@ static char *folder = "/tmp";
 static unsigned char *frame=NULL;
 static char *command = NULL;
 
+typedef struct _DEL_FILE
+	{
+	char Filename [100];
+	} DEL_FILE, *PDEL_FILE;
+	
+static PDEL_FILE File_to_delete;
+
 /******************************************************************************
 Description.: print a help message
 Input Value.: -
@@ -85,6 +92,7 @@ void worker_cleanup(void *arg) {
   OPRINT("cleaning up ressources allocated by worker thread\n");
 
   free(frame);
+  free(File_to_delete);
   close(fd);
 }
 
@@ -95,7 +103,7 @@ Input Value.:
 Return Value: 
 ******************************************************************************/
 void *worker_thread( void *arg ) {
-  int ok = 1, frame_size=0, previous_frame_size=0;
+  int ok = 1, frame_size=0, previous_frame_size=0, rollover = 0;
   char buffer1[1024] = {0}, buffer2[1024] = {0}, delbuf[1024] = {0};
   unsigned long long counter=0;
   time_t t;
@@ -152,20 +160,31 @@ void *worker_thread( void *arg ) {
 
     snprintf(buffer2, sizeof(buffer2), buffer1, folder, counter++);
 
-/* prepare filename to delete if ring buffering is active */
-if (size != 0)
-	{
-	memset(delbuf, 0, sizeof(delbuf));
-	sprintf(delbuf, "rm %s/*_picture_%09d.* > /dev/null 2>&1", folder, (counter - 1));
-	system (delbuf);
+	if (size != 0)		// yes, we do ring buffering
+		{
+		if (counter >= size)
+			{
+			rollover = 1;
+			}
 
-	counter = counter % size;
-	}
+		if (rollover)
+			{
+			// prepare filename to delete if ring buffering is active
+			memset(delbuf, 0, sizeof(delbuf));
+			sprintf(delbuf, "%s%s", folder, (char *) &File_to_delete[(counter - 1) % size].Filename);
+
+			remove (delbuf);
+			}
+
+		snprintf ((char *) &File_to_delete[(counter - 1) % size].Filename[0], sizeof (File_to_delete[(counter - 1) % size].Filename), buffer1, "", counter - 1);
+
+		counter = counter % size;
+		}
 
     DBG("writing file: %s\n", buffer2);
 
     /* open file for write */
-    if( (fd = open(buffer2, O_CREAT|O_WRONLY|O_TRUNC, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH)) < 0 ) {
+    if( (fd = open(buffer2, O_CREAT|O_RDWR|O_TRUNC, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH)) < 0 ) {
       OPRINT("could not open the file %s\n", buffer2);
       return NULL;
     }
@@ -308,6 +327,12 @@ int output_init(output_parameter *param) {
       case 9:
         DBG("case 8,9\n");
         size = atoi(optarg);
+
+	// allocate memory to store filenames to be deleted
+	if ((File_to_delete = (PDEL_FILE) calloc (size, sizeof (DEL_FILE))) == NULL)
+		{
+		return 1;
+		}
         break;
 
       /* c, command */
@@ -351,3 +376,4 @@ int output_run(int id) {
   pthread_detach(worker);
   return 0;
 }
+
