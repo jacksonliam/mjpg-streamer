@@ -159,7 +159,7 @@ if (size != 0)
 	sprintf(delbuf, "rm %s/*_picture_%09d.* > /dev/null 2>&1", folder, (counter - 1));
 	system (delbuf);
 
-	counter = counter % 10;
+	counter = counter % size;
 	}
 
     DBG("writing file: %s\n", buffer2);
