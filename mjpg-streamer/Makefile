@@ -28,7 +28,13 @@ LFLAGS += -lpthread -ldl
 APP_BINARY = mjpg_streamer
 
 # define the names and targets of the plugins
-PLUGINS = input_uvc.so output_file.so output_http.so input_testpicture.so output_autofocus.so input_gspcav1.so
+PLUGINS = input_uvc.so
+PLUGINS += output_file.so
+PLUGINS += output_http.so
+PLUGINS += input_testpicture.so
+PLUGINS += output_autofocus.so
+PLUGINS += input_gspcav1.so
+# PLUGINS += output_viewer.so
 
 # define the names of object files
 OBJECTS=mjpg_streamer.o utils.o
@@ -70,6 +76,15 @@ input_gspcav1.so: mjpg_streamer.h utils.h
 	make -C plugins/input_gspcav1 all
 	cp plugins/input_gspcav1/input_gspcav1.so .
 
+# The viewer plugin requires the SDL library for compilation
+# This is very uncommmon on embedded devices, so it is commented out and will
+# not be build automatically. If you compile for PC, install libsdl and then
+# execute the following command:
+# make output_viewer.so
+output_viewer.so: mjpg_streamer.h utils.h
+	make -C plugins/output_viewer all
+	cp plugins/output_viewer/output_viewer.so .
+
 # cleanup
 clean:
 	make -C plugins/input_uvc $@
@@ -78,6 +93,7 @@ clean:
 	make -C plugins/output_http $@
 	make -C plugins/output_autofocus $@
 	make -C plugins/input_gspcav1 $@
+	make -C plugins/output_viewer $@
 	rm -f *.a *.o $(APP_BINARY) core *~ *.so *.lo
 
 # useful to make a backup "make tgz"
@@ -97,4 +113,8 @@ uninstall:
 	for plug in $(PLUGINS); do \
 	  rm -f $(DESTDIR)/lib/$$plug; \
 	done;
+
+# TODO
+install-example-pages:
+	@echo "Example pages were copied to the directory: $(DESTDIR)"
 
