@@ -253,11 +253,11 @@ void send_snapshot(int fd) {
                   "\r\n");
 
   /* send header and image now */
-  if( write(fd, buffer, strlen(buffer)) < 0 ) {
+  if( write(fd, buffer, strlen(buffer)) < 0 || \
+      write(fd, frame, frame_size) < 0) {
     free(frame);
     return;
   }
-  write(fd, frame, frame_size);
 
   free(frame);
 }
@@ -385,7 +385,9 @@ void send_error(int fd, int which, char *message) {
                     "%s", message);
   }
 
-  write(fd, buffer, strlen(buffer));
+  if( write(fd, buffer, strlen(buffer)) < 0 ) {
+    DBG("write failed, done anyway\n");
+  }
 }
 
 /******************************************************************************
@@ -549,7 +551,9 @@ void command(int id, int fd, char *parameter) {
                   "\r\n" \
                   "%s: %d", command, res);
 
-  write(fd, buffer, strlen(buffer));
+  if( write(fd, buffer, strlen(buffer)) < 0 ) {
+    DBG("write failed, done anyway\n");
+  }
 
   if (command != NULL) free(command);
 }

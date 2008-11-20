@@ -66,13 +66,19 @@ void daemon_mode(void) {
 
   umask(0);
 
-  chdir("/");
+  fr = chdir("/");
+  if ( fr != 0 ) {
+    fprintf(stderr, "chdir(/) failed\n");
+    exit(0);
+  }
+
   close(0);
   close(1);
   close(2);
 
   open("/dev/null", O_RDWR);
-  dup(0);
-  dup(0);
+  
+  fr = dup(0);
+  fr = dup(0);
 }
 

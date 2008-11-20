@@ -34,6 +34,7 @@ PLUGINS += output_http.so
 PLUGINS += input_testpicture.so
 PLUGINS += output_autofocus.so
 PLUGINS += input_gspcav1.so
+# PLUGINS += input_http.so
 # PLUGINS += output_viewer.so
 
 # define the names of object files
@@ -76,6 +77,10 @@ input_gspcav1.so: mjpg_streamer.h utils.h
 	make -C plugins/input_gspcav1 all
 	cp plugins/input_gspcav1/input_gspcav1.so .
 
+#input_http.so: mjpg_streamer.h utils.h
+#	make -C plugins/input_http all
+#	cp plugins/input_http/input_http.so .
+
 # The viewer plugin requires the SDL library for compilation
 # This is very uncommmon on embedded devices, so it is commented out and will
 # not be build automatically. If you compile for PC, install libsdl and then
@@ -94,6 +99,7 @@ clean:
 	make -C plugins/output_autofocus $@
 	make -C plugins/input_gspcav1 $@
 	make -C plugins/output_viewer $@
+#	make -C plugins/input_http $@
 	rm -f *.a *.o $(APP_BINARY) core *~ *.so *.lo
 
 # useful to make a backup "make tgz"

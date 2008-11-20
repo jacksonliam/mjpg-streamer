@@ -80,6 +80,7 @@ static int dynctrls = 1;
 void *cam_thread( void *);
 void cam_cleanup(void *);
 void help(void);
+int input_cmd(in_cmd_type, int);
 
 /*** plugin interface functions ***/
 /******************************************************************************
