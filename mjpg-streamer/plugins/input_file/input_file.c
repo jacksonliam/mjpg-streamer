@@ -23,16 +23,13 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <linux/videodev.h>
-#include <sys/ioctl.h>
-#include <errno.h>
-#include <signal.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <getopt.h>
 #include <pthread.h>
+#include <syslog.h>
+#include <sys/types.h>
+#include <sys/inotify.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include "../../mjpg_streamer.h"
 #include "../../utils.h"
@@ -48,8 +45,13 @@ void *worker_thread( void *);
 void worker_cleanup(void *);
 void help(void);
 
-static int delay = 1000;
+static int delay = 0;
 static char *folder = NULL;
+static int rm = 0;
+
+/* global variables for this plugin */
+static int fd, rc, wd, size;
+static struct inotify_event *ev;
 
 /*** plugin interface functions ***/
 int input_init(input_parameter *param) {
@@ -96,6 +98,8 @@ int input_init(input_parameter *param) {
       {"delay", required_argument, 0, 0},
       {"f", required_argument, 0, 0},
       {"folder", required_argument, 0, 0},
+      {"r", no_argument, 0, 0},
+      {"remove", no_argument, 0, 0},
       {0, 0, 0, 0}
     };
 
@@ -136,6 +140,13 @@ int input_init(input_parameter *param) {
           strcat(folder, "/");
         break;
 
+      /* r, remove */
+      case 6:
+      case 7:
+        DBG("case 6,7\n");
+        rm = 1;
+        break;
+
       default:
         DBG("default case\n");
         help();
@@ -145,8 +156,15 @@ int input_init(input_parameter *param) {
 
   pglobal = param->global;
 
-  IPRINT("JPG input folder..: %s\n", folder);
-  IPRINT("delay.............: %i\n", delay);
+  /* check for required parameters */
+  if ( folder == NULL ) {
+    IPRINT("ERROR: no folder specified\n");
+    return 1;
+  }
+
+  IPRINT("folder to watch...: %s\n", folder);
+  IPRINT("forced delay......: %i\n", delay);
+  IPRINT("delete file.......: %s\n", (rm)?"yes, delete":"no, do not delete");
 
   return 0;
 }
@@ -159,10 +177,25 @@ int input_stop(void) {
 }
 
 int input_run(void) {
-  pglobal->buf = malloc(256*1024);
-  if (pglobal->buf == NULL) {
-    fprintf(stderr, "could not allocate memory\n");
-    exit(1);
+  pglobal->buf = NULL;
+
+  rc = fd = inotify_init();
+  if ( rc == -1 ) {
+    perror("could not initilialize inotify");
+    return 1;
+  }
+
+  rc = wd = inotify_add_watch(fd, folder, IN_CLOSE_WRITE|IN_MOVED_TO|IN_ONLYDIR);
+  if ( rc == -1 ) {
+    perror("could not add watch");
+    return 1;
+  }
+
+  size = sizeof(struct inotify_event) + (1<<16);
+  ev = malloc(size);
+  if ( ev == NULL ) {
+    perror("not enough memory");
+    return 1;
   }
 
   if( pthread_create(&worker, 0, worker_thread, NULL) != 0) {
@@ -170,6 +203,7 @@ int input_run(void) {
     fprintf(stderr, "could not start worker thread\n");
     exit(EXIT_FAILURE);
   }
+
   pthread_detach(worker);
 
   return 0;
@@ -182,35 +216,102 @@ void help(void) {
                     " ---------------------------------------------------------------\n" \
                     " The following parameters can be passed to this plugin:\n\n" \
                     " [-d | --delay ]........: delay to pause between frames\n" \
-                    " [-f | --folder ].......: folder containing the JPG-files\n" \
+                    " [-f | --folder ].......: folder to watch for new JPEG files\n" \
+                    " [-r | --remove ].......: remove/delete JPEG file after reading\n" \
                     " ---------------------------------------------------------------\n");
 }
 
 /* the single writer thread */
 void *worker_thread( void *arg ) {
+  char buffer[1<<16];
+  int file;
+  size_t filesize = 0;
+  struct stat stats;
+
   /* set cleanup handler to cleanup allocated ressources */
   pthread_cleanup_push(worker_cleanup, NULL);
 
   while( !pglobal->stop ) {
 
-    /* grab a frame */
-    if( ... ) {
-      fprintf(stderr, "Error grabbing frames\n");
-      exit(EXIT_FAILURE);
+    /* wait for new frame, read will block until something happens */
+    rc = read(fd, ev, size);
+    if ( rc == -1 ) {
+      perror("reading inotify events failed");
+      break;
     }
 
-    /* copy JPG picture to global buffer */
+    /* sanity check */
+    if ( wd != ev->wd ) {
+      fprintf(stderr, "This event is not for the watched directory (%d != %d)\n", wd, ev->wd);
+      continue;
+    }
+
+    if ( ev->mask & (IN_IGNORED|IN_Q_OVERFLOW|IN_UNMOUNT) ) {
+      fprintf(stderr, "event mask suggests to stop\n");
+      break;
+    }
+
+    /* prepare filename */
+    snprintf(buffer, sizeof(buffer), "%s%s", folder, ev->name);
+    DBG("new file detected: %s\n", buffer);
+
+    /* open file for reading */
+    rc = file = open(buffer, O_RDONLY);
+    if ( rc == -1 ) {
+      perror("could not open file for reading");
+      break;
+    }
+
+    /* approximate size of file */
+    rc = fstat(file, &stats);
+    if ( rc == -1 ) {
+      perror("could not read statistics of file");
+      close(file);
+      break;
+    }
+
+    filesize = stats.st_size;
+
+    /* copy frame from file to global buffer */
     pthread_mutex_lock( &pglobal->db );
-    pglobal->size = memcpy_picture(pglobal->buf, videoIn->tmpbuffer, videoIn->buf.bytesused);
+
+    /* allocate memory for frame */
+    if ( pglobal->buf != NULL ) free(pglobal->buf);
+    pglobal->buf = malloc(filesize + (1<<16));
+    if (pglobal->buf == NULL) {
+      fprintf(stderr, "could not allocate memory\n");
+      break;
+    }
+
+    if ( (pglobal->size = read(file, pglobal->buf, filesize)) == -1) {
+      perror("could not read from file");
+      free(pglobal->buf); pglobal->buf = NULL; pglobal->size = 0;
+      pthread_mutex_unlock( &pglobal->db );
+      close(file);
+      break;
+    }
+
+    DBG("new frame copied (size: %d)\n", pglobal->size);
 
     /* signal fresh_frame */
     pthread_cond_broadcast(&pglobal->db_update);
     pthread_mutex_unlock( &pglobal->db );
 
-    usleep(1000*delay);
+    close(file);
+
+    /* delete file if necessary */
+    if (rm) {
+      rc = unlink(buffer);
+      if ( rc == -1 ) {
+        perror("could not remove/delete file");
+      }
+    }
+
+    if (delay != 0) usleep(1000*delay);
   }
 
   DBG("leaving input thread, calling cleanup function now\n");
+  /* call cleanup handler, signal with the parameter */
   pthread_cleanup_pop(1);
 
   return NULL;
@@ -228,6 +329,18 @@ void worker_cleanup(void *arg) {
   DBG("cleaning up ressources allocated by input thread\n");
 
   if (pglobal->buf != NULL) free(pglobal->buf);
+
+  free(ev);
+
+  rc = inotify_rm_watch(fd, wd);
+  if ( rc == -1 ) {
+    perror("could not close watch descriptor");
+  }
+
+  rc = close(fd);
+  if ( rc == -1 ) {
+    perror("could not close filedescriptor");
+  }
 }
 
 

@@ -34,6 +34,7 @@ PLUGINS += output_http.so
 PLUGINS += input_testpicture.so
 PLUGINS += output_autofocus.so
 PLUGINS += input_gspcav1.so
+PLUGINS += input_file.so
 # PLUGINS += input_http.so
 # PLUGINS += output_viewer.so
 
@@ -76,6 +77,10 @@ output_http.so: mjpg_streamer.h utils.h
 input_gspcav1.so: mjpg_streamer.h utils.h
 	make -C plugins/input_gspcav1 all
 	cp plugins/input_gspcav1/input_gspcav1.so .
+
+input_file.so: mjpg_streamer.h utils.h
+	make -C plugins/input_file all
+	cp plugins/input_file/input_file.so .
 
 #input_http.so: mjpg_streamer.h utils.h
 #	make -C plugins/input_http all

@@ -353,7 +353,11 @@ int main(int argc, char *argv[])
   /* start to read the input, push pictures into global buffer */
   DBG("starting input plugin\n");
   syslog(LOG_INFO, "starting input plugin");
-  global.in.run();
+  if ( global.in.run() ) {
+    LOG("can not run input plugin\n");
+    closelog();
+    return 1;
+  }
 
   DBG("starting %d output plugin(s)\n", global.outcnt);
   for(i=0; i<global.outcnt; i++) {
