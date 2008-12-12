@@ -28,10 +28,13 @@
 #include <stdio.h>
 #include <pthread.h>
 #include <sys/socket.h>
+#include <sys/select.h>
 #include <arpa/inet.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <syslog.h>
+#include <netdb.h>
+#include <errno.h>
 
 #include "../../mjpg_streamer.h"
 #include "../../utils.h"
@@ -730,10 +733,12 @@ Return Value: -
 ******************************************************************************/
 void server_cleanup(void *arg) {
   context *pcontext = arg;
+  int i;
 
   OPRINT("cleaning up ressources allocated by server thread #%02d\n", pcontext->id);
 
-  close(pcontext->sd);
+  for(i = 0; i < MAX_SD_LEN; i++)
+    close(pcontext->sd[i]);
 }
 
 /******************************************************************************
@@ -743,10 +748,17 @@ Input Value.: arg is a pointer to the globals struct
 Return Value: always NULL, will only return on exit
 ******************************************************************************/
 void *server_thread( void *arg ) {
-  struct sockaddr_in addr, client_addr;
   int on;
   pthread_t client;
-  socklen_t addr_len = sizeof(struct sockaddr_in);
+  struct addrinfo *aip, *aip2;
+  struct addrinfo hints;
+  struct sockaddr_storage client_addr;
+  socklen_t addr_len = sizeof(struct sockaddr_storage);
+  fd_set selectfds;
+  int max_fds = 0;
+  char name[NI_MAXHOST];
+  int err;
+  int i;
 
   context *pcontext = arg;
   pglobal = pcontext->pglobal;
@@ -754,38 +766,68 @@ void *server_thread( void *arg ) {
   /* set cleanup handler to cleanup ressources */
   pthread_cleanup_push(server_cleanup, pcontext);
 
-  /* open socket for server */
-  pcontext->sd = socket(PF_INET, SOCK_STREAM, 0);
-  if ( pcontext->sd < 0 ) {
-    fprintf(stderr, "socket failed\n");
+  bzero(&hints, sizeof(hints));
+  hints.ai_family = PF_UNSPEC;
+  hints.ai_flags = AI_PASSIVE;
+  hints.ai_socktype = SOCK_STREAM;
+
+  snprintf(name, sizeof(name), "%d", ntohs(pcontext->conf.port));
+  if((err = getaddrinfo(NULL, name, &hints, &aip)) != 0) {
+    perror(gai_strerror(err));
     exit(EXIT_FAILURE);
   }
 
-  /* ignore "socket already in use" errors */
-  on = 1;
-  if (setsockopt(pcontext->sd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
-    perror("setsockopt(SO_REUSEADDR) failed");
-    exit(EXIT_FAILURE);
+  for(i = 0; i < MAX_SD_LEN; i++)
+    pcontext->sd[i] = -1;
+
+  /* open sockets for server (1 socket / address family) */
+  i = 0;
+  for(aip2 = aip; aip2 != NULL; aip2 = aip2->ai_next)
+  {
+    if((pcontext->sd[i] = socket(aip2->ai_family, aip2->ai_socktype, 0)) < 0) {
+      continue;
+    }
+
+    /* ignore "socket already in use" errors */
+    on = 1;
+    if(setsockopt(pcontext->sd[i], SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
+      perror("setsockopt(SO_REUSEADDR) failed");
+    }
+
+    /* IPv6 socket should listen to IPv6 only, otherwise we will get "socket already in use" */
+    on = 1;
+    if(aip2->ai_family == AF_INET6 && setsockopt(pcontext->sd[i], IPPROTO_IPV6, IPV6_V6ONLY,
+                  (const void *)&on , sizeof(on)) < 0) {
+      perror("setsockopt(IPV6_V6ONLY) failed");
+    }
+
+    /* perhaps we will use this keep-alive feature oneday */
+    /* setsockopt(sd, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on)); */
+
+    if(bind(pcontext->sd[i], aip2->ai_addr, aip2->ai_addrlen) < 0) {
+      perror("bind");
+      pcontext->sd[i] = -1;
+      continue;
+    }
+
+    if(listen(pcontext->sd[i], 10) < 0) {
+      perror("listen");
+      pcontext->sd[i] = -1;
+    } else {
+      i++;
+      if(i >= MAX_SD_LEN) {
+        OPRINT("%s(): maximum number of server sockets exceeded", __FUNCTION__);
+        i--;
+        break;
+      }
+    }
   }
 
-  /* perhaps we will use this keep-alive feature oneday */
-  /* setsockopt(sd, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on)); */
+  pcontext->sd_len = i;
 
-  /* configure server address to listen to all local IPs */
-  memset(&addr, 0, sizeof(addr));
-  addr.sin_family = AF_INET;
-  addr.sin_port = pcontext->conf.port; /* is already in right byteorder */
-  addr.sin_addr.s_addr = htonl(INADDR_ANY);
-  if ( bind(pcontext->sd, (struct sockaddr*)&addr, sizeof(addr)) != 0 ) {
-    perror("bind");
+  if(pcontext->sd_len < 1) {
     OPRINT("%s(): bind(%d) failed", __FUNCTION__, htons(pcontext->conf.port));
     closelog();
-    exit(EXIT_FAILURE);
-  }
-
-  /* start listening on socket */
-  if ( listen(pcontext->sd, 10) != 0 ) {
-    fprintf(stderr, "listen failed\n");
     exit(EXIT_FAILURE);
   }
 
@@ -800,20 +842,48 @@ void *server_thread( void *arg ) {
     }
 
     DBG("waiting for clients to connect\n");
-    pcfd->fd = accept(pcontext->sd, (struct sockaddr *)&client_addr, &addr_len);
-    pcfd->pc = pcontext;
 
-    /* start new thread that will handle this TCP connected client */
-    DBG("create thread to handle client that just established a connection\n");
-    syslog(LOG_INFO, "serving client: %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
+    do {
+      FD_ZERO(&selectfds);
 
-    if( pthread_create(&client, NULL, &client_thread, pcfd) != 0 ) {
-      DBG("could not launch another client thread\n");
-      close(pcfd->fd);
-      free(pcfd);
-      continue;
+      for(i = 0; i < MAX_SD_LEN; i++) {
+        if(pcontext->sd[i] != -1) {
+          FD_SET(pcontext->sd[i], &selectfds);
+
+          if(pcontext->sd[i] > max_fds)
+            max_fds = pcontext->sd[i];
+        }
+      }
+
+      err = select(max_fds + 1, &selectfds, NULL, NULL, NULL);
+
+      if (err < 0 && errno != EINTR) {
+        perror("select");
+        exit(EXIT_FAILURE);
+      }
+    } while(err <= 0);
+
+    for(i = 0; i < max_fds + 1; i++) {
+      if(pcontext->sd[i] != -1 && FD_ISSET(pcontext->sd[i], &selectfds)) {
+        pcfd->fd = accept(pcontext->sd[i], (struct sockaddr *)&client_addr, &addr_len);
+        pcfd->pc = pcontext;
+
+        /* start new thread that will handle this TCP connected client */
+        DBG("create thread to handle client that just established a connection\n");
+
+        if(getnameinfo((struct sockaddr *)&client_addr, addr_len, name, sizeof(name), NULL, 0, NI_NUMERICHOST) == 0) {
+          syslog(LOG_INFO, "serving client: %s\n", name);
+        }
+
+        if( pthread_create(&client, NULL, &client_thread, pcfd) != 0 ) {
+          DBG("could not launch another client thread\n");
+          close(pcfd->fd);
+          free(pcfd);
+          continue;
+        }
+        pthread_detach(client);
+      }
     }
-    pthread_detach(client);
   }
 
   DBG("leaving server thread, calling cleanup function now\n");

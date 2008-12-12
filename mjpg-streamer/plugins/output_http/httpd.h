@@ -50,6 +50,11 @@
                    "Expires: Mon, 3 Jan 2000 12:34:56 GMT\r\n"
 
 /*
+ * Maximum number of server sockets (i.e. protocol families) to listen.
+ */
+#define MAX_SD_LEN 50
+
+/*
  * Only the following fileypes are supported.
  *
  * Other filetypes are simply ignored!
@@ -145,7 +150,8 @@ typedef struct {
 
 /* context of each server thread */
 typedef struct {
-  int sd;
+  int sd[MAX_SD_LEN];
+  int sd_len;
   int id;
   globals *pglobal;
   pthread_t threadID;
