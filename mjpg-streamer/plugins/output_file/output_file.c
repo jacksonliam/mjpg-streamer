@@ -37,6 +37,8 @@
 #include <time.h>
 #include <syslog.h>
 
+#include <dirent.h>
+
 #include "../../utils.h"
 #include "../../mjpg_streamer.h"
 
@@ -45,17 +47,10 @@
 
 static pthread_t worker;
 static globals *pglobal;
-static int fd, delay, bytes, size;
+static int fd, delay, ringbuffer_size = -1, max_frame_size;
 static char *folder = "/tmp";
 static unsigned char *frame=NULL;
 static char *command = NULL;
-
-typedef struct _DEL_FILE
-	{
-	char Filename [100];
-	} DEL_FILE, *PDEL_FILE;
-	
-static PDEL_FILE File_to_delete;
 
 /******************************************************************************
 Description.: print a help message
@@ -69,7 +64,6 @@ void help(void) {
                   " The following parameters can be passed to this plugin:\n\n" \
                   " [-f | --folder ]........: folder to save pictures\n" \
                   " [-d | --delay ].........: delay after saving pictures in ms\n" \
-                  " [-b | --bytes ].........: save only on change in picture-size\n" \
                   " [-s | --size ]..........: size of ring buffer (max number of pictures to hold)\n" \
                   " [-c | --command ].......: execute command after saveing picture\n\n" \
                   " ---------------------------------------------------------------\n");
@@ -91,9 +85,82 @@ void worker_cleanup(void *arg) {
   first_run = 0;
   OPRINT("cleaning up ressources allocated by worker thread\n");
 
-  free(frame);
-  free(File_to_delete);
+  if (frame != NULL) {
+    free(frame);
+  }
   close(fd);
+}
+
+/******************************************************************************
+Description.: compares a directory entry with a pattern
+Input Value.: directory entry
+Return Value: 0 if string do not match, 1 if they match
+******************************************************************************/
+int check_for_filename(const struct dirent *entry) {
+  int rc;
+
+  int year, month, day, hour, minute, second;
+  unsigned long long number;
+  
+  /*
+   * try to scan the string using scanf
+   * I would like to use a define for this format string later...
+   */
+  rc = sscanf(entry->d_name, "%d_%d_%d_%d_%d_%d_picture_%09llu.jpg", &year, \
+                                                                     &month, \
+                                                                     &day, \
+                                                                     &hour, \
+                                                                     &minute, \
+                                                                     &second, \
+                                                                     &number);
+
+  DBG("%s, rc is %d (%d, %d, %d, %d, %d, %d, %llu)\n", entry->d_name, rc, year, month, day, hour, minute, second, number);
+
+  /* if scanf could find all values, it matches our filenames */
+  if (rc != 7) return 0;
+
+  return 1;
+}
+
+/******************************************************************************
+Description.: delete oldest files, just keep "size" most recent files
+              This funtion MAY delete the wrong files if the time is not valid
+Input Value.: how many files to keep
+Return Value: -
+******************************************************************************/
+void delete_oldest_files(int size) {
+  struct dirent **namelist;
+  int n, i;
+  char buffer[1<<16];
+
+  if (size == -1) return;
+
+  n = scandir(folder, &namelist, check_for_filename, alphasort);
+  if (n < 0) {
+    perror("scandir");
+    return;
+  }
+
+  DBG("got %d results\n", n);
+ 
+  /* delete the first (thus oldest) number of files */
+  for(i=0; i<(n-size); i++) {
+    snprintf(buffer, sizeof(buffer), "%s/%s", folder, namelist[i]->d_name);
+
+    DBG("delete: %s\n", buffer);
+    if ( unlink(buffer) == -1 ) {
+      perror("could not delete file");
+    }
+    free(namelist[i]);
+  }
+
+  /* keep the rest */
+  for(i=MAX(n-size, 0); i<n; i++) {
+    DBG("keep: %s\n", namelist[i]->d_name);
+    free(namelist[i]);
+  }
+
+  free(namelist);
 }
 
 /******************************************************************************
@@ -103,16 +170,12 @@ Input Value.:
 Return Value: 
 ******************************************************************************/
 void *worker_thread( void *arg ) {
-  int ok = 1, frame_size=0, previous_frame_size=0, rollover = 0;
-  char buffer1[1024] = {0}, buffer2[1024] = {0}, delbuf[1024] = {0};
+  int ok = 1, frame_size=0, rc = 0;
+  char buffer1[1024] = {0}, buffer2[1024] = {0};
   unsigned long long counter=0;
   time_t t;
-  struct tm *tmp;
-
-  if ( (frame = malloc(512*1024)) == NULL ) {
-    OPRINT("not enough memory for worker thread\n");
-    exit(EXIT_FAILURE);
-  }
+  struct tm *now;
+  unsigned char *tmp_framebuffer=NULL;
 
   /* set cleanup handler to cleanup allocated ressources */
   pthread_cleanup_push(worker_cleanup, NULL);
@@ -123,63 +186,48 @@ void *worker_thread( void *arg ) {
 
     /* read buffer */
     frame_size = pglobal->size;
+
+    /* check if buffer for frame is large enough, increase it if necessary */
+    if ( frame_size > max_frame_size ) {
+      DBG("increasing buffer size to %d\n", frame_size);
+
+      max_frame_size = frame_size+(1<<16);
+      if ( (tmp_framebuffer = realloc(frame, max_frame_size)) == NULL ) {
+        pthread_mutex_unlock( &pglobal->db );
+        LOG("not enough memory\n");
+        return NULL;
+      }
+
+      frame = tmp_framebuffer;
+    }
+
+    /* copy frame to our local buffer now */
     memcpy(frame, pglobal->buf, frame_size);
 
+    /* allow others to access the global buffer again */
     pthread_mutex_unlock( &pglobal->db );
-
-    /*
-       if previous picture and current picture differ more than "--bytes" bytes
-       it is __perhaps__ a motion that caused this difference
-
-      This works well for image-sources with low noise only (webcam in bright areas for example)
-
-      At daylight a value of 4000 works well, but the same image-source performed very bad at night (noise)
-    */
-    if ( bytes != 0 && ABS(previous_frame_size-frame_size) <= bytes ) {
-      previous_frame_size = frame_size;
-      continue;
-    }
-    DBG("size-diff: %d kB\n", (previous_frame_size-frame_size)/1024);
-    previous_frame_size = frame_size;
 
     /* prepare filename */
     memset(buffer1, 0, sizeof(buffer1));
     memset(buffer2, 0, sizeof(buffer2));
 
+    /* get current time */
     t = time(NULL);
-    tmp = localtime(&t);
-    if (tmp == NULL) {
+    now = localtime(&t);
+    if (now == NULL) {
       perror("localtime");
       return NULL;
     }
 
-    if (strftime(buffer1, sizeof(buffer1), "%%s/%Y_%m_%d_%H_%M_%S_picture_%%09llu.jpg", tmp) == 0) {
+    /* prepare string, add time and date values */
+    if (strftime(buffer1, sizeof(buffer1), "%%s/%Y_%m_%d_%H_%M_%S_picture_%%09llu.jpg", now) == 0) {
       OPRINT("strftime returned 0\n");
-      exit(EXIT_FAILURE);
+      free(frame); frame = NULL;
+      return NULL;
     }
 
+    /* finish filename by adding the foldername and a counter value */
     snprintf(buffer2, sizeof(buffer2), buffer1, folder, counter++);
-
-	if (size != 0)		// yes, we do ring buffering
-		{
-		if (counter >= size)
-			{
-			rollover = 1;
-			}
-
-		if (rollover)
-			{
-			// prepare filename to delete if ring buffering is active
-			memset(delbuf, 0, sizeof(delbuf));
-			sprintf(delbuf, "%s%s", folder, (char *) &File_to_delete[(counter - 1) % size].Filename);
-
-			remove (delbuf);
-			}
-
-		snprintf ((char *) &File_to_delete[(counter - 1) % size].Filename[0], sizeof (File_to_delete[(counter - 1) % size].Filename), buffer1, "", counter - 1);
-
-		counter = counter % size;
-		}
 
     DBG("writing file: %s\n", buffer2);
 
@@ -199,16 +247,30 @@ void *worker_thread( void *arg ) {
 
     close(fd);
 
-    /* if parameters are needed, use a BASH-script as argument */
+    /* call the command if user specified one, pass current filename as argument */
     if ( command != NULL ) {
-      system(command);
+      memset(buffer1, 0, sizeof(buffer1));
+
+      /* buffer2 still contains the filename, pass it to the command as parameter */
+      snprintf(buffer1, sizeof(buffer1), "%s \"%s\"", command, buffer2);
+      DBG("calling command %s", buffer1);
+
+      /* execute the command now */
+      if ( (rc = system(buffer1)) != 0) {
+        LOG("command failed (return value %d)\n", rc);
+      }
     }
 
+    /* delete oldest files if specified */
+    delete_oldest_files(ringbuffer_size);
+
+    /* if specified, wait now */
     if (delay > 0) {
       usleep(1000*delay);
     }
   }
 
+  /* cleanup now */
   pthread_cleanup_pop(1);
 
   return NULL;
@@ -226,8 +288,6 @@ int output_init(output_parameter *param) {
   int argc=1, i;
 
   delay = 0;
-  bytes = 0;
-  size = 0;
 
   /* convert the single parameter-string to an array of strings */
   argv[0] = OUTPUT_PLUGIN_NAME;
@@ -269,8 +329,6 @@ int output_init(output_parameter *param) {
       {"folder", required_argument, 0, 0},
       {"d", required_argument, 0, 0},
       {"delay", required_argument, 0, 0},
-      {"b", required_argument, 0, 0},
-      {"bytes", required_argument, 0, 0},
       {"s", required_argument, 0, 0},
       {"size", required_argument, 0, 0},
       {"c", required_argument, 0, 0},
@@ -315,30 +373,17 @@ int output_init(output_parameter *param) {
         delay = atoi(optarg);
         break;
 
-      /* b, bytes */
+      /* s, size */
       case 6:
       case 7:
         DBG("case 6,7\n");
-        bytes = atoi(optarg);
-        break;
-
-      /* s, size */
-      case 8:
-      case 9:
-        DBG("case 8,9\n");
-        size = atoi(optarg);
-
-	// allocate memory to store filenames to be deleted
-	if ((File_to_delete = (PDEL_FILE) calloc (size, sizeof (DEL_FILE))) == NULL)
-		{
-		return 1;
-		}
+        ringbuffer_size = atoi(optarg);
         break;
 
       /* c, command */
-      case 10:
-      case 11:
-        DBG("case 10,11\n");
+      case 8:
+      case 9:
+        DBG("case 8,9\n");
         command = strdup(optarg);
         break;
     }
@@ -346,11 +391,15 @@ int output_init(output_parameter *param) {
 
   pglobal = param->global;
 
-  OPRINT("output folder.................: %s\n", folder);
-  OPRINT("delay after save..............: %d\n", delay);
-  OPRINT("picture diff-bytes............: %d\n", bytes);
-  OPRINT("max number of pictures to hold: %d\n", size);
-  OPRINT("command.......................: %s\n", (command==NULL)?"disabled":command);
+  OPRINT("output folder.....: %s\n", folder);
+  OPRINT("delay after save..: %d\n", delay);
+  if (ringbuffer_size>0) {
+    OPRINT("keep just # files.: %d\n", ringbuffer_size);
+  }
+  else {
+    OPRINT("keep just # files.: %s\n", "not limited");
+  }
+  OPRINT("command...........: %s\n", (command==NULL)?"disabled":command);
   return 0;
 }
 
