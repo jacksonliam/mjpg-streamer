@@ -61,4 +61,13 @@ export LD_LIBRARY_PATH="$(pwd)"
 
 ## If you want to track down errors, use this simple testpicture plugin as input source.
 ## to use the testpicture input plugin instead of a webcam or folder:
-# ./mjpg_streamer -i "./input_testpicture.so -r 320x240 -d 500" -o "./output_http.so -w www"
+# ./mjpg_streamer -i "input_testpicture.so -r 320x240 -d 500" -o "output_http.so -w www"
+
+## The input_file.so plugin watches a folder for new files, it does not matter where
+## the JPEG files orginate from. For instance it is possible to grab the desktop and 
+## store the files to a folder:
+# mkdir -p /tmp/input
+# while true; do xwd -root | convert - -scale 640 /tmp/input/bla.jpg; sleep 0.5; done &
+## Then the files can be read from the folder "/tmp/input" and served via HTTP
+# ./mjpg_streamer -i "input_file.so -f /tmp/input -r" -o "output_http.so -w www"
+
