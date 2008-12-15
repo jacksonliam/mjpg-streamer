@@ -47,7 +47,7 @@
 
 static pthread_t worker;
 static globals *pglobal;
-static int fd, delay, ringbuffer_size = -1, max_frame_size;
+static int fd, delay, ringbuffer_size = -1, ringbuffer_exceed = 0, max_frame_size;
 static char *folder = "/tmp";
 static unsigned char *frame=NULL;
 static char *command = NULL;
@@ -65,6 +65,7 @@ void help(void) {
                   " [-f | --folder ]........: folder to save pictures\n" \
                   " [-d | --delay ].........: delay after saving pictures in ms\n" \
                   " [-s | --size ]..........: size of ring buffer (max number of pictures to hold)\n" \
+                  " [-e | --exceed ]........: allow ringbuffer to exceed limit by this amount\n" \
                   " [-c | --command ].......: execute command after saveing picture\n\n" \
                   " ---------------------------------------------------------------\n");
 }
@@ -114,7 +115,15 @@ int check_for_filename(const struct dirent *entry) {
                                                                      &second, \
                                                                      &number);
 
-  DBG("%s, rc is %d (%d, %d, %d, %d, %d, %d, %llu)\n", entry->d_name, rc, year, month, day, hour, minute, second, number);
+  DBG("%s, rc is %d (%d, %d, %d, %d, %d, %d, %llu)\n", entry->d_name, \
+                                                       rc, \
+                                                       year, \
+                                                       month, \
+                                                       day, \
+                                                       hour, \
+                                                       minute, \
+                                                       second, \
+                                                       number);
 
   /* if scanf could find all values, it matches our filenames */
   if (rc != 7) return 0;
@@ -128,38 +137,47 @@ Description.: delete oldest files, just keep "size" most recent files
 Input Value.: how many files to keep
 Return Value: -
 ******************************************************************************/
-void delete_oldest_files(int size) {
+void maintain_ringbuffer(int size) {
   struct dirent **namelist;
   int n, i;
   char buffer[1<<16];
 
-  if (size == -1) return;
+  /* do nothing if ringbuffer is not set or wrong value is set */
+  if (size < 0) return;
 
+  /* get a sorted list of directory items */
   n = scandir(folder, &namelist, check_for_filename, alphasort);
   if (n < 0) {
     perror("scandir");
     return;
   }
 
-  DBG("got %d results\n", n);
+  DBG("found %d directory entries\n", n);
  
   /* delete the first (thus oldest) number of files */
   for(i=0; i<(n-size); i++) {
+
+    /* put together the folder name and the directory item */
     snprintf(buffer, sizeof(buffer), "%s/%s", folder, namelist[i]->d_name);
 
     DBG("delete: %s\n", buffer);
+
+    /* mark item for deletion */
     if ( unlink(buffer) == -1 ) {
       perror("could not delete file");
     }
+   
+    /* free allocated memory for name */
     free(namelist[i]);
   }
 
-  /* keep the rest */
+  /* keep the rest, but we still have to free every result */
   for(i=MAX(n-size, 0); i<n; i++) {
     DBG("keep: %s\n", namelist[i]->d_name);
     free(namelist[i]);
   }
 
+  /* free last just allocated ressources */
   free(namelist);
 }
 
@@ -227,7 +245,9 @@ void *worker_thread( void *arg ) {
     }
 
     /* finish filename by adding the foldername and a counter value */
-    snprintf(buffer2, sizeof(buffer2), buffer1, folder, counter++);
+    snprintf(buffer2, sizeof(buffer2), buffer1, folder, counter);
+
+    counter++;
 
     DBG("writing file: %s\n", buffer2);
 
@@ -261,8 +281,18 @@ void *worker_thread( void *arg ) {
       }
     }
 
-    /* delete oldest files if specified */
-    delete_oldest_files(ringbuffer_size);
+    /*
+     * maintain ringbuffer
+     * do not maintain ringbuffer for each picture, this saves ressources since
+     * each run of the maintainance function involves sorting/malloc/free operations
+     */
+    if ( ringbuffer_exceed <= 0 ) {
+      /* keep ringbuffer excactly at specified size */
+      maintain_ringbuffer(ringbuffer_size);
+    } else if ( counter == 1 || counter % (ringbuffer_exceed+1) == 0 ) {
+      DBG("counter: %llu, will clean-up now\n", counter);
+      maintain_ringbuffer(ringbuffer_size);
+    }
 
     /* if specified, wait now */
     if (delay > 0) {
@@ -331,6 +361,8 @@ int output_init(output_parameter *param) {
       {"delay", required_argument, 0, 0},
       {"s", required_argument, 0, 0},
       {"size", required_argument, 0, 0},
+      {"e", required_argument, 0, 0},
+      {"exceed", required_argument, 0, 0},
       {"c", required_argument, 0, 0},
       {"command", required_argument, 0, 0},
       {0, 0, 0, 0}
@@ -380,10 +412,17 @@ int output_init(output_parameter *param) {
         ringbuffer_size = atoi(optarg);
         break;
 
-      /* c, command */
+      /* e, exceed */
       case 8:
       case 9:
         DBG("case 8,9\n");
+        ringbuffer_exceed = atoi(optarg);
+        break;
+
+      /* c, command */
+      case 10:
+      case 11:
+        DBG("case 10,11\n");
         command = strdup(optarg);
         break;
     }
@@ -394,10 +433,10 @@ int output_init(output_parameter *param) {
   OPRINT("output folder.....: %s\n", folder);
   OPRINT("delay after save..: %d\n", delay);
   if (ringbuffer_size>0) {
-    OPRINT("keep just # files.: %d\n", ringbuffer_size);
+    OPRINT("ringbuffer size...: %d to %d\n", ringbuffer_size, ringbuffer_size + ringbuffer_exceed);
   }
   else {
-    OPRINT("keep just # files.: %s\n", "not limited");
+    OPRINT("ringbuffer size...: %s\n", "no ringbuffer");
   }
   OPRINT("command...........: %s\n", (command==NULL)?"disabled":command);
   return 0;
