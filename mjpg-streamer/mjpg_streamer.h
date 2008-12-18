@@ -34,7 +34,16 @@
 #include "plugins/input.h"
 #include "plugins/output.h"
 
+/* global variables that are accessed by all plugins */
 typedef struct _globals globals;
+
+/* commands which can be send to mjpg-streamer */
+typedef enum _control_cmd_type control_cmd_type;
+enum _control_cmd_type {
+  CONTROL_CMD_UNKNOWN = 0,
+  CONTROL_CMD_RECONFIGURE_INPUT
+};
+
 struct _globals {
   int stop;
 
@@ -53,4 +62,6 @@ struct _globals {
   output out[MAX_OUTPUT_PLUGINS];
   int outcnt;
 
+  /* pointer to control functions */
+  int (*control)(int command, char *details);
 };

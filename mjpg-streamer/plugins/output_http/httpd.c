@@ -221,6 +221,68 @@ void decodeBase64(char *data) {
 }
 
 /******************************************************************************
+Description.: convert a hexadecimal ASCII character to integer 
+Input Value.: ASCII character
+Return Value: corresponding value between 0 and 15, or -1 in case of error
+******************************************************************************/
+int hex_char_to_int(char in) {
+  if ( in >= '0' && in <= '9' )
+    return in - '0';
+
+  if ( in >= 'a' && in <= 'f' )
+    return (in - 'a')+10;
+
+  if ( in >= 'A' && in <= 'F' )
+    return (in - 'A')+10;
+
+  return -1;
+}
+
+/******************************************************************************
+Description.: replace %XX with the character code it represents, URI
+Input Value.: string to unescape
+Return Value: 0 if everything is ok, -1 in case of error
+******************************************************************************/
+int unescape(char *string) {
+  char *source = string, *destination = string;
+  int src, dst, length=strlen(string), rc;
+
+  /* iterate over the string */
+  for (dst=0, src=0; src<length; src++) {
+
+    /* is it an escape character? */
+    if ( source[src] != '%' ) {
+      /* no, so just go to the next character */
+      destination[dst] = source[src];
+      dst++;
+      continue;
+    }
+
+    /* yes, it is an escaped character */
+
+    /* check if there are enough characters */
+    if ( src+2 > length ) {
+      return -1;
+      break;
+    }
+
+    /* perform replacement of %## with the corresponding character */
+    if ( (rc = hex_char_to_int(source[src+1])) == -1 ) return -1;
+    destination[dst] = rc*16;
+    if ( (rc = hex_char_to_int(source[src+2])) == -1 ) return -1;
+    destination[dst] += rc;
+
+    /* advance pointers, here is the reason why the resulting string is shorter */
+    dst++; src+=2;
+  }
+
+  /* ensure the string is properly finished with a null-character */
+  destination[dst] = '\0';
+
+  return 0;
+}
+
+/******************************************************************************
 Description.: Send a complete HTTP response and a single JPG-frame.
 Input Value.: fildescriptor fd to send the answer to
 Return Value: -
@@ -475,13 +537,13 @@ Input Value.: * fd.......: filedescriptor to send HTTP response to.
 Return Value: -
 ******************************************************************************/
 void command(int id, int fd, char *parameter) {
-  char buffer[BUFFER_SIZE] = {0}, *command=NULL, *svalue=NULL;
+  char buffer[BUFFER_SIZE] = {0}, *command=NULL, *svalue=NULL, *value;
   int i=0, res=0, ivalue=0, len=0;
 
   DBG("parameter is: %s\n", parameter);
 
   /* sanity check of parameter-string */
-  if ( parameter == NULL || strlen(parameter) >= 100 || strlen(parameter) == 0 ) {
+  if ( parameter == NULL || strlen(parameter) >= 255 || strlen(parameter) == 0 ) {
     DBG("parameter string looks bad\n");
     send_error(fd, 400, "Parameter-string of command does not look valid.");
     return;
@@ -505,10 +567,10 @@ void command(int id, int fd, char *parameter) {
   DBG("command string: %s\n", command);
 
   /* find and convert optional parameter "value" */
-  if ( (svalue = strstr(parameter, "value=")) != NULL ) {
-    svalue += strlen("value=");
-    len = strspn(svalue, "-1234567890");
-    if ( (svalue = strndup(svalue, len)) == NULL ) {
+  if ( (value = strstr(parameter, "value=")) != NULL ) {
+    value += strlen("value=");
+    len = strspn(value, "-1234567890");
+    if ( (svalue = strndup(value, len)) == NULL ) {
       if (command != NULL) free(command);
       send_error(fd, 500, "could not allocate memory");
       LOG("could not allocate memory\n");
@@ -516,7 +578,6 @@ void command(int id, int fd, char *parameter) {
     }
     ivalue = MAX(MIN(strtol(svalue, NULL, 10), 999), -999);
     DBG("converted value form string %s to integer %d\n", svalue, ivalue);
-    free(svalue);
   }
 
   /*
@@ -528,11 +589,8 @@ void command(int id, int fd, char *parameter) {
   for ( i=0; i < LENGTH_OF(in_cmd_mapping); i++ ) {
     if ( strcmp(in_cmd_mapping[i].string, command) == 0 ) {
 
-      if ( pglobal->in.cmd == NULL ) {
-        send_error(fd, 501, "input plugin does not implement commands");
-        if (command != NULL) free(command);
-        return;
-      }
+      if ( pglobal->in.cmd == NULL )
+        continue;
 
       res = pglobal->in.cmd(in_cmd_mapping[i].cmd, ivalue);
       break;
@@ -543,6 +601,14 @@ void command(int id, int fd, char *parameter) {
   for ( i=0; i < LENGTH_OF(out_cmd_mapping); i++ ) {
     if ( strcmp(out_cmd_mapping[i].string, command) == 0 ) {
       res = output_cmd(id, out_cmd_mapping[i].cmd, ivalue);
+      break;
+    }
+  }
+
+  /* check if the command is for the mjpg-streamer application itself */
+  for ( i=0; i < LENGTH_OF(control_cmd_mapping); i++ ) {
+    if ( strcmp(control_cmd_mapping[i].string, command) == 0 ) {
+      res = pglobal->control(control_cmd_mapping[i].cmd, value);
       break;
     }
   }
@@ -559,6 +625,7 @@ void command(int id, int fd, char *parameter) {
   }
 
   if (command != NULL) free(command);
+  if (svalue != NULL) free(svalue);
 }
 
 /******************************************************************************
@@ -619,13 +686,21 @@ void *client_thread( void *arg ) {
     pb += strlen("GET /?action=command");
 
     /* only accept certain characters */
-    len = MIN(MAX(strspn(pb, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-=&1234567890"), 0), 100);
+    len = MIN(MAX(strspn(pb, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-=&1234567890%./"), 0), 100);
     req.parameter = malloc(len+1);
     if ( req.parameter == NULL ) {
       exit(EXIT_FAILURE);
     }
     memset(req.parameter, 0, len+1);
     strncpy(req.parameter, pb, len);
+
+    if ( unescape(req.parameter) == -1 ) {
+      free(req.parameter);
+      send_error(lcfd.fd, 500, "could not properly unescape command parameter string");
+      LOG("could not properly unescape command parameter string\n");
+      close(lcfd.fd);
+      return NULL;
+    }
 
     DBG("command parameter (len: %d): \"%s\"\n", len, req.parameter);
   }

@@ -120,6 +120,14 @@ static const struct {
   { "hello_output", OUT_CMD_HELLO }
 };
 
+/* mapping between command string and command type */
+static const struct {
+  const char *string;
+  const control_cmd_type cmd;
+} control_cmd_mapping[] = {
+  { "reconfigure_input", CONTROL_CMD_RECONFIGURE_INPUT }
+};
+
 /* the webserver determines between these values for an answer */
 typedef enum { A_UNKNOWN, A_SNAPSHOT, A_STREAM, A_COMMAND, A_FILE } answer_t;
 
