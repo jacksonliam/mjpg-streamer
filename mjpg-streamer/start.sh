@@ -71,3 +71,7 @@ export LD_LIBRARY_PATH="$(pwd)"
 ## Then the files can be read from the folder "/tmp/input" and served via HTTP
 # ./mjpg_streamer -i "input_file.so -f /tmp/input -r" -o "output_http.so -w www"
 
+## To upload files to a FTP server (edit the script first)
+# ./mjpg_streamer -i input_testpicture.so -o "output_file.so --command plugins/output_file/examples/ftp_upload.sh"
+
+

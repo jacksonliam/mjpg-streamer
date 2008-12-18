@@ -275,6 +275,11 @@ void *worker_thread( void *arg ) {
       snprintf(buffer1, sizeof(buffer1), "%s \"%s\"", command, buffer2);
       DBG("calling command %s", buffer1);
 
+      /* in addition provide the filename as environment variable */
+      if ( (rc = setenv("MJPG_FILE", buffer2, 1)) != 0) {
+        LOG("setenv failed (return value %d)\n", rc);
+      }
+
       /* execute the command now */
       if ( (rc = system(buffer1)) != 0) {
         LOG("command failed (return value %d)\n", rc);
