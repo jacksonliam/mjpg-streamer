@@ -30,3 +30,11 @@ Dependencies for the input plugin "input_uvc.so":
 
 Dependencies for the output plugin "output_autofocus.so":
  * libmath
+ 
+
+To play the HTTP M-JPEG stream with mplayer:
+# mplayer -fps 30 -demuxer lavf "http://127.0.0.1:8080/?action=stream&ignored.mjpg"
+
+It might be necessary to configure mplayer to prefer IPv4 instead of IPv6
+# vi ~./mplayer/config
+add or change the option: prefer-ipv4=yes
