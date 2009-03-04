@@ -47,6 +47,7 @@ void help(void);
 
 static int delay = 0;
 static char *folder = NULL;
+static char *filename = NULL;
 static int rm = 0;
 
 /* global variables for this plugin */
@@ -100,6 +101,8 @@ int input_init(input_parameter *param) {
       {"folder", required_argument, 0, 0},
       {"r", no_argument, 0, 0},
       {"remove", no_argument, 0, 0},
+      {"n", required_argument, 0, 0},
+      {"name", required_argument, 0, 0},
       {0, 0, 0, 0}
     };
 
@@ -147,6 +150,14 @@ int input_init(input_parameter *param) {
         rm = 1;
         break;
 
+      /* n, name */
+      case 8:
+      case 9:
+        DBG("case 8,9\n");
+        filename = malloc(strlen(optarg)+2);
+        strcpy(filename, optarg);
+        break;
+
       default:
         DBG("default case\n");
         help();
@@ -165,6 +176,7 @@ int input_init(input_parameter *param) {
   IPRINT("folder to watch...: %s\n", folder);
   IPRINT("forced delay......: %i\n", delay);
   IPRINT("delete file.......: %s\n", (rm)?"yes, delete":"no, do not delete");
+  IPRINT("filename must be..: %s\n", filename);
 
   return 0;
 }
@@ -218,6 +230,7 @@ void help(void) {
                     " [-d | --delay ]........: delay to pause between frames\n" \
                     " [-f | --folder ].......: folder to watch for new JPEG files\n" \
                     " [-r | --remove ].......: remove/delete JPEG file after reading\n" \
+                    " [-n | --name ].........: ignore changes unless filename matches\n" \
                     " ---------------------------------------------------------------\n");
 }
 
@@ -253,6 +266,12 @@ void *worker_thread( void *arg ) {
 
     /* prepare filename */
     snprintf(buffer, sizeof(buffer), "%s%s", folder, ev->name);
+
+    /* check if the filename matches specified parameter (if given) */
+    if ( (filename != NULL) && (strcmp(filename, ev->name) != 0) ) {
+      DBG("ignoring this change (specified filename does not match)\n");
+      continue;
+    }
     DBG("new file detected: %s\n", buffer);
 
     /* open file for reading */
