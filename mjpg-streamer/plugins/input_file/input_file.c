@@ -176,7 +176,7 @@ int input_init(input_parameter *param) {
   IPRINT("folder to watch...: %s\n", folder);
   IPRINT("forced delay......: %i\n", delay);
   IPRINT("delete file.......: %s\n", (rm)?"yes, delete":"no, do not delete");
-  IPRINT("filename must be..: %s\n", filename);
+  IPRINT("filename must be..: %s\n", (filename==NULL)?"-no filter for certain filename set-":filename);
 
   return 0;
 }
