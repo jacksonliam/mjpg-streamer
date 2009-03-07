@@ -58,7 +58,11 @@ enum _in_cmd_type {
   IN_CMD_LED_ON,
   IN_CMD_LED_OFF,
   IN_CMD_LED_AUTO,
-  IN_CMD_LED_BLINK
+  IN_CMD_LED_BLINK,
+  IN_CMD_EXPOSURE_MANUAL,
+  IN_CMD_EXPOSURE_AUTO,
+  IN_CMD_EXPOSURE_SHUTTER_PRIO,
+  IN_CMD_EXPOSURE_APERTURE_PRIO
 };
 
 /* structure to store variables/functions for input plugin */

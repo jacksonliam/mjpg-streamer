@@ -1,3 +1,5 @@
+////////////////////////////////////////////////////////////////////////////////
+
 var xmlHttp;
 
 function stateCallback() {
@@ -92,4 +94,10 @@ function AJAX_get(url) {
   init_AJAX();
   xmlHttp.open("GET", url, true);
   xmlHttp.send(null);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+function setTextById(element, text) {
+  document.getElementById(element).firstChild.nodeValue = text;
 }

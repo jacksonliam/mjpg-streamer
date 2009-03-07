@@ -25,7 +25,7 @@
 ## This example shows how to invoke mjpg-streamer from the command line
 
 export LD_LIBRARY_PATH="$(pwd)"
-./mjpg_streamer -o "output_http.so -w ./www"
+sudo ./mjpg_streamer -i "./input_uvc.so -f 15 -r 960x720" -o "./output_http.so -w ./www"
 
 ## pwd echos the current path you are working at,
 ## the backticks open a subshell to execute the command pwd first
@@ -73,5 +73,4 @@ export LD_LIBRARY_PATH="$(pwd)"
 
 ## To upload files to a FTP server (edit the script first)
 # ./mjpg_streamer -i input_testpicture.so -o "output_file.so --command plugins/output_file/examples/ftp_upload.sh"
-
 

@@ -109,7 +109,11 @@ static const struct {
   { "led_on", IN_CMD_LED_ON },
   { "led_off", IN_CMD_LED_OFF },
   { "led_auto", IN_CMD_LED_AUTO },
-  { "led_blink", IN_CMD_LED_BLINK }
+  { "led_blink", IN_CMD_LED_BLINK },
+  { "exposure_manual", IN_CMD_EXPOSURE_MANUAL },
+  { "exposure_auto", IN_CMD_EXPOSURE_AUTO },
+  { "exposure_shutter_prio", IN_CMD_EXPOSURE_SHUTTER_PRIO },
+  { "exposure_aperture_prio", IN_CMD_EXPOSURE_APERTURE_PRIO }
 };
 
 /* mapping between command string and command type */
