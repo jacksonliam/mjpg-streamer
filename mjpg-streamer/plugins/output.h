@@ -35,7 +35,8 @@ struct _output_parameter {
 typedef enum _out_cmd_type out_cmd_type;
 enum _out_cmd_type {
   OUT_CMD_UNKNOWN = 0,
-  OUT_CMD_HELLO
+  OUT_CMD_HELLO,
+  OUT_CMD_STORE
 };
 
 /* structure to store variables/functions for output plugin */

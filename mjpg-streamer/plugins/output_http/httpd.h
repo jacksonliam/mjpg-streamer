@@ -121,7 +121,8 @@ static const struct {
   const char *string;
   const out_cmd_type cmd;
 } out_cmd_mapping[] = {
-  { "hello_output", OUT_CMD_HELLO }
+  { "hello_output", OUT_CMD_HELLO },
+  { "store", OUT_CMD_STORE }
 };
 
 /* mapping between command string and command type */
