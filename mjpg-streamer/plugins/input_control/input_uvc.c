@@ -46,7 +46,7 @@
 #include "jpeg_utils.h"
 #include "dynctrl.h"
 
-#define INPUT_PLUGIN_NAME "UVC webcam grabber"
+#define INPUT_PLUGIN_NAME "UVC webcam control"
 #define MAX_ARGUMENTS 32
 
 /*
@@ -74,9 +74,6 @@ pthread_mutex_t controls_mutex;
 int fd;
 struct vdIn *videoIn;
 static globals *pglobal;
-static int gquality = 80;
-static unsigned int minimum_size = 0;
-static int dynctrls = 1;
 
 void *cam_thread( void *);
 void cam_cleanup(void *);
@@ -95,7 +92,8 @@ Return Value: 0 if everything is fine
 ******************************************************************************/
 int input_init(input_parameter *param) 
 {
-  char *argv[MAX_ARGUMENTS]={NULL}, *dev = "/dev/video0", *s;
+  char *argv[MAX_ARGUMENTS]={NULL}, *dev = "/dev/video0";
+  int argc=1;
 
   /* initialize the mutes variable */
   if( pthread_mutex_init(&controls_mutex, NULL) != 0 ) {
@@ -127,6 +125,7 @@ int input_init(input_parameter *param)
     IPRINT("could not initialize mutex variable\n");
     exit(EXIT_FAILURE);
   }
+#endif
 
   /* convert the single parameter-string to an array of strings */
   argv[0] = INPUT_PLUGIN_NAME;
@@ -153,6 +152,7 @@ int input_init(input_parameter *param)
   }
 
   /* show all parameters for DBG purposes */
+  int i;
   for (i=0; i<argc; i++) {
     DBG("argv[%d]=%s\n", i, argv[i]);
   }
@@ -167,20 +167,6 @@ int input_init(input_parameter *param)
       {"help", no_argument, 0, 0},
       {"d", required_argument, 0, 0},
       {"device", required_argument, 0, 0},
-      {"r", required_argument, 0, 0},
-      {"resolution", required_argument, 0, 0},
-      {"f", required_argument, 0, 0},
-      {"fps", required_argument, 0, 0},
-      {"y", no_argument, 0, 0},
-      {"yuv", no_argument, 0, 0},
-      {"q", required_argument, 0, 0},
-      {"quality", required_argument, 0, 0},
-      {"m", required_argument, 0, 0},
-      {"minimum_size", required_argument, 0, 0},
-      {"n", no_argument, 0, 0},
-      {"no_dynctrl", no_argument, 0, 0},
-      {"l", required_argument, 0, 0},
-      {"led", required_argument, 0, 0},
       {0, 0, 0, 0}
     };
 
@@ -213,79 +199,6 @@ int input_init(input_parameter *param)
         dev = strdup(optarg);
         break;
 
-      /* r, resolution */
-      case 4:
-      case 5:
-        DBG("case 4,5\n");
-        width = -1;
-        height = -1;
-
-        /* try to find the resolution in lookup table "resolutions" */
-        for ( i=0; i < LENGTH_OF(resolutions); i++ ) {
-          if ( strcmp(resolutions[i].string, optarg) == 0 ) {
-            width  = resolutions[i].width;
-            height = resolutions[i].height;
-          }
-        }
-        /* done if width and height were set */
-        if(width != -1 && height != -1)
-          break;
-        /* parse value as decimal value */
-        width  = strtol(optarg, &s, 10);
-        height = strtol(s+1, NULL, 10);
-        break;
-
-      /* f, fps */
-      case 6:
-      case 7:
-        DBG("case 6,7\n");
-        fps=atoi(optarg);
-        break;
-
-      /* y, yuv */
-      case 8:
-      case 9:
-        DBG("case 8,9\n");
-        format = V4L2_PIX_FMT_YUYV;
-        break;
-
-      /* q, quality */
-      case 10:
-      case 11:
-        DBG("case 10,11\n");
-        format = V4L2_PIX_FMT_YUYV;
-        gquality = MIN(MAX(atoi(optarg), 0), 100);
-        break;
-
-      /* m, minimum_size */
-      case 12:
-      case 13:
-        DBG("case 12,13\n");
-        minimum_size = MAX(atoi(optarg), 0);
-        break;
-
-      /* n, no_dynctrl */
-      case 14:
-      case 15:
-        DBG("case 14,15\n");
-        dynctrls = 0;
-        break;
-
-      /* l, led */
-      case 16:
-      case 17:
-        DBG("case 16,17\n");
-        if ( strcmp("on", optarg) == 0 ) {
-          led = IN_CMD_LED_ON;
-        } else if ( strcmp("off", optarg) == 0 ) {
-          led = IN_CMD_LED_OFF;
-        } else if ( strcmp("auto", optarg) == 0 ) {
-          led = IN_CMD_LED_AUTO;
-        } else if ( strcmp("blink", optarg) == 0 ) {
-          led = IN_CMD_LED_BLINK;
-        }
-        break;
-
       default:
         DBG("default case\n");
         help();
@@ -293,6 +206,7 @@ int input_init(input_parameter *param)
     }
   }
 
+#if 0
   /* keep a pointer to the global variables */
   pglobal = param->global;
 
@@ -389,7 +303,6 @@ Return Value: depends in the command, for most cases 0 means no errors and
 int input_cmd(in_cmd_type cmd, int value) {
   int res=0;
   static int pan=0, tilt=0, pan_tilt_valid=-1;
-  static int focus=-1;
   const int one_degree = ONE_DEGREE;
 
   /* certain commands do not need the mutex */
@@ -706,36 +619,11 @@ Input Value.: -
 Return Value: -
 ******************************************************************************/
 void help(void) {
-  int i;
-
   fprintf(stderr, " ---------------------------------------------------------------\n" \
                   " Help for input plugin..: "INPUT_PLUGIN_NAME"\n" \
                   " ---------------------------------------------------------------\n" \
                   " The following parameters can be passed to this plugin:\n\n" \
-                  " [-d | --device ].......: video device to open (your camera)\n" \
-                  " [-r | --resolution ]...: the resolution of the video device,\n" \
-                  "                          can be one of the following strings:\n" \
-                  "                          ");
-
-  for ( i=0; i < LENGTH_OF(resolutions); i++ ) {
-    fprintf(stderr, "%s ", resolutions[i].string);
-    if ( (i+1)%6 == 0)
-      fprintf(stderr, "\n                          ");
-  }
-  fprintf(stderr, "\n                          or a custom value like the following" \
-                  "\n                          example: 640x480\n");
-
-  fprintf(stderr, " [-f | --fps ]..........: frames per second\n" \
-                  " [-y | --yuv ]..........: enable YUYV format and disable MJPEG mode\n" \
-                  " [-q | --quality ]......: JPEG compression quality in percent \n" \
-                  "                          (activates YUYV format, disables MJPEG)\n" \
-                  " [-m | --minimum_size ].: drop frames smaller then this limit, useful\n" \
-                  "                          if the webcam produces small-sized garbage frames\n" \
-                  "                          may happen under low light conditions\n" \
-                  " [-n | --no_dynctrl ]...: do not initalize dynctrls of Linux-UVC driver\n" \
-                  " [-l | --led ]..........: switch the LED \"on\", \"off\", let it \"blink\" or leave\n" \
-                  "                          it up to the driver using the value \"auto\"\n" \
-                  " ---------------------------------------------------------------\n\n");
+                  " [-d | --device ].......: video device to open (your camera)\n" );
 }
 
 /******************************************************************************
