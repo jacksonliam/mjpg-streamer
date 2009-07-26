@@ -32,7 +32,6 @@
 
 #include "../../utils.h"
 #include "../../mjpg_streamer.h"
-#include "uvcvideo.h"
 #include "dynctrl.h"
 
 /* some Logitech webcams have pan/tilt/focus controls */
@@ -190,6 +189,7 @@ int uvcPanTilt(int dev, int pan, int tilt, int reset) {
   }
 
   if ( ioctl(dev, VIDIOC_S_EXT_CTRLS, &ctrls) < 0 ) {
+    DBG("Error in uvcPanTilt");
     return -1;
   }
 

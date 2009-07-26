@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <fcntl.h>
 #include <linux/videodev.h>
 #include <sys/ioctl.h>
 #include <errno.h>
@@ -41,38 +42,20 @@
 
 #include "../../utils.h"
 #include "../../mjpg_streamer.h"
-#include "v4l2uvc.h"
-#include "huffman.h"
-#include "jpeg_utils.h"
 #include "dynctrl.h"
 
 #define INPUT_PLUGIN_NAME "UVC webcam control"
-#define MAX_ARGUMENTS 32
+#define MAX_ARGUMENTS 8
 
-/*
- * UVC resolutions mentioned at: (at least for some webcams)
- * http://www.quickcamteam.net/hcl/frame-format-matrix/
- */
-static const struct {
-  const char *string;
-  const int width, height;
-} resolutions[] = {
-  { "QSIF", 160,  120  },
-  { "QCIF", 176,  144  },
-  { "CGA",  320,  200  },
-  { "QVGA", 320,  240  },
-  { "CIF",  352,  288  },
-  { "VGA",  640,  480  },
-  { "SVGA", 800,  600  },
-  { "XGA",  1024, 768  },
-  { "SXGA", 1280, 1024 }
-};
+typedef struct input_uvc {
+    int fd;
+    char *videodevice;
+} input_uvc;
 
 /* private functions and variables to this plugin */
 pthread_t cam;
 pthread_mutex_t controls_mutex;
-int fd;
-struct vdIn *videoIn;
+struct input_uvc *videoIn;
 static globals *pglobal;
 
 void *cam_thread( void *);
@@ -105,27 +88,15 @@ int input_init(input_parameter *param)
   pglobal = param->global;
 
   /* allocate webcam datastructure */
-  videoIn = malloc(sizeof(struct vdIn));
+  videoIn = malloc(sizeof(struct input_uvc));
   if ( videoIn == NULL ) {
     IPRINT("not enough memory for videoIn\n");
     exit(EXIT_FAILURE);
   }
-  memset(videoIn, 0, sizeof(struct vdIn));
+  memset(videoIn, 0, sizeof(struct input_uvc));
 
   /* display the parsed values */
   IPRINT("Using V4L2 device.: %s\n", dev);
-
-#if 0
-  char *argv[MAX_ARGUMENTS]={NULL}, *dev = "/dev/video0", *s;
-  int argc=1, width=640, height=480, fps=5, format=V4L2_PIX_FMT_MJPEG, i;
-  in_cmd_type led = IN_CMD_LED_AUTO;
-
-  /* initialize the mutes variable */
-  if( pthread_mutex_init(&controls_mutex, NULL) != 0 ) {
-    IPRINT("could not initialize mutex variable\n");
-    exit(EXIT_FAILURE);
-  }
-#endif
 
   /* convert the single parameter-string to an array of strings */
   argv[0] = INPUT_PLUGIN_NAME;
@@ -206,45 +177,9 @@ int input_init(input_parameter *param)
     }
   }
 
-#if 0
-  /* keep a pointer to the global variables */
-  pglobal = param->global;
-
-  /* allocate webcam datastructure */
-  videoIn = malloc(sizeof(struct vdIn));
-  if ( videoIn == NULL ) {
-    IPRINT("not enough memory for videoIn\n");
-    exit(EXIT_FAILURE);
-  }
-  memset(videoIn, 0, sizeof(struct vdIn));
-
-  /* display the parsed values */
-  IPRINT("Using V4L2 device.: %s\n", dev);
-  IPRINT("Desired Resolution: %i x %i\n", width, height);
-  IPRINT("Frames Per Second.: %i\n", fps);
-  IPRINT("Format............: %s\n", (format==V4L2_PIX_FMT_YUYV)?"YUV":"MJPEG");
-  if ( format == V4L2_PIX_FMT_YUYV )
-    IPRINT("JPEG Quality......: %d\n", gquality);
-
-  /* open video device and prepare data structure */
-  if (init_videoIn(videoIn, dev, width, height, fps, format, 1) < 0) {
-    IPRINT("init_VideoIn failed\n");
-    closelog();
-    exit(EXIT_FAILURE);
-  }
-
-  /*
-   * recent linux-uvc driver (revision > ~#125) requires to use dynctrls
-   * for pan/tilt/focus/...
-   * dynctrls must get initialized
-   */
-  if (dynctrls)
-#endif
     videoIn->videodevice = (char *) calloc (1, 16 * sizeof (char));
     snprintf (videoIn->videodevice, 12, "%s", dev);
-#if 0
-    init_v4l2(videoIn);
-#else
+
     if ((videoIn->fd = open(videoIn->videodevice, O_RDWR)) == -1) {
       perror("ERROR opening V4L interface");
       return -1;
@@ -262,20 +197,8 @@ int input_init(input_parameter *param)
       fprintf(stderr, "%s does not support streaming, cap=%x\n", videoIn->videodevice, cap.capabilities);
       return -1;
     }
-#endif
-
-#if 0
-
-    if ((fd = open (dev, O_RDWR)) == -1)
-      exit_fatal ("ERROR opening V4L interface");
-#endif
 
     initDynCtrls(videoIn->fd);
-
-  /*
-   * switch the LED according to the command line parameters (if any)
-   */
-  //input_cmd(led, 0);
 
   return 0;
 }
@@ -299,11 +222,6 @@ Return Value: always 0
 ******************************************************************************/
 int input_run(void) {
 #if 1
-  pglobal->buf = malloc(videoIn->framesizeIn);
-  if (pglobal->buf == NULL) {
-    fprintf(stderr, "could not allocate memory\n");
-    exit(EXIT_FAILURE);
-  }
 
   pthread_create(&cam, 0, cam_thread, NULL);
   pthread_detach(cam);
@@ -741,15 +659,6 @@ void cam_cleanup(void *arg) {
   }
 
   first_run = 0;
-  IPRINT("cleaning up ressources allocated by input thread\n");
-
-  /* restore behaviour of the LED to auto */
-  input_cmd(IN_CMD_LED_AUTO, 0);
-
-  close_v4l2(videoIn);
-  if (videoIn->tmpbuffer != NULL) free(videoIn->tmpbuffer);
-  if (videoIn != NULL) free(videoIn);
-  if (pglobal->buf != NULL) free(pglobal->buf);
 }
 
 
