@@ -123,6 +123,8 @@ tgz: clean
 install: all
 	install --mode=755 $(APP_BINARY) $(DESTDIR)/bin
 	install --mode=644 $(PLUGINS) $(DESTDIR)/lib/
+	install --mode=755 -d $(DESTDIR)/www
+	install --mode=644 -D www/* $(DESTDIR)/www
 
 # remove the files installed above
 uninstall:
