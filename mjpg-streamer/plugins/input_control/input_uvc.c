@@ -242,7 +242,28 @@ int input_init(input_parameter *param)
 #endif
     videoIn->videodevice = (char *) calloc (1, 16 * sizeof (char));
     snprintf (videoIn->videodevice, 12, "%s", dev);
+#if 0
     init_v4l2(videoIn);
+#else
+    if ((videoIn->fd = open(videoIn->videodevice, O_RDWR)) == -1) {
+      perror("ERROR opening V4L interface");
+      return -1;
+    }
+
+    struct v4l2_capability cap;
+    memset(&cap, 0, sizeof(struct v4l2_capability));
+    int ret = ioctl(videoIn->fd, VIDIOC_QUERYCAP, &cap);
+    if (ret < 0) {
+      fprintf(stderr, "Error opening device %s: unable to query device.\n", videoIn->videodevice);
+      return -1;
+    }
+
+    if (!(cap.capabilities & V4L2_CAP_STREAMING)) {
+      fprintf(stderr, "%s does not support streaming, cap=%x\n", videoIn->videodevice, cap.capabilities);
+      return -1;
+    }
+#endif
+
 #if 0
 
     if ((fd = open (dev, O_RDWR)) == -1)
