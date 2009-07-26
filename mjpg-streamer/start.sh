@@ -74,3 +74,7 @@ sudo ./mjpg_streamer -i "./input_uvc.so -f 15 -r 960x720" -o "./output_http.so -
 ## To upload files to a FTP server (edit the script first)
 # ./mjpg_streamer -i input_testpicture.so -o "output_file.so --command plugins/output_file/examples/ftp_upload.sh"
 
+## To create a control only interface useful for controlling the pan/tilt throug
+## a webpage while another program streams video/audio, like skype.
+#./mjpg_streamer -i "./input_control.so" -o "./output_http.so -w ./www"
+
