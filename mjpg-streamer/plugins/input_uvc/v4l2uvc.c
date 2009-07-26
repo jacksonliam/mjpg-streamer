@@ -397,7 +397,7 @@ static int isv4l2Control(struct vdIn *vd, int control, struct v4l2_queryctrl *qu
     return -1;
   }
 
-  if (queryctrl->flags & V4L2_CTRL_TYPE_BOOLEAN) {
+  if (queryctrl->type & V4L2_CTRL_TYPE_BOOLEAN) {
     return 1;
   }
 
