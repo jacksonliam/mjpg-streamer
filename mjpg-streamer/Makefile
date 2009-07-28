@@ -118,8 +118,7 @@ tgz: clean
 	mkdir -p backups
 	tar czvf ./backups/mjpg_streamer_`date +"%Y_%m_%d_%H.%M.%S"`.tgz --exclude backups --exclude .svn *
 
-# install MJPG-streamer, the example webfolder will not be copied since it is just an example
-# of course users can use it, but they need to specify where it should be located
+# install MJPG-streamer and example webpages
 install: all
 	install --mode=755 $(APP_BINARY) $(DESTDIR)/bin
 	install --mode=644 $(PLUGINS) $(DESTDIR)/lib/
@@ -132,8 +131,3 @@ uninstall:
 	for plug in $(PLUGINS); do \
 	  rm -f $(DESTDIR)/lib/$$plug; \
 	done;
-
-# TODO
-install-example-pages:
-	@echo "Example pages were copied to the directory: $(DESTDIR)"
-
