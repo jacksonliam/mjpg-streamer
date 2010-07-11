@@ -89,8 +89,8 @@ void worker_cleanup(void *arg) {
 /******************************************************************************
 Description.: this is the main worker thread
               it loops forever, grabs a fresh frame and calculates focus
-Input Value.: 
-Return Value: 
+Input Value.:
+Return Value:
 ******************************************************************************/
 void *worker_thread( void *arg ) {
   int frame_size=0;
@@ -147,7 +147,7 @@ void *worker_thread( void *arg ) {
 
         focus = MIN(MAX(focus-step,0), 255);
         DBG("decrement focus now to: %d\n", focus);
-        focus = pglobal->in.cmd(IN_CMD_FOCUS_SET, focus);
+        //focus = pglobal->in.cmd(IN_CMD_FOCUS_SET, focus);
       }
     }
 

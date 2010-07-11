@@ -31,33 +31,66 @@
 static int debug = 0;
 static int init_v4l2(struct vdIn *vd);
 
-int init_videoIn(struct vdIn *vd, char *device, int width, int height, int fps, int format, int grabmethod)
+int init_videoIn(struct vdIn *vd, char *device, int width,
+                 int height, int fps, int format, int grabmethod, globals *pglobal)
 {
-  if (vd == NULL || device == NULL)
-    return -1;
-  if (width == 0 || height == 0)
-    return -1;
-  if (grabmethod < 0 || grabmethod > 1)
-    grabmethod = 1;		//mmap by default;
-  vd->videodevice = NULL;
-  vd->status = NULL;
-  vd->pictName = NULL;
-  vd->videodevice = (char *) calloc (1, 16 * sizeof (char));
-  vd->status = (char *) calloc (1, 100 * sizeof (char));
-  vd->pictName = (char *) calloc (1, 80 * sizeof (char));
-  snprintf (vd->videodevice, 12, "%s", device);
-  vd->toggleAvi = 0;
-  vd->getPict = 0;
-  vd->signalquit = 1;
-  vd->width = width;
-  vd->height = height;
-  vd->fps = fps;
-  vd->formatIn = format;
-  vd->grabmethod = grabmethod;
-  if (init_v4l2 (vd) < 0) {
-    fprintf (stderr, " Init v4L2 failed !! exit fatal \n");
-    goto error;;
-  }
+    if (vd == NULL || device == NULL)
+        return -1;
+    if (width == 0 || height == 0)
+        return -1;
+    if (grabmethod < 0 || grabmethod > 1)
+        grabmethod = 1;		//mmap by default;
+    vd->videodevice = NULL;
+    vd->status = NULL;
+    vd->pictName = NULL;
+    vd->videodevice = (char *) calloc (1, 16 * sizeof (char));
+    vd->status = (char *) calloc (1, 100 * sizeof (char));
+    vd->pictName = (char *) calloc (1, 80 * sizeof (char));
+    snprintf (vd->videodevice, 12, "%s", device);
+    vd->toggleAvi = 0;
+    vd->getPict = 0;
+    vd->signalquit = 1;
+    vd->width = width;
+    vd->height = height;
+    vd->fps = fps;
+    vd->formatIn = format;
+    vd->grabmethod = grabmethod;
+    if (init_v4l2 (vd) < 0) {
+        fprintf (stderr, " Init v4L2 failed !! exit fatal \n");
+        goto error;;
+    }
+
+    struct v4l2_queryctrl ctrl;
+    pglobal->in.parametercount = 0;
+    /* Try the extended control API first */
+    ctrl.id = V4L2_CTRL_FLAG_NEXT_CTRL;
+    if(0 == ioctl(vd->fd, VIDIOC_QUERYCTRL, &ctrl)) {
+        do {
+            control_readed(vd, &ctrl, pglobal);
+            ctrl.id |= V4L2_CTRL_FLAG_NEXT_CTRL;
+        } while(0 == ioctl (vd->fd, VIDIOC_QUERYCTRL, &ctrl));
+    } else {
+        /* Fall back on the standard API */
+        /* Check all the standard controls */
+        int i;
+        for(i = V4L2_CID_BASE; i<V4L2_CID_LASTP1; i++) {
+            ctrl.id = i;
+            if(ioctl(vd->fd, VIDIOC_QUERYCTRL, &ctrl) == 0) {
+                control_readed(vd, &ctrl, pglobal);
+            }
+        }
+
+        /* Check any custom controls */
+        for(i=V4L2_CID_PRIVATE_BASE; ; i++) {
+            ctrl.id = i;
+            if(ioctl(vd->fd, VIDIOC_QUERYCTRL, &ctrl) == 0) {
+                control_readed(vd, &ctrl, pglobal);
+            } else {
+                break;
+            }
+        }
+    }
+
   /* alloc a temp buffer to reconstruct the pict */
   vd->framesizeIn = (vd->width * vd->height << 1);
   switch (vd->formatIn) {
@@ -76,11 +109,14 @@ int init_videoIn(struct vdIn *vd, char *device, int width, int height, int fps, 
     fprintf(stderr, " should never arrive exit fatal !!\n");
     goto error;
     break;
+
   }
+
   if (!vd->framebuffer)
     goto error;
   return 0;
 error:
+  free(pglobal->in.in_parameters);
   free(vd->videodevice);
   free(vd->status);
   free(vd->pictName);
@@ -251,9 +287,9 @@ static int video_disable(struct vdIn *vd)
 }
 
 /******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
+Description.:
+Input Value.:
+Return Value:
 ******************************************************************************/
 int is_huffman(unsigned char *buf)
 {
@@ -271,9 +307,9 @@ int is_huffman(unsigned char *buf)
 }
 
 /******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
+Description.:
+Input Value.:
+Return Value:
 ******************************************************************************/
 int memcpy_picture(unsigned char *out, unsigned char *buf, int size)
 {
@@ -514,7 +550,7 @@ int v4l2DownControl(struct vdIn *vd, int control) {
   }
   else {
     return -1;
-    //fprintf(stderr, "Control name:%s already has min value:%d \n", queryctrl.name, min); 
+    //fprintf(stderr, "Control name:%s already has min value:%d \n", queryctrl.name, min);
   }
 
   return 0;
@@ -560,4 +596,40 @@ int v4l2ResetControl(struct vdIn *vd, int control) {
   }
 
   return 0;
-}
+};
+
+void control_readed(struct vdIn *vd,struct v4l2_queryctrl *ctrl, globals *pglobal)
+{
+    struct v4l2_control c;
+    c.id = ctrl->id;
+    if(ioctl(vd->fd, VIDIOC_G_CTRL, &c) != -1) {
+        pglobal->in.in_parameters =
+            (struct input_control*)realloc(
+                                           pglobal->in.in_parameters,
+                                           (pglobal->in.parametercount + 1) * sizeof(struct input_control));
+            memcpy(&pglobal->in.in_parameters[pglobal->in.parametercount].ctrl, ctrl, sizeof(struct v4l2_queryctrl));
+            pglobal->in.in_parameters[pglobal->in.parametercount].value = c.value;
+            if (ctrl->type == V4L2_CTRL_TYPE_MENU) {
+                pglobal->in.in_parameters[pglobal->in.parametercount].menuitems =
+                    (struct v4l2_querymenu*)malloc((ctrl->maximum+1) * sizeof(struct v4l2_querymenu));
+                int i;
+                for(i=ctrl->minimum; i<=ctrl->maximum; i++) {
+                    struct v4l2_querymenu qm;
+                    qm.id = ctrl->id;
+                    qm.index = i;
+                    if(ioctl(vd->fd, VIDIOC_QUERYMENU, &qm) == 0) {
+                        memcpy(&pglobal->in.in_parameters[pglobal->in.parametercount].menuitems[i], &qm, sizeof(struct v4l2_querymenu));
+                        DBG("Menu item found for %d: %s %d %d\n", qm.index, qm.name, ctrl->minimum, ctrl->maximum);
+                    } else {
+                        DBG("Unable to get menu item for %s, index=%d\n", ctrl->name, qm.index);
+                    }
+                }
+            } else {
+                pglobal->in.in_parameters[pglobal->in.parametercount].menuitems = NULL;
+            }
+            DBG("v4l2 parameter found: %s\ value %d %d th \n", ctrl->name, c.value, pglobal->in.parametercount);
+            pglobal->in.parametercount++;
+    } else {
+        DBG("Unable to get the value of %s", ctrl->name);
+    }
+};

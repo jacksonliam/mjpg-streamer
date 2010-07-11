@@ -32,9 +32,9 @@
 #include <sys/mman.h>
 #include <sys/select.h>
 #include <linux/videodev.h>
-
+#include <libv4l2.h>
 #include "uvcvideo.h"
-
+#include "../../mjpg_streamer.h"
 #define NB_BUFFER 4
 
 struct vdIn {
@@ -75,7 +75,8 @@ struct vdIn {
     int recordtime;
 };
 
-int init_videoIn(struct vdIn *vd, char *device, int width, int height, int fps, int format, int grabmethod);
+int init_videoIn(struct vdIn *vd, char *device, int width, int height, int fps, int format, int grabmethod, globals *pglobal);
+void control_readed(struct vdIn *vd, struct v4l2_queryctrl *ctrl, globals *pglobal);
 int enum_controls(int vd);
 int save_controls(int vd);
 int load_controls(int vd);

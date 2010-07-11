@@ -139,9 +139,9 @@ void signal_handler(int sig)
 }
 
 /******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
+Description.:
+Input Value.:
+Return Value:
 ******************************************************************************/
 int control(int command, char *details) {
 
@@ -157,9 +157,9 @@ int control(int command, char *details) {
 
 
 /******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
+Description.:
+Input Value.:
+Return Value:
 ******************************************************************************/
 int main(int argc, char *argv[])
 {
@@ -239,7 +239,7 @@ int main(int argc, char *argv[])
         return 0;
     }
   }
-  
+
   openlog("MJPG-streamer ", LOG_PID|LOG_CONS, LOG_USER);
   //openlog("MJPG-streamer ", LOG_PID|LOG_CONS|LOG_PERROR, LOG_USER);
   syslog(LOG_INFO, "starting application");
@@ -319,6 +319,7 @@ int main(int argc, char *argv[])
   }
   /* try to find optional command */
   global.in.cmd = dlsym(global.in.handle, "input_cmd");
+  global.in.cmd_new = dlsym(global.in.handle, "input_cmd_new");
 
   global.in.param.parameter_string = strchr(input, ' ');
   global.in.param.global = &global;

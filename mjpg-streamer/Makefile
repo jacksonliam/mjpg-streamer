@@ -17,7 +17,7 @@ CC = gcc
 
 # general compile flags, enable all warnings to make compile more verbose
 CFLAGS += -O2 -DLINUX -D_GNU_SOURCE -Wall
-#CFLAGS += -DDEBUG
+#CFLAGS +=  -DDEBUG
 
 # we are using the libraries "libpthread" and "libdl"
 # libpthread is used to run several tasks (virtually) in parallel

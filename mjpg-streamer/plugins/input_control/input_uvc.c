@@ -74,7 +74,7 @@ Return Value: 0 if everything is fine
               1 if "--help" was triggered, in this case the calling programm
               should stop running and leave.
 ******************************************************************************/
-int input_init(input_parameter *param) 
+int input_init(input_parameter *param)
 {
   char *argv[MAX_ARGUMENTS]={NULL}, *dev = "/dev/video0";
   int argc=1;
@@ -462,9 +462,9 @@ void *cam_thread( void *arg ) {
 }
 
 /******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
+Description.:
+Input Value.:
+Return Value:
 ******************************************************************************/
 void cam_cleanup(void *arg) {
   static unsigned char first_run=1;

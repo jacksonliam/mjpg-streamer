@@ -76,7 +76,8 @@ static const struct {
   { ".ico",  "image/x-icon" },
   { ".swf",  "application/x-shockwave-flash" },
   { ".cab",  "application/x-shockwave-flash" },
-  { ".jar",  "application/java-archive" }
+  { ".jar",  "application/java-archive" },
+  { ".json", "application/json" }
 };
 
 /*
@@ -134,7 +135,7 @@ static const struct {
 };
 
 /* the webserver determines between these values for an answer */
-typedef enum { A_UNKNOWN, A_SNAPSHOT, A_STREAM, A_COMMAND, A_FILE } answer_t;
+typedef enum { A_UNKNOWN, A_SNAPSHOT, A_STREAM, A_COMMAND, A_FILE, A_JSON } answer_t;
 
 /*
  * the client sends information with each request
@@ -184,6 +185,8 @@ typedef struct {
 /* prototypes */
 void *server_thread(void *arg);
 void send_error(int fd, int which, char *message);
+void send_JSON(int fd);
+
 
 
 

@@ -40,8 +40,8 @@
 #include <syslog.h>
 
 #include "../../utils.h"
-#include "../../mjpg_streamer.h"
-#include "v4l2uvc.h"
+//#include "../../mjpg_streamer.h"
+#include "v4l2uvc.h" // this header will includes the ../../mjpg_streamer.h
 #include "huffman.h"
 #include "jpeg_utils.h"
 #include "dynctrl.h"
@@ -81,10 +81,12 @@ void *cam_thread( void *);
 void cam_cleanup(void *);
 void help(void);
 int input_cmd(in_cmd_type, int);
+int input_cmd_new(__u32 control, __s32 value);
+
 
 /*** plugin interface functions ***/
 /******************************************************************************
-Description.: This function initializes the plugin. It parses the commandline-
+Description.: This function ializes the plugin. It parses the commandline-
               parameter and stores the default and parsed values in the
               appropriate variables.
 Input Value.: param contains among others the command-line string
@@ -248,7 +250,7 @@ int input_init(input_parameter *param) {
 
       /* l, led */
       case 16:
-      case 17:
+      case 17:/*
         DBG("case 16,17\n");
         if ( strcmp("on", optarg) == 0 ) {
           led = IN_CMD_LED_ON;
@@ -258,7 +260,7 @@ int input_init(input_parameter *param) {
           led = IN_CMD_LED_AUTO;
         } else if ( strcmp("blink", optarg) == 0 ) {
           led = IN_CMD_LED_BLINK;
-        }
+        }*/
         break;
 
       default:
@@ -288,7 +290,7 @@ int input_init(input_parameter *param) {
     IPRINT("JPEG Quality......: %d\n", gquality);
 
   /* open video device and prepare data structure */
-  if (init_videoIn(videoIn, dev, width, height, fps, format, 1) < 0) {
+  if (init_videoIn(videoIn, dev, width, height, fps, format, 1, pglobal) < 0) {
     IPRINT("init_VideoIn failed\n");
     closelog();
     exit(EXIT_FAILURE);
@@ -610,7 +612,7 @@ int input_cmd(in_cmd_type cmd, int value) {
       res = v4l2SetControl(videoIn, V4L2_CID_LED1_MODE_LOGITECH, 2);
       res = v4l2SetControl(videoIn, V4L2_CID_LED1_FREQUENCY_LOGITECH, 255);
     break;
-    
+
     case IN_CMD_EXPOSURE_MANUAL:
       res = v4l2SetControl(videoIn, V4L2_CID_EXPOSURE_AUTO, 0);
       /*{ struct v4l2_control control;
@@ -624,7 +626,7 @@ int input_cmd(in_cmd_type cmd, int value) {
   }*/
     printf("uga manual: %d\n", res);
     break;
-    
+
     case IN_CMD_EXPOSURE_AUTO:
       res = v4l2SetControl(videoIn, V4L2_CID_EXPOSURE_AUTO, 3);
       printf("uga auto: %d\n", res);
@@ -638,11 +640,11 @@ int input_cmd(in_cmd_type cmd, int value) {
 
   }*/
     break;
-    
+
     case IN_CMD_EXPOSURE_SHUTTER_PRIO:
       res = v4l2SetControl(videoIn, V4L2_CID_EXPOSURE_AUTO, 4);
     break;
-    
+
     case IN_CMD_EXPOSURE_APERTURE_PRIO:
       res = v4l2SetControl(videoIn, V4L2_CID_EXPOSURE_AUTO, 8);
     break;
@@ -713,7 +715,7 @@ void *cam_thread( void *arg ) {
       IPRINT("Error grabbing frames\n");
       exit(EXIT_FAILURE);
     }
-  
+
     DBG("received frame of size: %d\n", videoIn->buf.bytesused);
 
     /*
@@ -773,9 +775,9 @@ void *cam_thread( void *arg ) {
 }
 
 /******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
+Description.:
+Input Value.:
+Return Value:
 ******************************************************************************/
 void cam_cleanup(void *arg) {
   static unsigned char first_run=1;
@@ -797,6 +799,29 @@ void cam_cleanup(void *arg) {
   if (pglobal->buf != NULL) free(pglobal->buf);
 }
 
-
-
+/******************************************************************************
+Description.: process commands, allows to set v4l2 controls
+Input Value.: * control specifies the selected v4l2 control's id
+                see struct v4l2_queryctr in the videodev2.h
+              * value is used for control that make use of a parameter.
+Return Value: depends in the command, for most cases 0 means no errors and
+              -1 signals an error. This is just rule of thumb, not more!
+******************************************************************************/
+int input_cmd_new(__u32 control, __s32 value)
+{
+    int ret = -1;
+    int i = 0;
+    for (i = 0; i<pglobal->in.parametercount; i++) {
+        if (pglobal->in.in_parameters[i].ctrl.id == control) {
+            DBG(stderr, "found the requested control: %s\n", pglobal->in.in_parameters[i].ctrl.name);
+            ret = v4l2SetControl(videoIn, control, value);
+            if (ret != -1) {
+                pglobal->in.in_parameters[i].value = value;
+                return ret;
+            }
+            break;
+        }
+    }
+    return ret;
+}
 

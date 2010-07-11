@@ -63,10 +63,11 @@ void help(void) {
                   " ---------------------------------------------------------------\n" \
                   " The following parameters can be passed to this plugin:\n\n" \
                   " [-f | --folder ]........: folder to save pictures\n" \
+                  " [-m | --mjpeg ]........: save the stream to an mjpeg file\n" \
                   " [-d | --delay ].........: delay after saving pictures in ms\n" \
                   " [-s | --size ]..........: size of ring buffer (max number of pictures to hold)\n" \
                   " [-e | --exceed ]........: allow ringbuffer to exceed limit by this amount\n" \
-                  " [-c | --command ].......: execute command after saveing picture\n\n" \
+                  " [-c | --command ].......: execute command after saving picture\n\n" \
                   " ---------------------------------------------------------------\n");
 }
 
@@ -102,7 +103,7 @@ int check_for_filename(const struct dirent *entry) {
 
   int year, month, day, hour, minute, second;
   unsigned long long number;
-  
+
   /*
    * try to scan the string using scanf
    * I would like to use a define for this format string later...
@@ -153,7 +154,7 @@ void maintain_ringbuffer(int size) {
   }
 
   DBG("found %d directory entries\n", n);
- 
+
   /* delete the first (thus oldest) number of files */
   for(i=0; i<(n-size); i++) {
 
@@ -166,7 +167,7 @@ void maintain_ringbuffer(int size) {
     if ( unlink(buffer) == -1 ) {
       perror("could not delete file");
     }
-   
+
     /* free allocated memory for name */
     free(namelist[i]);
   }
@@ -184,8 +185,8 @@ void maintain_ringbuffer(int size) {
 /******************************************************************************
 Description.: this is the main worker thread
               it loops forever, grabs a fresh frame and stores it to file
-Input Value.: 
-Return Value: 
+Input Value.:
+Return Value:
 ******************************************************************************/
 void *worker_thread( void *arg ) {
   int ok = 1, frame_size=0, rc = 0;
@@ -370,6 +371,8 @@ int output_init(output_parameter *param) {
       {"exceed", required_argument, 0, 0},
       {"c", required_argument, 0, 0},
       {"command", required_argument, 0, 0},
+      {"m", required_argument, 0, 0},
+      {"mjpeg", required_argument, 0, 0},
       {0, 0, 0, 0}
     };
 

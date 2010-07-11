@@ -20,6 +20,8 @@
 #                                                                              #
 *******************************************************************************/
 
+#include <linux/types.h>          /* for videodev2.h */
+#include <linux/videodev2.h>
 #define INPUT_PLUGIN_PREFIX " i: "
 #define IPRINT(...) { char _bf[1024] = {0}; snprintf(_bf, sizeof(_bf)-1, __VA_ARGS__); fprintf(stderr, "%s", INPUT_PLUGIN_PREFIX); fprintf(stderr, "%s", _bf); syslog(LOG_INFO, "%s", _bf); }
 
@@ -29,6 +31,7 @@ struct _input_parameter {
   char *parameter_string;
   struct _globals *global;
 };
+
 
 /* commands which can be send to the input plugin */
 typedef enum _in_cmd_type in_cmd_type;
@@ -65,15 +68,25 @@ enum _in_cmd_type {
   IN_CMD_EXPOSURE_APERTURE_PRIO
 };
 
+//typedef struct _input_control input_control;
+struct input_control{
+    struct v4l2_queryctrl ctrl;
+    int value;
+    struct v4l2_querymenu *menuitems;
+};
+
 /* structure to store variables/functions for input plugin */
 typedef struct _input input;
 struct _input {
   char *plugin;
   void *handle;
   input_parameter param;
+  struct input_control *in_parameters;
+  int parametercount;
 
-  int (*init)(input_parameter *);
-  int (*stop)(void);
-  int (*run)(void);
-  int (*cmd)(in_cmd_type, int);
+    int (*init)(input_parameter *);
+    int (*stop)(void);
+    int (*run)(void);
+    int (*cmd)(int , int);
+    int (*cmd_new)(__u32, __s32);
 };

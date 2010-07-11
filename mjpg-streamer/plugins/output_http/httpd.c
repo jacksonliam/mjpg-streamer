@@ -35,7 +35,7 @@
 #include <syslog.h>
 #include <netdb.h>
 #include <errno.h>
-
+#include <limits.h>
 #include "../../mjpg_streamer.h"
 #include "../../utils.h"
 #include "httpd.h"
@@ -59,6 +59,7 @@ Input Value.: pointer to already allocated req
 Return Value: req
 ******************************************************************************/
 void init_request(request *req) {
+  req->type        = A_UNKNOWN;
   req->type        = A_UNKNOWN;
   req->parameter   = NULL;
   req->client      = NULL;
@@ -221,7 +222,7 @@ void decodeBase64(char *data) {
 }
 
 /******************************************************************************
-Description.: convert a hexadecimal ASCII character to integer 
+Description.: convert a hexadecimal ASCII character to integer
 Input Value.: ASCII character
 Return Value: corresponding value between 0 and 15, or -1 in case of error
 ******************************************************************************/
@@ -537,8 +538,8 @@ Input Value.: * fd.......: filedescriptor to send HTTP response to.
 Return Value: -
 ******************************************************************************/
 void command(int id, int fd, char *parameter) {
-  char buffer[BUFFER_SIZE] = {0}, *command=NULL, *svalue=NULL, *value;
-  int i=0, res=0, ivalue=0, len=0;
+  char buffer[BUFFER_SIZE] = {0}, *command=NULL, *svalue=NULL, *value, *command_id_string;
+  int i=0, res=0, ivalue=0, command_id = -1,  len=0;
 
   DBG("parameter is: %s\n", parameter);
 
@@ -564,7 +565,19 @@ void command(int id, int fd, char *parameter) {
     LOG("could not allocate memory\n");
     return;
   }
-  DBG("command string: %s\n", command);
+
+  /* convert the command to id */
+  command_id_string = command;
+  len = strspn(command_id_string, "-1234567890");
+  if ( (svalue = strndup(command_id_string, len)) == NULL ) {
+    if (command != NULL) free(command);
+    send_error(fd, 500, "could not allocate memory");
+     LOG("could not allocate memory\n");
+     return;
+  }
+
+  command_id = MAX(MIN(strtol(svalue, NULL, 10), INT_MAX), INT_MIN);
+  DBG(stderr, "command string: %s converted to int = %d\n", command, command_id);
 
   /* find and convert optional parameter "value" */
   if ( (value = strstr(parameter, "value=")) != NULL ) {
@@ -576,8 +589,8 @@ void command(int id, int fd, char *parameter) {
       LOG("could not allocate memory\n");
       return;
     }
-    ivalue = MAX(MIN(strtol(svalue, NULL, 10), 999), -999);
-    DBG("converted value form string %s to integer %d\n", svalue, ivalue);
+    ivalue = MAX(MIN(strtol(svalue, NULL, 10), INT_MAX), INT_MIN);
+    DBG(stderr, "converted value form string %s to integer %d\n", svalue, ivalue);
   }
 
   /*
@@ -586,33 +599,34 @@ void command(int id, int fd, char *parameter) {
    * if the input-plugin does not implement the optional command
    * function, a short error is reported to the HTTP-client.
    */
-  for ( i=0; i < LENGTH_OF(in_cmd_mapping); i++ ) {
+  /*for ( i=0; i < LENGTH_OF(in_cmd_mapping); i++ ) {
     if ( strcmp(in_cmd_mapping[i].string, command) == 0 ) {
 
       if ( pglobal->in.cmd == NULL )
         continue;
 
-      res = pglobal->in.cmd(in_cmd_mapping[i].cmd, ivalue);
+      //res = pglobal->in.cmd(in_cmd_mapping[i].cmd, ivalue);
       break;
     }
   }
 
   /* check if the command is for the output plugin itself */
-  for ( i=0; i < LENGTH_OF(out_cmd_mapping); i++ ) {
+  /*for ( i=0; i < LENGTH_OF(out_cmd_mapping); i++ ) {
     if ( strcmp(out_cmd_mapping[i].string, command) == 0 ) {
       res = output_cmd(id, out_cmd_mapping[i].cmd, ivalue);
       break;
     }
-  }
+  }*/
 
   /* check if the command is for the mjpg-streamer application itself */
-  for ( i=0; i < LENGTH_OF(control_cmd_mapping); i++ ) {
+  /*for ( i=0; i < LENGTH_OF(control_cmd_mapping); i++ ) {
     if ( strcmp(control_cmd_mapping[i].string, command) == 0 ) {
       res = pglobal->control(control_cmd_mapping[i].cmd, value);
       break;
     }
-  }
+  }*/
 
+  res = pglobal->in.cmd_new(command_id, ivalue);
   /* Send HTTP-response */
   sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
                   "Content-type: text/plain\r\n" \
@@ -668,11 +682,11 @@ void *client_thread( void *arg ) {
   /* determine what to deliver */
   if ( strstr(buffer, "GET /?action=snapshot") != NULL ) {
     req.type = A_SNAPSHOT;
-  }
-  else if ( strstr(buffer, "GET /?action=stream") != NULL ) {
+  } else if ( strstr(buffer, "GET /?action=stream") != NULL ) {
     req.type = A_STREAM;
-  }
-  else if ( strstr(buffer, "GET /?action=command") != NULL ) {
+  } else if ( strstr(buffer, "GET /controls.json") != NULL ) {
+    req.type = A_JSON;
+  } else if ( strstr(buffer, "GET /?action=command") != NULL ) {
     int len;
     req.type = A_COMMAND;
 
@@ -683,10 +697,11 @@ void *client_thread( void *arg ) {
       close(lcfd.fd);
       return NULL;
     }
-    pb += strlen("GET /?action=command");
+    pb += strlen("GET /?action=command"); // a pb points to thestring after the first & after command
 
     /* only accept certain characters */
     len = MIN(MAX(strspn(pb, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-=&1234567890%./"), 0), 100);
+
     req.parameter = malloc(len+1);
     if ( req.parameter == NULL ) {
       exit(EXIT_FAILURE);
@@ -702,9 +717,8 @@ void *client_thread( void *arg ) {
       return NULL;
     }
 
-    DBG("command parameter (len: %d): \"%s\"\n", len, req.parameter);
-  }
-  else {
+    DBG(stderr, "command parameter (len: %d): \"%s\"\n", len, req.parameter);
+  } else {
     int len;
 
     DBG("try to serve a file\n");
@@ -784,6 +798,10 @@ void *client_thread( void *arg ) {
       }
       command(lcfd.pc->id, lcfd.fd, req.parameter);
       break;
+	case A_JSON:
+		DBG("Request for parameres JSON file\n");
+		send_JSON(lcfd.fd);
+		break;
     case A_FILE:
       if ( lcfd.pc->conf.www_folder == NULL )
         send_error(lcfd.fd, 501, "no www-folder configured");
@@ -967,6 +985,105 @@ void *server_thread( void *arg ) {
   return NULL;
 }
 
+/******************************************************************************
+Description.: Send a JSON file which is contains information about the input plugin's
+              acceptable parameters
+Input Value.: fildescriptor fd to send the answer to
+Return Value: -
+******************************************************************************/
+void send_JSON(int fd)
+{
+	char buffer[BUFFER_SIZE*4] = {0}; // FIXME do reallocation if the buffer size is small
+	int i;
+	sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
+                  "Content-type: %s\r\n" \
+                  STD_HEADER \
+                  "\r\n", "application/x-javascript");
+
+    DBG("Serving the commands JSON file\n");
+
+
+    sprintf(buffer + strlen(buffer),
+            "{\n"
+            "\t\"controls\": [\n");
+    if (pglobal->in.in_parameters != NULL) {
+        for(i = 0; i < pglobal->in.parametercount; i++) {
+            char *menuString = NULL;
+            char *typeString = NULL;
+            switch(pglobal->in.in_parameters[i].ctrl.type) {
+                case V4L2_CTRL_TYPE_INTEGER: typeString = "INTEGER"; break;
+                case V4L2_CTRL_TYPE_BOOLEAN: typeString = "BOOLEAN"; break;
+                case V4L2_CTRL_TYPE_BUTTON: typeString = "BUTTON" ; break;
+                case V4L2_CTRL_TYPE_INTEGER64: typeString = "INTEGER64"; break;
+                case V4L2_CTRL_TYPE_CTRL_CLASS: typeString = "CTRL_CLASS"; break;
+                case V4L2_CTRL_TYPE_STRING: typeString = "STRING"; break;
+                case V4L2_CTRL_TYPE_MENU: {
+                    typeString = "MENU";
+                    if (pglobal->in.in_parameters[i].menuitems != NULL) {
+                        int j, k = 1, menuStringSize = 0;
+                        for (j = pglobal->in.in_parameters[i].ctrl.minimum; j<=pglobal->in.in_parameters[i].ctrl.maximum; j++) {
+                            char itemStr[48]; // the v4l2_querymenu.name is 32 byte long + id + backslash and so on.
+                            sprintf(itemStr, "\"%d\": \"%s\"", j, (char*)&pglobal->in.in_parameters[i].menuitems[j].name);
+                            if (k != (pglobal->in.in_parameters[i].ctrl.maximum+1)) {
+                                sprintf(itemStr+strlen(itemStr), ", ");
+                            }
+                            menuString = (char*)realloc(menuString, (menuStringSize + strlen(itemStr)) * (sizeof(char)));
+                            sprintf(menuString + menuStringSize, "%s", itemStr);
+                            menuStringSize += strlen(itemStr);
+                            k++;
+                        }
+                    }
+                } break;
+            }
+            sprintf(buffer + strlen(buffer),
+                    "\t\t{\n"
+                    "\t\t\t\"name\": \"%s\",\n"
+                    "\t\t\t\"id\": \"%d\",\n"
+                    "\t\t\t\"type\": \"%s\",\n"
+                    "\t\t\t\"min\": \"%d\",\n"
+                    "\t\t\t\"max\": \"%d\",\n"
+                    "\t\t\t\"step\": \"%d\",\n"
+                    "\t\t\t\"default\": \"%d\",\n"
+                    "\t\t\t\"value\": \"%d\"",
+                    pglobal->in.in_parameters[i].ctrl.name,
+                    pglobal->in.in_parameters[i].ctrl.id,
+                    typeString,
+                    pglobal->in.in_parameters[i].ctrl.minimum,
+                    pglobal->in.in_parameters[i].ctrl.maximum,
+                    pglobal->in.in_parameters[i].ctrl.step,
+                    pglobal->in.in_parameters[i].ctrl.default_value,
+                    pglobal->in.in_parameters[i].value
+                    );
+
+                if (pglobal->in.in_parameters[i].ctrl.type == V4L2_CTRL_TYPE_MENU) {
+                    sprintf(buffer + strlen(buffer),
+                            ",\n"
+                            "\t\t\t\"menu\": {%s}\n"
+                            "\t\t}",
+                            menuString);
+                } else {
+                    sprintf(buffer + strlen(buffer),
+                            "\n"
+                            "\t\t}");
+                }
+
+                if (i != (pglobal->in.parametercount-1)) {
+                    sprintf(buffer + strlen(buffer), ",\n");
+                }
+        }
+    } else {
+        DBG("The input plugin has no input paramters\n");
+    }
+    sprintf(buffer + strlen(buffer),
+            "\n\t]\n"
+            "}\n");
+	i = strlen(buffer);
+
+	/* first transmit HTTP-header, afterwards transmit content of file */
+	if (write(fd, buffer, i) < 0 ) {
+		DBG("unable to serve the control JSON file\n");
+	}
+}
 
 
 

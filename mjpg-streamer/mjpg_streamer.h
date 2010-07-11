@@ -19,9 +19,10 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA    #
 #                                                                              #
 *******************************************************************************/
-
 #define SOURCE_VERSION "2.0"
 #define MAX_OUTPUT_PLUGINS 10
+#include <linux/types.h>          /* for videodev2.h */
+#include <linux/videodev2.h>
 
 #ifdef DEBUG
 #define DBG(...) fprintf(stderr, " DBG(%s, %s(), %d): ", __FILE__, __FUNCTION__, __LINE__); fprintf(stderr, __VA_ARGS__)
