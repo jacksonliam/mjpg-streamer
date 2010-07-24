@@ -36,6 +36,8 @@
 #include <netdb.h>
 #include <errno.h>
 #include <limits.h>
+#include <linux/videodev.h>
+#include <libv4l2.h>
 #include "../../mjpg_streamer.h"
 #include "../../utils.h"
 #include "httpd.h"
@@ -539,7 +541,7 @@ Return Value: -
 ******************************************************************************/
 void command(int id, int fd, char *parameter) {
   char buffer[BUFFER_SIZE] = {0}, *command=NULL, *svalue=NULL, *value, *command_id_string;
-  int i=0, res=0, ivalue=0, command_id = -1,  len=0;
+  int res=0, ivalue=0, command_id = -1,  len=0;
 
   DBG("parameter is: %s\n", parameter);
 

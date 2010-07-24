@@ -55,7 +55,7 @@
 	                }
                 $("<input/>")
                   .attr("value", item.value)
-                  .attr("class", "spinbox-"+item.id)
+                  .attr("id", "spinbox-"+item.id)
                   .SpinButton(options)
                   .change(function() {setControl(item.id, $(this).val());})
                   .appendTo("#td-ctrl-"+item.id);
@@ -106,7 +106,7 @@
             });
             $("<tr/>").attr("id", "tr-status").appendTo("#control");
             $("<td/>").appendTo("#tr-status");
-            $("<td/>").attr("class", "td-status").appendTo("#tr-status");
+            $("<td/>").attr("id", "td-status").appendTo("#tr-status");
           }
         );
     </script>
