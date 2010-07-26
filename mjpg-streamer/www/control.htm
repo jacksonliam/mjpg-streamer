@@ -34,7 +34,7 @@
             $.each(data.controls, function(i,item){
               $("<tr/>").attr("id", "tr-"+item.id).appendTo("#control");
 
-              // BUTTON controls does not have a label 
+              // BUTTON type controls does not have a label 
               if (item.type == "BUTTON") {
                 $("<td/>").appendTo("#tr-"+item.id);
               } else {
@@ -50,7 +50,7 @@
               if((item.type == "INTEGER") || (item.type == "INTEGER64")) {
                 var options = {
 		                min: item.min,							// Set lower limit or null for no limit.
-		                max: item.max,						// Set upper limit or null for no limit.
+		                max: item.max,							// Set upper limit or null for no limit.
 		                step: item.step,						// Set increment size.
 	                }
                 $("<input/>")

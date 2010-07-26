@@ -38,9 +38,14 @@
 #include <limits.h>
 #include <linux/videodev.h>
 #include <libv4l2.h>
+#include <linux/version.h>
 #include "../../mjpg_streamer.h"
 #include "../../utils.h"
 #include "httpd.h"
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32)
+#define V4L2_CTRL_TYPE_STRING_SUPPORTED
+#endif
+
 
 static globals *pglobal;
 extern context servers[MAX_OUTPUT_PLUGINS];
@@ -1018,7 +1023,12 @@ void send_JSON(int fd)
                 case V4L2_CTRL_TYPE_BUTTON: typeString = "BUTTON" ; break;
                 case V4L2_CTRL_TYPE_INTEGER64: typeString = "INTEGER64"; break;
                 case V4L2_CTRL_TYPE_CTRL_CLASS: typeString = "CTRL_CLASS"; break;
+
+// this is a workaround because there are no V4L2_CTRL_TYPE_STRING type int
+// the kernel headers < 2.6.32
+#ifdef V4L2_CTRL_TYPE_STRING_SUPPORTED
                 case V4L2_CTRL_TYPE_STRING: typeString = "STRING"; break;
+#endif
                 case V4L2_CTRL_TYPE_MENU: {
                     typeString = "MENU";
                     if (pglobal->in.in_parameters[i].menuitems != NULL) {

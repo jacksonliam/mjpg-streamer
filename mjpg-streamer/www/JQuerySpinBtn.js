@@ -73,17 +73,15 @@ $.fn.SpinButton = function(cfg){
 			_btn_height: 12,
 			_direction: null,
 			_delay: null,
-			_repeat: null
+			_repeat: null,
 		};
 
-    this.valueChanged	= function(nv) {};
 
 		this.adjustValue = function(i){
 			var v = (isNaN(this.value) ? this.spinCfg.reset : Number(this.value)) + Number(i);
 			if (this.spinCfg.min !== null) v = Math.max(v, this.spinCfg.min);
 			if (this.spinCfg.max !== null) v = Math.min(v, this.spinCfg.max);
 			this.value = v;
-      this.valueChanged(v);
 		};
 		
 		$(this)
