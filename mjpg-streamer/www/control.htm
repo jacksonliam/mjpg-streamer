@@ -29,16 +29,17 @@
            });
         }
 
+
         $.getJSON("controls.json",
           function(data) {
             $.each(data.controls, function(i,item){
               $("<tr/>").attr("id", "tr-"+item.id).appendTo("#control");
 
               // BUTTON type controls does not have a label 
-              if (item.type == "BUTTON") {
+              if (item.type == 4) {
                 $("<td/>").appendTo("#tr-"+item.id);
               } else {
-                if (item.type == "CTRL_CLASS") {
+                if (item.type == 6) { // Class type controls
                   $("<td/>").text(item.name).attr("style", "font-weight:bold;").appendTo("#tr-"+item.id);
                   return;
                 } else {
@@ -47,7 +48,7 @@
               }
 
               $("<td/>").attr("id", "td-ctrl-"+item.id).appendTo("#tr-"+item.id);
-              if((item.type == "INTEGER") || (item.type == "INTEGER64")) {
+              if((item.type == 1) || (item.type == 5)) { // integer type controls
                 var options = {
 		                min: item.min,							// Set lower limit or null for no limit.
 		                max: item.max,							// Set upper limit or null for no limit.
@@ -57,9 +58,9 @@
                   .attr("value", item.value)
                   .attr("id", "spinbox-"+item.id)
                   .SpinButton(options)
-                  .change(function() {setControl(item.id, $(this).val());})
+                  .bind("valueChanged", function() {setControl(item.id, $(this).val());})
                   .appendTo("#td-ctrl-"+item.id);
-              } else if (item.type == "BOOLEAN") {
+              } else if (item.type == 2) { // boolean type controls
                 if (item.value == "1")
                   $("<input/>")
                     .attr("type", "checkbox")
@@ -71,9 +72,9 @@
                     .attr("type", "checkbox")
                     .change(function(){setControl(item.id, ($(this).attr("checked")?1:0));})
                     .appendTo("#td-ctrl-"+item.id);
-              } else if (item.type == "STRING") {
+              } else if (item.type == 7) { // string type controls
                   $("<input/>").attr("value", item.value).appendTo("#td-ctrl-"+item.id);
-              } else if (item.type == "MENU") {
+              } else if (item.type == 3) { // menu
                 $("<select/>")
                   .attr("name", "select-"+item.id)
                   .attr("id", "menu-"+item.id)
@@ -87,14 +88,14 @@
                       $("#menu-"+item.id).append($('<option></option>').val(val).html(text));
                     }
                 });
-              } else if (item.type == "BUTTON") {
+              } else if (item.type == 4) { // button type
                 $("<button/>")
                   .attr("type", "button")
                   .attr("style", "width: 100%; height: 100%;")
                   .text(item.name)
                   .click(function(){setControl(item.id, 0);})
                   .appendTo("#td-ctrl-"+item.id);
-              } else if (item.type == "STRING") {
+              } else if (item.type == 7) { // string  type
                 $("<input/>")
                     .attr("type", "text")
                     .attr("maxlength", item.max)

@@ -20,14 +20,14 @@
 #  CREDIT:								    #
 # Original code from Nitin Gupta India (?)					    #
 #                                                                           #
-#***************************************************************************/ 
-  
-  
+#***************************************************************************/
+
+
 #include <malloc.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-  
+
 #include "jdatatype.h"
 #include "encoder.h"
 #include "huffman.h"
@@ -70,40 +70,40 @@ static UINT8 *encodeMCU (JPEG_ENCODER_STRUCTURE * jpeg_encoder_structure,
 			  UINT32 image_format, UINT8 * output_ptr);
 static void
 initialization (JPEG_ENCODER_STRUCTURE * jpeg, UINT32 image_format,
-		UINT32 image_width, UINT32 image_height) 
+		UINT32 image_width, UINT32 image_height)
 {
   UINT16 mcu_width, mcu_height, bytes_per_pixel;
   lcode = 0;
   bitindex = 0;
   if (image_format == FOUR_ZERO_ZERO || image_format == FOUR_FOUR_FOUR)
-    
+
     {
       jpeg->mcu_width = mcu_width = 8;
       jpeg->mcu_height = mcu_height = 8;
       jpeg->horizontal_mcus = (UINT16) ((image_width + mcu_width - 1) >> 3);
       jpeg->vertical_mcus = (UINT16) ((image_height + mcu_height - 1) >> 3);
       if (image_format == FOUR_ZERO_ZERO)
-	
+
 	{
 	  bytes_per_pixel = 1;
 	  read_format = read_400_format;
 	}
-      
+
       else
-	
+
 	{
 	  bytes_per_pixel = 3;
 	  read_format = read_444_format;
 	}
     }
-  
+
   else
-    
+
     {
       jpeg->mcu_width = mcu_width = 16;
       jpeg->horizontal_mcus = (UINT16) ((image_width + mcu_width - 1) >> 4);
       if (image_format == FOUR_TWO_ZERO)
-	
+
 	{
 	  jpeg->mcu_height = mcu_height = 16;
 	  jpeg->vertical_mcus =
@@ -111,9 +111,9 @@ initialization (JPEG_ENCODER_STRUCTURE * jpeg, UINT32 image_format,
 	  bytes_per_pixel = 3;
 	  read_format = read_420_format;
 	}
-      
+
       else
-	
+
 	{
 	  jpeg->mcu_height = mcu_height = 8;
 	  jpeg->vertical_mcus =
@@ -135,7 +135,7 @@ initialization (JPEG_ENCODER_STRUCTURE * jpeg, UINT32 image_format,
     jpeg->offset =
       (UINT16) ((image_width * (mcu_height - 1) -
 		 (mcu_width - jpeg->cols_in_right_mcus)) * bytes_per_pixel);
-  
+
   else
     jpeg->offset =
       (UINT16) ((image_width * ((mcu_height >> 1) - 1) -
@@ -147,7 +147,7 @@ initialization (JPEG_ENCODER_STRUCTURE * jpeg, UINT32 image_format,
 
 UINT32 encode_image (UINT8 * input_ptr, UINT8 * output_ptr,
 		       UINT32 quality_factor, UINT32 image_format,
-		       UINT32 image_width, UINT32 image_height) 
+		       UINT32 image_width, UINT32 image_height)
 {
   UINT16 i, j;
   UINT8 * output;
@@ -157,103 +157,103 @@ UINT32 encode_image (UINT8 * input_ptr, UINT8 * output_ptr,
   switch (image_format)
     {
     case RGBto444:
-      
+
       {
 	image_format = FOUR_FOUR_FOUR;
 	RGB_2_444 (input_ptr, output_ptr, image_width, image_height);
       }
       break;
     case RGBto422:
-      
+
       {
 	image_format = FOUR_TWO_TWO;
 	RGB_2_422 (input_ptr, output_ptr, image_width, image_height);
       }
       break;
     case RGBto420:
-      
+
       {
 	image_format = FOUR_TWO_ZERO;
 	RGB_2_420 (input_ptr, output_ptr, image_width, image_height);
       }
       break;
     case RGB565to420:
-      
+
       {
 	image_format = FOUR_TWO_ZERO;
 	RGB565_2_420 (input_ptr, output_ptr, image_width, image_height);
       }
       break;
     case RGB32to420:
-      
+
       {
 	image_format = FOUR_TWO_ZERO;
 	RGB32_2_420 (input_ptr, output_ptr, image_width, image_height);
       }
       break;
     case RGBto400:
-      
+
       {
 	image_format = FOUR_ZERO_ZERO;
 	RGB_2_400 (input_ptr, output_ptr, image_width, image_height);
       }
       break;
     case YUVto444:
-      
+
       {
 	image_format = FOUR_FOUR_FOUR;
 	YUV_2_444 (input_ptr, output_ptr, image_width, image_height);
       }
       break;
     case YUVto422:
-      
+
       {
 	image_format = FOUR_TWO_TWO;
 	YUV_2_422 (input_ptr, output_ptr, image_width, image_height);
       }
       break;
     case YUVto420:
-      
+
       {
 	image_format = FOUR_TWO_ZERO;
 	YUV_2_420 (input_ptr, output_ptr, image_width, image_height);
       }
       break;
     }
-  
-    /* Initialization of JPEG control structure */ 
+
+    /* Initialization of JPEG control structure */
     initialization (jpeg_encoder_structure, image_format, image_width,
 		    image_height);
-  
-    /* Quantization Table Initialization */ 
+
+    /* Quantization Table Initialization */
     initialize_quantization_tables (quality_factor);
-  
-    /* Writing Marker Data */ 
+
+    /* Writing Marker Data */
     output_ptr =
     write_markers (output_ptr, image_format, image_width, image_height);
   for (i = 1; i <= jpeg_encoder_structure->vertical_mcus; i++)
-    
+
     {
       if (i < jpeg_encoder_structure->vertical_mcus)
 	jpeg_encoder_structure->rows = jpeg_encoder_structure->mcu_height;
-      
+
       else
 	jpeg_encoder_structure->rows =
 	  jpeg_encoder_structure->rows_in_bottom_mcus;
       for (j = 1; j <= jpeg_encoder_structure->horizontal_mcus; j++)
-	
+
 	{
 	  if (j < jpeg_encoder_structure->horizontal_mcus)
-	    
+
 	    {
 	      jpeg_encoder_structure->cols =
 		jpeg_encoder_structure->mcu_width;
 	      jpeg_encoder_structure->incr =
 		jpeg_encoder_structure->length_minus_mcu_width;
 	    }
-	  
+
 	  else
-	    
+
 	    {
 	      jpeg_encoder_structure->cols =
 		jpeg_encoder_structure->cols_in_right_mcus;
@@ -261,22 +261,22 @@ UINT32 encode_image (UINT8 * input_ptr, UINT8 * output_ptr,
 		jpeg_encoder_structure->length_minus_width;
 	    }
 	  read_format (jpeg_encoder_structure, input_ptr);
-	  
-	    /* Encode the data in MCU */ 
+
+	    /* Encode the data in MCU */
 	    output_ptr =
 	    encodeMCU (jpeg_encoder_structure, image_format, output_ptr);
 	  input_ptr += jpeg_encoder_structure->mcu_width_size;
 	}
       input_ptr += jpeg_encoder_structure->offset;
     }
-  
-    /* Close Routine */ 
+
+    /* Close Routine */
     output_ptr = close_bitstream (output_ptr);
   return (UINT32) (output_ptr - output);
 }
 static UINT8 *
 encodeMCU (JPEG_ENCODER_STRUCTURE * jpeg_encoder_structure,
-	   UINT32 image_format, UINT8 * output_ptr) 
+	   UINT32 image_format, UINT8 * output_ptr)
 {
   DCT (Y1);
   quantization (Y1, ILqt);
@@ -304,15 +304,15 @@ chroma:DCT (CB);
 }
 
 
-/* DCT for One block(8x8) */ 
+/* DCT for One block(8x8) */
   static void
-DCT (INT16 * data) 
+DCT (INT16 * data)
 {
   UINT16 i;
   INT32 x0, x1, x2, x3, x4, x5, x6, x7, x8;
-  
+
 /*	All values are shifted left by 10
-	and rounded off to nearest integer */ 
+	and rounded off to nearest integer */
   static const UINT16 c1 = 1420;	/* cos PI/16 * root(2)  */
   static const UINT16 c2 = 1338;	/* cos PI/8 * root(2)   */
   static const UINT16 c3 = 1204;	/* cos 3PI/16 * root(2) */
@@ -323,7 +323,7 @@ DCT (INT16 * data)
   static const UINT16 s2 = 10;
   static const UINT16 s3 = 13;
   for (i = 8; i > 0; i--)
-    
+
     {
       x8 = data[0] + data[7];
       x0 = data[0] - data[7];
@@ -349,7 +349,7 @@ DCT (INT16 * data)
     }
   data -= 64;
   for (i = 8; i > 0; i--)
-    
+
     {
       x8 = data[0] + data[56];
       x0 = data[0] - data[56];
@@ -376,15 +376,14 @@ DCT (INT16 * data)
 }
 static void
 read_400_format (JPEG_ENCODER_STRUCTURE * jpeg_encoder_structure,
-		 UINT8 * input_ptr) 
+		 UINT8 * input_ptr)
 {
   INT32 i, j;
-  INT16 * Y1_Ptr = Y1;
+  INT16 *Y1_Ptr = Y1;
   UINT16 rows = jpeg_encoder_structure->rows;
   UINT16 cols = jpeg_encoder_structure->cols;
   UINT16 incr = jpeg_encoder_structure->incr;
   for (i = rows; i > 0; i--)
-    
     {
       for (j = cols; j > 0; j--)
 	*Y1_Ptr++ = *input_ptr++ - 128;
@@ -392,8 +391,8 @@ read_400_format (JPEG_ENCODER_STRUCTURE * jpeg_encoder_structure,
 	*Y1_Ptr++ = *(Y1_Ptr - 1);
       input_ptr += incr;
     }
+
   for (i = 8 - rows; i > 0; i--)
-    
     {
       for (j = 8; j > 0; j--)
 	*Y1_Ptr++ = *(Y1_Ptr - 8);
@@ -401,7 +400,7 @@ read_400_format (JPEG_ENCODER_STRUCTURE * jpeg_encoder_structure,
 }
 static void
 read_420_format (JPEG_ENCODER_STRUCTURE * jpeg_encoder_structure,
-		 UINT8 * input_ptr) 
+		 UINT8 * input_ptr)
 {
   INT32 i, j;
   UINT16 Y1_rows, Y3_rows, Y1_cols, Y2_cols;
@@ -419,36 +418,36 @@ read_420_format (JPEG_ENCODER_STRUCTURE * jpeg_encoder_structure,
   UINT16 cols = jpeg_encoder_structure->cols;
   UINT16 incr = jpeg_encoder_structure->incr;
   if (rows <= 8)
-    
+
     {
       Y1_rows = rows;
       Y3_rows = 0;
     }
-  
+
   else
-    
+
     {
       Y1_rows = 8;
       Y3_rows = (UINT16) (rows - 8);
     }
   if (cols <= 8)
-    
+
     {
       Y1_cols = cols;
       Y2_cols = 0;
     }
-  
+
   else
-    
+
     {
       Y1_cols = 8;
       Y2_cols = (UINT16) (cols - 8);
     }
   for (i = Y1_rows >> 1; i > 0; i--)
-    
+
     {
       for (j = Y1_cols >> 1; j > 0; j--)
-	
+
 	{
 	  *Y1_Ptr++ = *input_ptr++ - 128;
 	  *Y1_Ptr++ = *input_ptr++ - 128;
@@ -458,7 +457,7 @@ read_420_format (JPEG_ENCODER_STRUCTURE * jpeg_encoder_structure,
 	  *CR_Ptr++ = *input_ptr++ - 128;
 	}
       for (j = Y2_cols >> 1; j > 0; j--)
-	
+
 	{
 	  *Y2_Ptr++ = *input_ptr++ - 128;
 	  *Y2_Ptr++ = *input_ptr++ - 128;
@@ -468,34 +467,34 @@ read_420_format (JPEG_ENCODER_STRUCTURE * jpeg_encoder_structure,
 	  *CR_Ptr++ = *input_ptr++ - 128;
 	}
       if (cols <= 8)
-	
+
 	{
 	  for (j = 8 - Y1_cols; j > 0; j--)
-	    
+
 	    {
 	      *Y1_Ptr++ = *(Y1_Ptr - 1);
 	      *Y1Ptr++ = *(Y1Ptr - 1);
 	    }
 	  for (j = 8; j > 0; j--)
-	    
+
 	    {
 	      *Y2_Ptr++ = *(Y1_Ptr - 1);
 	      *Y2Ptr++ = *(Y1Ptr - 1);
 	    }
-	
+
        }
       else
-	
+
 	{
 	  for (j = 8 - Y2_cols; j > 0; j--)
-	    
+
 	    {
 	      *Y2_Ptr++ = *(Y2_Ptr - 1);
 	      *Y2Ptr++ = *(Y2Ptr - 1);
 	    }
 	}
       for (j = (16 - cols) >> 1; j > 0; j--)
-	
+
 	{
 	  *CB_Ptr++ = *(CB_Ptr - 1);
 	  *CR_Ptr++ = *(CR_Ptr - 1);
@@ -507,10 +506,10 @@ read_420_format (JPEG_ENCODER_STRUCTURE * jpeg_encoder_structure,
       input_ptr += incr;
     }
   for (i = Y3_rows >> 1; i > 0; i--)
-    
+
     {
       for (j = Y1_cols >> 1; j > 0; j--)
-	
+
 	{
 	  *Y3_Ptr++ = *input_ptr++ - 128;
 	  *Y3_Ptr++ = *input_ptr++ - 128;
@@ -520,7 +519,7 @@ read_420_format (JPEG_ENCODER_STRUCTURE * jpeg_encoder_structure,
 	  *CR_Ptr++ = *input_ptr++ - 128;
 	}
       for (j = Y2_cols >> 1; j > 0; j--)
-	
+
 	{
 	  *Y4_Ptr++ = *input_ptr++ - 128;
 	  *Y4_Ptr++ = *input_ptr++ - 128;
@@ -530,34 +529,34 @@ read_420_format (JPEG_ENCODER_STRUCTURE * jpeg_encoder_structure,
 	  *CR_Ptr++ = *input_ptr++ - 128;
 	}
       if (cols <= 8)
-	
+
 	{
 	  for (j = 8 - Y1_cols; j > 0; j--)
-	    
+
 	    {
 	      *Y3_Ptr++ = *(Y3_Ptr - 1);
 	      *Y3Ptr++ = *(Y3Ptr - 1);
 	    }
 	  for (j = 8; j > 0; j--)
-	    
+
 	    {
 	      *Y4_Ptr++ = *(Y3_Ptr - 1);
 	      *Y4Ptr++ = *(Y3Ptr - 1);
 	    }
 	}
-      
+
       else
-	
+
 	{
 	  for (j = 8 - Y2_cols; j > 0; j--)
-	    
+
 	    {
 	      *Y4_Ptr++ = *(Y4_Ptr - 1);
 	      *Y4Ptr++ = *(Y4Ptr - 1);
 	    }
 	}
       for (j = (16 - cols) >> 1; j > 0; j--)
-	
+
 	{
 	  *CB_Ptr++ = *(CB_Ptr - 1);
 	  *CR_Ptr++ = *(CR_Ptr - 1);
@@ -569,40 +568,40 @@ read_420_format (JPEG_ENCODER_STRUCTURE * jpeg_encoder_structure,
       input_ptr += incr;
     }
   if (rows <= 8)
-    
+
     {
       for (i = 8 - rows; i > 0; i--)
-	
+
 	{
 	  for (j = 8; j > 0; j--)
-	    
+
 	    {
 	      *Y1_Ptr++ = *(Y1_Ptr - 8);
 	      *Y2_Ptr++ = *(Y2_Ptr - 8);
 	    }
 	}
       for (i = 8; i > 0; i--)
-	
+
 	{
 	  Y1_Ptr -= 8;
 	  Y2_Ptr -= 8;
 	  for (j = 8; j > 0; j--)
-	    
+
 	    {
 	      *Y3_Ptr++ = *Y1_Ptr++;
 	      *Y4_Ptr++ = *Y2_Ptr++;
 	    }
 	}
     }
-  
+
   else
-    
+
     {
       for (i = (16 - rows); i > 0; i--)
-	
+
 	{
 	  for (j = 8; j > 0; j--)
-	    
+
 	    {
 	      *Y3_Ptr++ = *(Y3_Ptr - 8);
 	      *Y4_Ptr++ = *(Y4_Ptr - 8);
@@ -610,10 +609,10 @@ read_420_format (JPEG_ENCODER_STRUCTURE * jpeg_encoder_structure,
 	}
     }
   for (i = ((16 - rows) >> 1); i > 0; i--)
-    
+
     {
       for (j = 8; j > 0; j--)
-	
+
 	{
 	  *CB_Ptr++ = *(CB_Ptr - 8);
 	  *CR_Ptr++ = *(CR_Ptr - 8);
@@ -622,7 +621,7 @@ read_420_format (JPEG_ENCODER_STRUCTURE * jpeg_encoder_structure,
 }
 static void
 read_422_format (JPEG_ENCODER_STRUCTURE * jpeg_encoder_structure,
-		 UINT8 * input_ptr) 
+		 UINT8 * input_ptr)
 {
   INT32 i, j;
   UINT16 Y1_cols, Y2_cols;
@@ -634,23 +633,23 @@ read_422_format (JPEG_ENCODER_STRUCTURE * jpeg_encoder_structure,
   UINT16 cols = jpeg_encoder_structure->cols;
   UINT16 incr = jpeg_encoder_structure->incr;
   if (cols <= 8)
-    
+
     {
       Y1_cols = cols;
       Y2_cols = 0;
     }
-  
+
   else
-    
+
     {
       Y1_cols = 8;
       Y2_cols = (UINT16) (cols - 8);
     }
   for (i = rows; i > 0; i--)
-    
+
     {
       for (j = Y1_cols >> 1; j > 0; j--)
-	
+
 	{
 	  *Y1_Ptr++ = *input_ptr++ - 128;
 	  *CB_Ptr++ = *input_ptr++ - 128;
@@ -658,7 +657,7 @@ read_422_format (JPEG_ENCODER_STRUCTURE * jpeg_encoder_structure,
 	  *CR_Ptr++ = *input_ptr++ - 128;
 	}
       for (j = Y2_cols >> 1; j > 0; j--)
-	
+
 	{
 	  *Y2_Ptr++ = *input_ptr++ - 128;
 	  *CB_Ptr++ = *input_ptr++ - 128;
@@ -666,22 +665,22 @@ read_422_format (JPEG_ENCODER_STRUCTURE * jpeg_encoder_structure,
 	  *CR_Ptr++ = *input_ptr++ - 128;
 	}
       if (cols <= 8)
-	
+
 	{
 	  for (j = 8 - Y1_cols; j > 0; j--)
 	    *Y1_Ptr++ = *(Y1_Ptr - 1);
 	  for (j = 8 - Y2_cols; j > 0; j--)
 	    *Y2_Ptr++ = *(Y1_Ptr - 1);
 	}
-      
+
       else
-	
+
 	{
 	  for (j = 8 - Y2_cols; j > 0; j--)
 	    *Y2_Ptr++ = *(Y2_Ptr - 1);
 	}
       for (j = (16 - cols) >> 1; j > 0; j--)
-	
+
 	{
 	  *CB_Ptr++ = *(CB_Ptr - 1);
 	  *CR_Ptr++ = *(CR_Ptr - 1);
@@ -689,10 +688,10 @@ read_422_format (JPEG_ENCODER_STRUCTURE * jpeg_encoder_structure,
       input_ptr += incr;
     }
   for (i = 8 - rows; i > 0; i--)
-    
+
     {
       for (j = 8; j > 0; j--)
-	
+
 	{
 	  *Y1_Ptr++ = *(Y1_Ptr - 8);
 	  *Y2_Ptr++ = *(Y2_Ptr - 8);
@@ -703,7 +702,7 @@ read_422_format (JPEG_ENCODER_STRUCTURE * jpeg_encoder_structure,
 }
 static void
 read_444_format (JPEG_ENCODER_STRUCTURE * jpeg_encoder_structure,
-		 UINT8 * input_ptr) 
+		 UINT8 * input_ptr)
 {
   INT32 i, j;
   INT16 * Y1_Ptr = Y1;
@@ -713,17 +712,17 @@ read_444_format (JPEG_ENCODER_STRUCTURE * jpeg_encoder_structure,
   UINT16 cols = jpeg_encoder_structure->cols;
   UINT16 incr = jpeg_encoder_structure->incr;
   for (i = rows; i > 0; i--)
-    
+
     {
       for (j = cols; j > 0; j--)
-	
+
 	{
 	  *Y1_Ptr++ = *input_ptr++ - 128;
 	  *CB_Ptr++ = *input_ptr++ - 128;
 	  *CR_Ptr++ = *input_ptr++ - 128;
 	}
       for (j = 8 - cols; j > 0; j--)
-	
+
 	{
 	  *Y1_Ptr++ = *(Y1_Ptr - 1);
 	  *CB_Ptr++ = *(CB_Ptr - 1);
@@ -732,10 +731,10 @@ read_444_format (JPEG_ENCODER_STRUCTURE * jpeg_encoder_structure,
       input_ptr += incr;
     }
   for (i = 8 - rows; i > 0; i--)
-    
+
     {
       for (j = 8; j > 0; j--)
-	
+
 	{
 	  *Y1_Ptr++ = *(Y1_Ptr - 8);
 	  *CB_Ptr++ = *(CB_Ptr - 8);
@@ -746,23 +745,23 @@ read_444_format (JPEG_ENCODER_STRUCTURE * jpeg_encoder_structure,
 
 
 #define CLIP(color) (unsigned char)(((color)>0xFF)?0xff:(((color)<0)?0:(color)))
-  
-/* translate RGB24 to YUV444 in input */ 
+
+/* translate RGB24 to YUV444 in input */
   static void
 RGB_2_444 (UINT8 * input_ptr, UINT8 * output_ptr, UINT32 image_width,
-	   UINT32 image_height) 
+	   UINT32 image_height)
 {
   UINT32 i, size;
   UINT8 R, G, B;
   INT32 Y, Cb, Cr;
   size = image_width * image_height;
   for (i = size; i > 0; i--)
-    
+
     {
       B = input_ptr[0];
       G = input_ptr[1];
       R = input_ptr[2];
-      
+
 	//input_ptr -= 3;
 	Y = CLIP ((77 * R + 150 * G + 29 * B) >> 8);
       Cb = CLIP (((-43 * R - 85 * G + 128 * B) >> 8) + 128);
@@ -774,10 +773,10 @@ RGB_2_444 (UINT8 * input_ptr, UINT8 * output_ptr, UINT32 image_width,
 }
 
 
-/* translate RGB24 to YUV422 in input */ 
+/* translate RGB24 to YUV422 in input */
 static void
 RGB_2_422 (UINT8 * input_ptr, UINT8 * output_ptr, UINT32 image_width,
-	   UINT32 image_height) 
+	   UINT32 image_height)
 {
   UINT32 i, size;
   UINT8 R, G, B, R1, G1, B1;
@@ -785,7 +784,7 @@ RGB_2_422 (UINT8 * input_ptr, UINT8 * output_ptr, UINT32 image_width,
   UINT8 * inbuf = input_ptr;
   size = image_width * image_height;
   for (i = size; i > 0; i--)
-    
+
     {
       B = inbuf[0];
       G = inbuf[1];
@@ -806,10 +805,10 @@ RGB_2_422 (UINT8 * input_ptr, UINT8 * output_ptr, UINT32 image_width,
 }
 
 
-/* translate RGB24 to YUV420 in input */ 
+/* translate RGB24 to YUV420 in input */
   static void
 RGB_2_420 (UINT8 * input_ptr, UINT8 * output_ptr, UINT32 image_width,
-	   UINT32 image_height) 
+	   UINT32 image_height)
 {
   UINT32 i, j, size;
   UINT8 R, G, B, R1, G1, B1, Rd, Gd, Bd, Rd1, Gd1, Bd1;
@@ -818,7 +817,7 @@ RGB_2_420 (UINT8 * input_ptr, UINT8 * output_ptr, UINT32 image_width,
   UINT8 * inbuf1 = input_ptr + (image_width * 3);
   size = image_width * image_height >> 2;
   for (i = size, j = 0; i > 0; i--)
-    
+
     {
       B = inbuf[0];
       G = inbuf[1];
@@ -857,10 +856,10 @@ RGB_2_420 (UINT8 * input_ptr, UINT8 * output_ptr, UINT32 image_width,
 }
 
 
-/* translate RGB32 to YUV420 in input */ 
+/* translate RGB32 to YUV420 in input */
   static void
 RGB32_2_420 (UINT8 * input_ptr, UINT8 * output_ptr, UINT32 image_width,
-	     UINT32 image_height) 
+	     UINT32 image_height)
 {
   UINT32 i, j, size;
   UINT8 R, G, B, R1, G1, B1, Rd, Gd, Bd, Rd1, Gd1, Bd1;
@@ -869,7 +868,7 @@ RGB32_2_420 (UINT8 * input_ptr, UINT8 * output_ptr, UINT32 image_width,
   UINT8 * inbuf1 = input_ptr + (image_width * 4);
   size = image_width * image_height >> 2;
   for (i = size, j = 0; i > 0; i--)
-    
+
     {
       B = inbuf[0];
       G = inbuf[1];
@@ -908,10 +907,10 @@ RGB32_2_420 (UINT8 * input_ptr, UINT8 * output_ptr, UINT32 image_width,
 }
 
 
-/* translate RGB565 to YUV420 in input */ 
+/* translate RGB565 to YUV420 in input */
   static void
 RGB565_2_420 (UINT8 * input_ptr, UINT8 * output_ptr, UINT32 image_width,
-	      UINT32 image_height) 
+	      UINT32 image_height)
 {
   UINT32 i, j, size;
   UINT8 R, G, B, R1, G1, B1, Rd, Gd, Bd, Rd1, Gd1, Bd1;
@@ -920,26 +919,26 @@ RGB565_2_420 (UINT8 * input_ptr, UINT8 * output_ptr, UINT32 image_width,
   Myrgb16 * inbuf1 = inbuf + (image_width);
   size = image_width * image_height >> 2;
   for (i = size, j = 0; i > 0; i--)
-    
+
     {
-      
+
 	/*
 	   B = inbuf[0] & 0xf8;
 	   G = ((inbuf[0] & 0x07) << 5) | ((inbuf[1] & 0xe0) >> 3);
 	   R = (inbuf[1] & 0x1f) << 3;
-	   
+
 	   B1 = inbuf[2] & 0xf8;
 	   G1 = ((inbuf[2] & 0x07) << 5) | ((inbuf[3] & 0xe0) >> 3);
 	   R1 = (inbuf[3] & 0x1f) << 3;
-	   
+
 	   Bd = inbuf1[0] & 0xf8;
 	   Gd = ((inbuf1[0] & 0x07) << 5) | ((inbuf1[1] & 0xe0) >> 3);
 	   Rd = (inbuf1[1] & 0x1f) << 3;
-	   
+
 	   Bd1 = inbuf1[2] & 0xf8;
 	   Gd1 = ((inbuf1[2] & 0x07) << 5) | ((inbuf1[3] & 0xe0) >> 3);
 	   Rd1 = (inbuf1[3] & 0x1f) << 3;
-	 */ 
+	 */
 	B = inbuf[0].blue << 3;
       G = inbuf[0].green << 2;
       R = inbuf[0].red << 3;
@@ -977,7 +976,7 @@ RGB565_2_420 (UINT8 * input_ptr, UINT8 * output_ptr, UINT32 image_width,
 }
 static void
 RGB_2_400 (UINT8 * input_ptr, UINT8 * output_ptr, UINT32 image_width,
-	   UINT32 image_height) 
+	   UINT32 image_height)
 {
   UINT32 i, size;
   UINT8 R, G, B;
@@ -985,7 +984,7 @@ RGB_2_400 (UINT8 * input_ptr, UINT8 * output_ptr, UINT32 image_width,
   UINT8 * inbuf = input_ptr;
   size = image_width * image_height;
   for (i = size; i > 0; i--)
-    
+
     {
       B = inbuf[0];
       G = inbuf[1];
@@ -997,10 +996,10 @@ RGB_2_400 (UINT8 * input_ptr, UINT8 * output_ptr, UINT32 image_width,
 }
 
 
-/* translate YUV444P to YUV444 in input */ 
+/* translate YUV444P to YUV444 in input */
   static void
 YUV_2_444 (UINT8 * input_ptr, UINT8 * output_ptr, UINT32 image_width,
-	   UINT32 image_height) 
+	   UINT32 image_height)
 {
   UINT32 i, size;
   UINT8 * Ytmp = NULL;
@@ -1018,7 +1017,7 @@ YUV_2_444 (UINT8 * input_ptr, UINT8 * output_ptr, UINT32 image_width,
       Crtmp = Buff + (image_width * image_height << 1);
       size = image_width * image_height;
       for (i = size; i > 0; i--)
-	
+
 	{
 	  *input_ptr++ = (UINT8) * Ytmp++;
 	  *input_ptr++ = (UINT8) * Cbtmp++;
@@ -1030,10 +1029,10 @@ YUV_2_444 (UINT8 * input_ptr, UINT8 * output_ptr, UINT32 image_width,
 }
 
 
-/* translate YUV422P to YUV422 in input */ 
+/* translate YUV422P to YUV422 in input */
   static void
 YUV_2_422 (UINT8 * input_ptr, UINT8 * output_ptr, UINT32 image_width,
-	   UINT32 image_height) 
+	   UINT32 image_height)
 {
   UINT32 i, size;
   UINT8 * Ytmp = NULL;
@@ -1051,7 +1050,7 @@ YUV_2_422 (UINT8 * input_ptr, UINT8 * output_ptr, UINT32 image_width,
       Crtmp = Cbtmp + (image_width * image_height >> 1);
       size = image_width * image_height;
       for (i = size; i > 0; i--)
-	
+
 	{
 	  *input_ptr++ = (UINT8) * Ytmp++;
 	  *input_ptr++ = (UINT8) * Cbtmp++;
@@ -1064,10 +1063,10 @@ YUV_2_422 (UINT8 * input_ptr, UINT8 * output_ptr, UINT32 image_width,
 }
 
 
-/* translate YUV420P to YUV420 in input */ 
+/* translate YUV420P to YUV420 in input */
   static void
 YUV_2_420 (UINT8 * input_ptr, UINT8 * output_ptr, UINT32 image_width,
-	   UINT32 image_height) 
+	   UINT32 image_height)
 {
   UINT32 x, y, size;
   UINT8 * Ytmp = NULL;
@@ -1087,7 +1086,7 @@ YUV_2_420 (UINT8 * input_ptr, UINT8 * output_ptr, UINT32 image_width,
       Crtmp = Cbtmp + (image_width * image_height >> 2);
       size = image_width * image_height >> 2;
       for (y = 0; y < image_height; y += 2)
-	
+
 	{
 	  for (x = 0; x < image_width; x += 2)
 	    {

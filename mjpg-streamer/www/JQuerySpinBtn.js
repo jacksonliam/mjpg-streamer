@@ -82,6 +82,7 @@ $.fn.SpinButton = function(cfg){
 			if (this.spinCfg.min !== null) v = Math.max(v, this.spinCfg.min);
 			if (this.spinCfg.max !== null) v = Math.min(v, this.spinCfg.max);
 			this.value = v;
+			$(this).trigger("valueChanged");
 		};
 		
 		$(this)
