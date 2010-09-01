@@ -63,13 +63,16 @@ int init_videoIn(struct vdIn *vd, char *device, int width,
     struct v4l2_queryctrl ctrl;
     pglobal->in.parametercount = 0;
     /* Try the extended control API first */
+    #ifdef V4L2_CTRL_FLAG_NEXT_CTRL
     ctrl.id = V4L2_CTRL_FLAG_NEXT_CTRL;
     if(0 == ioctl(vd->fd, VIDIOC_QUERYCTRL, &ctrl)) {
         do {
             control_readed(vd, &ctrl, pglobal);
             ctrl.id |= V4L2_CTRL_FLAG_NEXT_CTRL;
         } while(0 == ioctl (vd->fd, VIDIOC_QUERYCTRL, &ctrl));
-    } else {
+    } else
+    #endif
+    {
         /* Fall back on the standard API */
         /* Check all the standard controls */
         int i;
@@ -170,19 +173,29 @@ static int init_v4l2(struct vdIn *vd)
   vd->fmt.fmt.pix.field = V4L2_FIELD_ANY;
   ret = ioctl(vd->fd, VIDIOC_S_FMT, &vd->fmt);
   if (ret < 0) {
-    perror("Unable to set format");
+    fprintf(stderr, "Unable to set format: %d res: %dx%d", vd->formatIn, vd->width, vd->height);
     goto fatal;
   }
 
   if ((vd->fmt.fmt.pix.width != vd->width) ||
       (vd->fmt.fmt.pix.height != vd->height)) {
-    fprintf(stderr, " format asked unavailable get width %d height %d \n", vd->fmt.fmt.pix.width, vd->fmt.fmt.pix.height);
+    fprintf(stderr, "i: The format asked unavailable, so the  width %d height %d \n", vd->fmt.fmt.pix.width, vd->fmt.fmt.pix.height);
     vd->width = vd->fmt.fmt.pix.width;
     vd->height = vd->fmt.fmt.pix.height;
     /*
      * look the format is not part of the deal ???
      */
-    // vd->formatIn = vd->fmt.fmt.pix.pixelformat;
+    if (vd->formatIn != vd->fmt.fmt.pix.pixelformat) {
+        if (vd->formatIn == V4L2_PIX_FMT_MJPEG) {
+            fprintf(stderr, "The inpout device does not supports MJPEG mode\nYou may also try the YUV mode (-yuv option), but it requireses a lot of CPU power\n");
+            goto fatal;
+        } else if (vd->formatIn == V4L2_PIX_FMT_YUYV) {
+            fprintf(stderr, "The input device does not supports YUV mode\n");
+            goto fatal;
+        }
+    } else {
+        vd->formatIn = vd->fmt.fmt.pix.pixelformat;
+    }
   }
 
   /*

@@ -73,6 +73,7 @@ struct input_control{
     struct v4l2_queryctrl ctrl;
     int value;
     struct v4l2_querymenu *menuitems;
+    struct v4l2_capability cap;
 };
 
 /* structure to store variables/functions for input plugin */

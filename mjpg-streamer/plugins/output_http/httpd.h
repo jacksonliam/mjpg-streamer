@@ -80,43 +80,6 @@ static const struct {
   { ".json", "application/json" }
 };
 
-/*
- * mapping between command string and command type
- * it is used to find the command for a certain string
- */
-static const struct {
-  const char *string;
-  const in_cmd_type cmd;
-} in_cmd_mapping[] = {
-  { "reset", IN_CMD_RESET },
-  { "reset_pan_tilt", IN_CMD_RESET_PAN_TILT },
-  { "pan_set", IN_CMD_PAN_SET },
-  { "pan_plus", IN_CMD_PAN_PLUS },
-  { "pan_minus", IN_CMD_PAN_MINUS },
-  { "tilt_set", IN_CMD_TILT_SET },
-  { "tilt_plus", IN_CMD_TILT_PLUS },
-  { "tilt_minus", IN_CMD_TILT_MINUS },
-  { "saturation_plus", IN_CMD_SATURATION_PLUS },
-  { "saturation_minus", IN_CMD_SATURATION_MINUS },
-  { "contrast_plus", IN_CMD_CONTRAST_PLUS },
-  { "contrast_minus", IN_CMD_CONTRAST_MINUS },
-  { "brightness_plus", IN_CMD_BRIGHTNESS_PLUS },
-  { "brightness_minus", IN_CMD_BRIGHTNESS_MINUS },
-  { "gain_plus", IN_CMD_GAIN_PLUS },
-  { "gain_minus", IN_CMD_GAIN_MINUS },
-  { "focus_plus", IN_CMD_FOCUS_PLUS },
-  { "focus_minus", IN_CMD_FOCUS_MINUS },
-  { "focus_set", IN_CMD_FOCUS_SET },
-  { "led_on", IN_CMD_LED_ON },
-  { "led_off", IN_CMD_LED_OFF },
-  { "led_auto", IN_CMD_LED_AUTO },
-  { "led_blink", IN_CMD_LED_BLINK },
-  { "exposure_manual", IN_CMD_EXPOSURE_MANUAL },
-  { "exposure_auto", IN_CMD_EXPOSURE_AUTO },
-  { "exposure_shutter_prio", IN_CMD_EXPOSURE_SHUTTER_PRIO },
-  { "exposure_aperture_prio", IN_CMD_EXPOSURE_APERTURE_PRIO }
-};
-
 /* mapping between command string and command type */
 static const struct {
   const char *string;
@@ -135,7 +98,7 @@ static const struct {
 };
 
 /* the webserver determines between these values for an answer */
-typedef enum { A_UNKNOWN, A_SNAPSHOT, A_STREAM, A_COMMAND, A_FILE, A_JSON } answer_t;
+typedef enum { A_UNKNOWN, A_SNAPSHOT, A_STREAM, A_COMMAND,  A_FILE, A_JSON, A_INFO } answer_t;
 
 /*
  * the client sends information with each request
@@ -186,7 +149,7 @@ typedef struct {
 void *server_thread(void *arg);
 void send_error(int fd, int which, char *message);
 void send_JSON(int fd);
-
+void send_Info(int fd);
 
 
 

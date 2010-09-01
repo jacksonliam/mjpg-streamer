@@ -693,6 +693,8 @@ void *client_thread( void *arg ) {
     req.type = A_STREAM;
   } else if ( strstr(buffer, "GET /controls.json") != NULL ) {
     req.type = A_JSON;
+  } else if ( strstr(buffer, "GET /info.json") != NULL ) {
+    req.type = A_INFO;
   } else if ( strstr(buffer, "GET /?action=command") != NULL ) {
     int len;
     req.type = A_COMMAND;
@@ -1032,6 +1034,7 @@ void send_JSON(int fd)
                     }
                 }
             }
+
             sprintf(buffer + strlen(buffer),
                     "\t\t{\n"
                     "\t\t\t\"name\": \"%s\",\n"
@@ -1052,21 +1055,22 @@ void send_JSON(int fd)
                     pglobal->in.in_parameters[i].value
                     );
 
-                if (pglobal->in.in_parameters[i].ctrl.type == V4L2_CTRL_TYPE_MENU) {
-                    sprintf(buffer + strlen(buffer),
-                            ",\n"
-                            "\t\t\t\"menu\": {%s}\n"
-                            "\t\t}",
-                            menuString);
-                } else {
-                    sprintf(buffer + strlen(buffer),
-                            "\n"
-                            "\t\t}");
-                }
+            if (pglobal->in.in_parameters[i].ctrl.type == V4L2_CTRL_TYPE_MENU) {
+                sprintf(buffer + strlen(buffer),
+                        ",\n"
+                        "\t\t\t\"menu\": {%s}\n"
+                        "\t\t}",
+                        menuString);
+            } else {
+                sprintf(buffer + strlen(buffer),
+                        "\n"
+                        "\t\t}");
+            }
 
-                if (i != (pglobal->in.parametercount-1)) {
-                    sprintf(buffer + strlen(buffer), ",\n");
-                }
+            if (i != (pglobal->in.parametercount-1)) {
+                sprintf(buffer + strlen(buffer), ",\n");
+            }
+            free(menuString);
         }
     } else {
         DBG("The input plugin has no input paramters\n");
@@ -1082,7 +1086,22 @@ void send_JSON(int fd)
 	}
 }
 
+void send_Info(int fd)
+{
+    char buffer[BUFFER_SIZE*4] = {0}; // FIXME do reallocation if the buffer size is small
+	int i = 0;
+	sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
+                  "Content-type: %s\r\n" \
+                  STD_HEADER \
+                  "\r\n", "application/x-javascript");
 
+    DBG("Serving the info JSON file\n");
+
+	/* first transmit HTTP-header, afterwards transmit content of file */
+	if (write(fd, buffer, i) < 0 ) {
+		DBG("unable to serve the control JSON file\n");
+	}
+}
 
 
 
