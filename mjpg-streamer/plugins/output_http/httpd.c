@@ -1020,16 +1020,14 @@ void send_JSON(int fd)
             char *menuString = NULL;
             if(pglobal->in.in_parameters[i].ctrl.type == V4L2_CTRL_TYPE_MENU) {
                 if (pglobal->in.in_parameters[i].menuitems != NULL) {
-                    int j, k = 1, menuStringSize = 0;
+                    int j, k = 1;
                     for (j = pglobal->in.in_parameters[i].ctrl.minimum; j<=pglobal->in.in_parameters[i].ctrl.maximum; j++) {
-                        char itemStr[48]; // the v4l2_querymenu.name is 32 byte long + id + backslash and so on.
-                        sprintf(itemStr, "\"%d\": \"%s\"", j, (char*)&pglobal->in.in_parameters[i].menuitems[j].name);
-                        if (k != (pglobal->in.in_parameters[i].ctrl.maximum+1)) {
-                            sprintf(itemStr+strlen(itemStr), ", ");
-                        }
-                        menuString = (char*)realloc(menuString, (menuStringSize + strlen(itemStr)) * (sizeof(char)));
-                        sprintf(menuString + menuStringSize, "%s", itemStr);
-                        menuStringSize += strlen(itemStr);
+                        int prevSize = 0;
+                        if (menuString != NULL)
+                            prevSize = strlen(menuString);
+                        int itemLength = strlen((char*)&pglobal->in.in_parameters[i].menuitems[j].name)  + strlen("\"\": \"\", ");
+                        menuString = (char*)realloc(menuString, (prevSize + itemLength + 3) * (sizeof(char)));
+                        sprintf(menuString + prevSize, "\"%d\": \"%s\", ", j ,(char*)&pglobal->in.in_parameters[i].menuitems[j].name);
                         k++;
                     }
                 }
