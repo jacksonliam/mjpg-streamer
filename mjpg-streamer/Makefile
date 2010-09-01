@@ -30,6 +30,7 @@ APP_BINARY = mjpg_streamer
 # define the names and targets of the plugins
 PLUGINS = input_uvc.so
 PLUGINS += output_file.so
+PLUGINS += output_udp.so
 PLUGINS += output_http.so
 PLUGINS += input_testpicture.so
 PLUGINS += output_autofocus.so
@@ -79,6 +80,10 @@ output_http.so: mjpg_streamer.h utils.h
 	make -C plugins/output_http all
 	cp plugins/output_http/output_http.so .
 
+output_udp.so: mjpg_streamer.h utils.h
+	make -C plugins/output_udp all
+	cp plugins/output_udp/output_udp.so .
+
 input_gspcav1.so: mjpg_streamer.h utils.h
 	make -C plugins/input_gspcav1 all
 	cp plugins/input_gspcav1/input_gspcav1.so .
@@ -106,6 +111,7 @@ clean:
 	make -C plugins/input_testpicture $@
 	make -C plugins/output_file $@
 	make -C plugins/output_http $@
+	make -C plugins/output_udp $@
 	make -C plugins/output_autofocus $@
 	make -C plugins/input_gspcav1 $@
 	make -C plugins/output_viewer $@

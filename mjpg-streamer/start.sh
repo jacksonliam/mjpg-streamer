@@ -29,6 +29,8 @@ export LD_LIBRARY_PATH="$(pwd)"
 
 ./mjpg_streamer -i "./input_uvc.so" -o "./output_http.so -w ./www"
 
+#./mjpg_streamer -i "./input_uvc.so" -o "./output_udp.so -p 2001"
+
 ## pwd echos the current path you are working at,
 ## the backticks open a subshell to execute the command pwd first
 ## the exported variable name configures ldopen() to search a certain
