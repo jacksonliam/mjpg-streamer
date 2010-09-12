@@ -1,15 +1,30 @@
 <html>
   <head>
+    <script type="text/javascript" src="jquery.js"></script>
+    
+	<link type="text/css" href="jquery.ui.custom.css" rel="stylesheet" />
+    <script type="text/javascript" src="jquery.ui.core.min.js"></script>    
+    <script type="text/javascript" src="jquery.ui.widget.min.js"></script>    
+    <script type="text/javascript" src="jquery.ui.tabs.min.js"></script>    
+            
     <link type="text/css" rel="stylesheet" href="JQuerySpinBtn.css" />
-	  <script type="text/javascript" src="jquery.js"></script>
-    <script type="text/javascript" src="JQuerySpinBtn.js"></script>
+    <script type="text/javascript" src="JQuerySpinBtn.js"></script>    
+    
+	<script type="text/javascript">
+	$(function() {
+		$("#tabs").tabs();
+	});
+	
+	$(document).ready(function() {
+		top.resizeTo($(window).width(), $(document).height() + (top.outerHeight - $(window).height()));
+	});
+	</script>
+
   </head>
   <body>
-  	<table id="control"></table>
-    </div>
     <script type="text/javascript"> 
-        function setControl(controlId, value) {
-          $.get('/?action=command&command='+ controlId + '&value=' + value);
+		function setControl(controlId, value) {
+          $.get('/?action=command&command='+ controlId + '&value=' + value  + '&type=0');
         }
 
         function setControl_bool(controlId, value) {
@@ -24,7 +39,13 @@
             alert("The input string has to be least"+minlength+" caracters!");
             return;
           }
-          $.get('/?action=command&command='+ controlId + '&value=' + value, function(data){
+          $.get('/?action=command&command='+ controlId + '&value=' + value + '&type=0', function(data){
+             alert("Data Loaded: " + data);
+           });
+        }
+        
+        function setResolution(id) {
+			$.get('/?action=command&command=0&value=' + id + '&type=1', function(data){
              alert("Data Loaded: " + data);
            });
         }
@@ -34,7 +55,6 @@
           function(data) {
             $.each(data.controls, function(i,item){
               $("<tr/>").attr("id", "tr-"+item.id).appendTo("#control");
-
               // BUTTON type controls does not have a label 
               if (item.type == 4) {
                 $("<td/>").appendTo("#tr-"+item.id);
@@ -110,6 +130,45 @@
             $("<td/>").attr("id", "td-status").appendTo("#tr-status");
           }
         );
+        
+        $.getJSON("info.json",
+          function(data) {
+          	$.each(data.formats, function(i,item){
+          	  if (item.current == "true") {
+          	  $("<select/>")
+                  .attr("id", "select-resolution")
+                  .attr("style", "width: 100%;")
+                  .change(function(){setResolution($(this).val());})
+                  .appendTo("#resolutions");
+           	    $.each(item.resolutions, function(val,res){
+           	    	if (item.currentResolution == val) {
+                      $("#select-resolution").append($('<option></option>').attr("selected", "selected").val(val).html(res));
+                    } else {
+                      $("#select-resolution").append($('<option></option>').val(val).html(res));
+                    }
+           	    });
+          	  }
+          	});
+          });
     </script>
+    <div id="all">
+    <div id="tabs">
+	<ul>
+		<li><a href="#tabs-controls">Controls</a></li>
+		<li><a href="#tabs-resolution">Resolution</a></li>
+	</ul>
+	<div id="tabs-controls">
+		<table id="control"></table>
+	</div>
+	<div id="tabs-resolution">
+		<table id="resolution">
+			<tr>
+				<td>Resolution - Currently broken</td>
+				<td id="resolutions"></td>
+			</tr>			
+		</table>
+	</div>
+  </div>
+  </div>
   </body>
 </html>

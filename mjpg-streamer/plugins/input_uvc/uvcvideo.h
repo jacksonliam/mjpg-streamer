@@ -28,6 +28,16 @@
 #include <linux/kernel.h>
 #include <linux/videodev.h>
 
+#ifdef USE_LIBV4L2
+#include <libv4l2.h>
+#define IOCTL_VIDEO(fd, req, value) v4l2_ioctl(fd, req, value)
+#define OPEN_VIDEO(fd, flags) v4l2_open(fd, flags)
+#else
+#define IOCTL_VIDEO(fd, req, value) ioctl(fd, req, value)
+#define OPEN_VIDEO(fd, flags) open(fd, flags)
+
+#endif
+
 /* Compatibility */
 #include "uvc_compat.h"
 

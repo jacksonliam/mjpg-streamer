@@ -5,9 +5,20 @@
     <title>MJPG-streamer</title>
     <meta http-equiv="content-type" content="text/html; charset=iso-8859-1" />
     <link rel="stylesheet" href="style.css" type="text/css" />
+    <<!--<script type="text/javascript" src="jquery.js"></script>    
+    <script type="text/javascript" src="jquery.rotate.js"></script>    -->
     <!--[if IE 6]>
     <link rel="stylesheet" href="fix.css" type="text/css" />
     <![endif]-->
+    
+    <script type="text/javascript">
+    $(document).ready(function() {
+		$('#rotatebutton').click(function() {
+	  		$('#streamimage').rotateLeft();
+	  		$('#streamimage').attr("src", "/?action=stream");
+		});
+	});
+	</script>
   </head>
 
   <body>
@@ -39,8 +50,9 @@
       <h3>Source snippet</h3>
       <p><pre>&lt;img src="/?action=stream" /&gt;</pre></p>
 
-      <img src="/?action=stream" width="512px" height="384px" />
-
+      <img id="streamimage" src="/?action=stream" />
+	 <!--<button id="rotatebutton" type="button">Rotate</button>-->
+	
       <p>&copy; The <a href="http://mjpg-streamer.sf.net">MJPG-streamer team</a> | Design by <a href="http://andreasviklund.com">Andreas Viklund</a></p>
     </div>
   </body>

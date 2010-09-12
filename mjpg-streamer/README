@@ -19,6 +19,15 @@ To compile and start the tool:
 # export LD_LIBRARY_PATH=.
 # ./mjpg_streamer -o "output_http.so -w ./www"
 
+If you have libv4l2 library you could compile it using it. 
+There are some cameras which has extra controls using it, and you can set extra resolutions.
+# tar xzvf mjpg-streamer.tgz
+# cd mjpg-streamer
+# make USE_LIBV4L2=true clean all
+# export LD_LIBRARY_PATH=.
+# ./mjpg_streamer -o "output_http.so -w ./www"
+
+
 More examples can be found in the start.sh bash script.
 
 In case of error:

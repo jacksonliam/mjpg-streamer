@@ -138,7 +138,7 @@ void initDynCtrls(int dev) {
   for ( i=0; i<LENGTH_OF(xu_ctrls); i++ ) {
     DBG("adding control for %d\n", i);
     errno=0;
-    if ( (err=ioctl(dev, UVCIOC_CTRL_ADD, &xu_ctrls[i])) < 0 ) {
+    if ( (err=IOCTL_VIDEO(dev, UVCIOC_CTRL_ADD, &xu_ctrls[i])) < 0 ) {
       if ( errno != EEXIST ) {
         DBG("uvcioc ctrl add error: errno=%d (retval=%d)\n", errno, err);
       } else {
@@ -151,7 +151,7 @@ void initDynCtrls(int dev) {
   for ( i=0; i<LENGTH_OF(xu_mappings); i++ ) {
     DBG("mapping controls for %s\n", xu_mappings[i].name);
     errno=0;
-    if ((err=ioctl(dev, UVCIOC_CTRL_MAP, &xu_mappings[i])) < 0) {
+    if ((err=IOCTL_VIDEO(dev, UVCIOC_CTRL_MAP, &xu_mappings[i])) < 0) {
       if (errno != EEXIST) {
         DBG("uvcioc ctrl map error: errno=%d (retval=%d)\n", errno, err);
       } else {
@@ -189,7 +189,7 @@ int uvcPanTilt(int dev, int pan, int tilt, int reset) {
     ctrls.controls = xctrls;
   }
 
-  if ( ioctl(dev, VIDIOC_S_EXT_CTRLS, &ctrls) < 0 ) {
+  if ( IOCTL_VIDEO(dev, VIDIOC_S_EXT_CTRLS, &ctrls) < 0 ) {
     return -1;
   }
 

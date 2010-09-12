@@ -64,9 +64,16 @@ input_testpicture.so: mjpg_streamer.h utils.h
 	make -C plugins/input_testpicture all
 	cp plugins/input_testpicture/input_testpicture.so .
 
+
+ifeq ($(USE_LIBV4L2),true)
+input_uvc.so: mjpg_streamer.h utils.h
+	make -C plugins/input_uvc USE_LIBV4L2=true all
+	cp plugins/input_uvc/input_uvc.so .
+else
 input_uvc.so: mjpg_streamer.h utils.h
 	make -C plugins/input_uvc all
 	cp plugins/input_uvc/input_uvc.so .
+endif
 
 input_control.so: mjpg_streamer.h utils.h
 	make -C plugins/input_control all

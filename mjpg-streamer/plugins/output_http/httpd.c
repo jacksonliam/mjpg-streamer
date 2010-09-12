@@ -484,9 +484,20 @@ void send_file(int id, int fd, char *parameter) {
     parameter = "index.html";
 
   /* find file-extension */
-  if ( (extension = strstr(parameter, ".")) == NULL ) {
+  char * pch;
+  pch=strchr(parameter,'.');
+  int lastDot = 0;
+  while (pch!=NULL) {
+      lastDot = pch-parameter;
+    pch=strchr(pch+1,'.');
+  }
+
+  if (lastDot == 0) {
     send_error(fd, 400, "No file extension found");
     return;
+  } else {
+    extension = parameter+lastDot;
+    DBG("%s EXTENSION: %s\n", parameter, extension);
   }
 
   /* determine mime-type */
@@ -584,7 +595,7 @@ void command(int id, int fd, char *parameter) {
   }
 
   command_id = MAX(MIN(strtol(svalue, NULL, 10), INT_MAX), INT_MIN);
-  DBG(stderr, "command string: %s converted to int = %d\n", command, command_id);
+  DBG("command string: %s converted to int = %d\n", command, command_id);
 
   /* find and convert optional parameter "value" */
   if ( (value = strstr(parameter, "value=")) != NULL ) {
@@ -597,7 +608,21 @@ void command(int id, int fd, char *parameter) {
       return;
     }
     ivalue = MAX(MIN(strtol(svalue, NULL, 10), INT_MAX), INT_MIN);
-    DBG(stderr, "converted value form string %s to integer %d\n", svalue, ivalue);
+    DBG("converted value form string %s to integer %d\n", svalue, ivalue);
+  }
+
+  int typecode = -1;
+  if ( (value = strstr(parameter, "type=")) != NULL ) {
+    value += strlen("type=");
+    len = strspn(value, "-1234567890");
+    if ( (svalue = strndup(value, len)) == NULL ) {
+      if (command != NULL) free(command);
+      send_error(fd, 500, "could not allocate memory");
+      LOG("could not allocate memory\n");
+      return;
+    }
+    typecode = MAX(MIN(strtol(svalue, NULL, 10), INT_MAX), INT_MIN);
+    DBG("Type value converted value form string %s to integer %d\n", svalue, typecode);
   }
 
   /*
@@ -633,7 +658,7 @@ void command(int id, int fd, char *parameter) {
     }
   }*/
 
-  res = pglobal->in.cmd_new(command_id, ivalue);
+  res = pglobal->in.cmd_new(command_id, ivalue, typecode);
   /* Send HTTP-response */
   sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
                   "Content-type: text/plain\r\n" \
@@ -726,7 +751,7 @@ void *client_thread( void *arg ) {
       return NULL;
     }
 
-    DBG(stderr, "command parameter (len: %d): \"%s\"\n", len, req.parameter);
+    DBG("command parameter (len: %d): \"%s\"\n", len, req.parameter);
   } else {
     int len;
 
@@ -811,6 +836,10 @@ void *client_thread( void *arg ) {
 		DBG("Request for parameres JSON file\n");
 		send_JSON(lcfd.fd);
 		break;
+    case A_INFO:
+    	DBG("Request for info JSON file\n");
+    	send_Info(lcfd.fd);
+    	break;
     case A_FILE:
       if ( lcfd.pc->conf.www_folder == NULL )
         send_error(lcfd.fd, 501, "no www-folder configured");
@@ -1017,16 +1046,14 @@ void send_JSON(int fd)
             "\t\"controls\": [\n");
     if (pglobal->in.in_parameters != NULL) {
         for(i = 0; i < pglobal->in.parametercount; i++) {
-            char *menuString = NULL;
+            char *menuString = calloc(0,0);
             if(pglobal->in.in_parameters[i].ctrl.type == V4L2_CTRL_TYPE_MENU) {
                 if (pglobal->in.in_parameters[i].menuitems != NULL) {
                     int j, k = 1;
                     for (j = pglobal->in.in_parameters[i].ctrl.minimum; j<=pglobal->in.in_parameters[i].ctrl.maximum; j++) {
-                        int prevSize = 0;
-                        if (menuString != NULL)
-                            prevSize = strlen(menuString);
+                        int prevSize = strlen(menuString);
                         int itemLength = strlen((char*)&pglobal->in.in_parameters[i].menuitems[j].name)  + strlen("\"\": \"\", ");
-                        menuString = (char*)realloc(menuString, (prevSize + itemLength + 3) * (sizeof(char)));
+                        menuString = realloc(menuString, (prevSize + itemLength + 3) * (sizeof(char)));
                         sprintf(menuString + prevSize, "\"%d\": \"%s\", ", j ,(char*)&pglobal->in.in_parameters[i].menuitems[j].name);
                         k++;
                     }
@@ -1095,6 +1122,80 @@ void send_Info(int fd)
 
     DBG("Serving the info JSON file\n");
 
+     sprintf(buffer + strlen(buffer),
+            "{\n"
+            "\t\"formats\": [\n");
+    if (pglobal->in.in_formats!= NULL) {
+        for(i = 0; i < pglobal->in.formatCount; i++) {
+            char *resolutionsString = calloc(0, 0);
+            int resolutionsStringLength = 0;
+            int j = 0;
+            for (j = 0; j<pglobal->in.in_formats[i].resolutionCount; j++) {
+                char buffer_num[6];
+                memset(buffer_num, '\0', 6);
+                // JSON format example:
+                // {"0": "320x240", "1": "640x480", "2": "960x720"}
+                sprintf(buffer_num, "%d", j);
+                resolutionsStringLength += strlen(buffer_num);
+                sprintf(buffer_num, "%d", pglobal->in.in_formats[i].supportedResolutions[j].width);
+                resolutionsStringLength += strlen(buffer_num);
+                sprintf(buffer_num, "%d", pglobal->in.in_formats[i].supportedResolutions[j].height);
+                resolutionsStringLength += strlen(buffer_num);
+                resolutionsString = realloc(resolutionsString, resolutionsStringLength * sizeof(char*));
+                if (j != (pglobal->in.in_formats[i].resolutionCount - 1)) {
+                    resolutionsStringLength += strlen("\"\": \"x\", ");
+                    sprintf(resolutionsString + strlen(resolutionsString),
+                            "\"%d\": \"%dx%d\", ",
+                            j,
+                            pglobal->in.in_formats[i].supportedResolutions[j].width,
+                            pglobal->in.in_formats[i].supportedResolutions[j].height);
+                } else {
+                    resolutionsStringLength += strlen("\"\": \"x\"");
+                    sprintf(resolutionsString + strlen(resolutionsString),
+                            "\"%d\": \"%dx%d\"",
+                            j,
+                            pglobal->in.in_formats[i].supportedResolutions[j].width,
+                            pglobal->in.in_formats[i].supportedResolutions[j].height);
+                }
+            }
+
+            sprintf(buffer + strlen(buffer),
+                    "\t\t{\n"
+                    "\t\t\t\"id\": \"%d\",\n"
+                    "\t\t\t\"name\": \"%s\",\n"
+                    "\t\t\t\"compressed\": \"%s\",\n"
+                    "\t\t\t\"emulated\": \"%s\",\n"
+                    "\t\t\t\"current\": \"%s\",\n"
+                    "\t\t\t\"resolutions\": {%s}"
+                    ,
+                    pglobal->in.in_formats[i].format.index,
+                    pglobal->in.in_formats[i].format.description,
+                    pglobal->in.in_formats[i].format.flags&V4L2_FMT_FLAG_COMPRESSED?"true":"false",
+                    pglobal->in.in_formats[i].format.flags&V4L2_FMT_FLAG_EMULATED?"true":"false",
+                    pglobal->in.in_formats[i].currentResolution!=-1?"true":"false",
+                    resolutionsString
+                    );
+
+            if (pglobal->in.in_formats[i].currentResolution!=-1) {
+                sprintf(buffer + strlen(buffer),
+                    ",\n\t\t\t\"currentResolution\": \"%d\"\n",
+                    pglobal->in.in_formats[i].currentResolution
+                    );
+            }
+
+            if (i != (pglobal->in.formatCount - 1)) {
+                sprintf(buffer + strlen(buffer), "\t\t},\n");
+            } else {
+                sprintf(buffer + strlen(buffer), "\t\t}\n");
+            }
+
+            free(resolutionsString);
+        }
+    }
+    sprintf(buffer + strlen(buffer),
+            "\n\t]\n"
+            "}\n");
+    i = strlen(buffer);
 	/* first transmit HTTP-header, afterwards transmit content of file */
 	if (write(fd, buffer, i) < 0 ) {
 		DBG("unable to serve the control JSON file\n");

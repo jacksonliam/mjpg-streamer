@@ -81,7 +81,7 @@ void *cam_thread( void *);
 void cam_cleanup(void *);
 void help(void);
 int input_cmd(in_cmd_type, int);
-int input_cmd_new(__u32 control, __s32 value);
+int input_cmd_new(__u32 control, __s32 value, __u32 typecode);
 
 
 /*** plugin interface functions ***/
@@ -618,7 +618,7 @@ int input_cmd(in_cmd_type cmd, int value) {
       /*{ struct v4l2_control control;
       control.id    =V4L2_CID_EXPOSURE_AUTO_PRIORITY;
 					control.value =0;
-					if ((value = ioctl(videoIn->fd, VIDIOC_S_CTRL, &control)) < 0)
+					if ((value = IOCTL_VIDEO(videoIn->fd, VIDIOC_S_CTRL, &control)) < 0)
 						printf("Set Auto Exposure off error\n");
 					else
 						printf("11Auto Exposure set to %d\n", control.value);
@@ -633,7 +633,7 @@ int input_cmd(in_cmd_type cmd, int value) {
     /*  { struct v4l2_control control;
       control.id    =V4L2_CID_EXPOSURE_AUTO;
 					control.value =1;
-					if ((value = ioctl(videoIn->fd, VIDIOC_S_CTRL, &control)) < 0)
+					if ((value = IOCTL_VIDEO(videoIn->fd, VIDIOC_S_CTRL, &control)) < 0)
 						printf("Set Auto Exposure on error\n");
 					else
 						printf("22Auto Exposure set to %d\n", control.value);
@@ -709,6 +709,10 @@ void *cam_thread( void *arg ) {
   pthread_cleanup_push(cam_cleanup, NULL);
 
   while( !pglobal->stop ) {
+
+    while (videoIn->streamingState == STREAMING_PAUSED) {
+        usleep(1); // maybe not the best and FIXME
+    }
 
     /* grab a frame */
     if( uvcGrab(videoIn) < 0 ) {
@@ -807,20 +811,39 @@ Input Value.: * control specifies the selected v4l2 control's id
 Return Value: depends in the command, for most cases 0 means no errors and
               -1 signals an error. This is just rule of thumb, not more!
 ******************************************************************************/
-int input_cmd_new(__u32 control, __s32 value)
+int input_cmd_new(__u32 control, __s32 value, __u32 typecode)
 {
     int ret = -1;
     int i = 0;
-    for (i = 0; i<pglobal->in.parametercount; i++) {
-        if (pglobal->in.in_parameters[i].ctrl.id == control) {
-            DBG(stderr, "found the requested control: %s\n", pglobal->in.in_parameters[i].ctrl.name);
-            ret = v4l2SetControl(videoIn, control, value);
-            if (ret != -1) {
-                pglobal->in.in_parameters[i].value = value;
-                return ret;
+    DBG("Requested cmd: %d, type: %d value: %d\n", control, typecode, value);
+    switch (typecode) {
+        case IN_CMD_V4l2: {
+            for (i = 0; i<pglobal->in.parametercount; i++) {
+                if (pglobal->in.in_parameters[i].ctrl.id == control) {
+                    DBG("Found the requested control: %s\n", pglobal->in.in_parameters[i].ctrl.name);
+                    ret = v4l2SetControl(videoIn, control, value);
+                    if (ret == 0) {
+                        pglobal->in.in_parameters[i].value = value;
+                    }
+                    return ret;
+                    break;
+                }
             }
-            break;
-        }
+        } break;
+        case IN_CMD_RESOLUTION: {
+            // the value points to the current formats nth resolution
+            if (value > (pglobal->in.in_formats[pglobal->in.currentFormat].resolutionCount -1)) {
+                DBG("The value is out of range");
+                return -1;
+            }
+            int height = pglobal->in.in_formats[pglobal->in.currentFormat].supportedResolutions[value].height;
+            int width = pglobal->in.in_formats[pglobal->in.currentFormat].supportedResolutions[value].width;
+            ret = setResolution(videoIn, width, height);
+            if (ret == 0) {
+                pglobal->in.in_formats[pglobal->in.currentFormat].currentResolution = value;
+            }
+            return ret;
+        } break;
     }
     return ret;
 }

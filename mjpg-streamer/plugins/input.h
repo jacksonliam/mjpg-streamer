@@ -36,7 +36,9 @@ struct _input_parameter {
 /* commands which can be send to the input plugin */
 typedef enum _in_cmd_type in_cmd_type;
 enum _in_cmd_type {
-  IN_CMD_UNKNOWN = 0,
+    IN_CMD_V4l2 = 0,
+    IN_CMD_RESOLUTION = 1,
+  IN_CMD_UNKNOWN,
   IN_CMD_HELLO,
   IN_CMD_RESET,
   IN_CMD_RESET_PAN_TILT,
@@ -68,12 +70,26 @@ enum _in_cmd_type {
   IN_CMD_EXPOSURE_APERTURE_PRIO
 };
 
-//typedef struct _input_control input_control;
-struct input_control{
+typedef struct _input_control input_control;
+struct _input_control {
     struct v4l2_queryctrl ctrl;
     int value;
     struct v4l2_querymenu *menuitems;
     struct v4l2_capability cap;
+};
+
+typedef struct _input_resolution input_resolution;
+struct _input_resolution {
+    unsigned int width;
+    unsigned int height;
+};
+
+typedef struct _input_format input_format;
+struct _input_format {
+    struct v4l2_fmtdesc format;
+    input_resolution *supportedResolutions;
+    int resolutionCount;
+    char currentResolution;
 };
 
 /* structure to store variables/functions for input plugin */
@@ -82,12 +98,16 @@ struct _input {
   char *plugin;
   void *handle;
   input_parameter param;
-  struct input_control *in_parameters;
+  input_control *in_parameters;
   int parametercount;
+
+  input_format *in_formats;
+  int formatCount;
+  int currentFormat; // holds the current format number
 
     int (*init)(input_parameter *);
     int (*stop)(void);
     int (*run)(void);
     int (*cmd)(int , int);
-    int (*cmd_new)(__u32, __s32);
+    int (*cmd_new)(__u32, __s32, __u32);
 };
