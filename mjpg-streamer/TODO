@@ -1,0 +1,15 @@
+TODO list:
+
+Core:
+Add support for runtime resolution change (WIP but broken)
+Implement changing the JPG compression rate using VIDIOC_S_JPEGCOMP
+Put capture timestamp to the EXIF data
+Save and load the configuration from a file. 
+
+Plugins:
+Create UDP based streaming plugin
+Create stream from desktop plugin
+
+WWW:
+Add simple image transformation commands to the webpage (mirror, rotate using jquery) WIP but broken
+

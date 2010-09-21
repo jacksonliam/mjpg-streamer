@@ -105,7 +105,7 @@ int init_videoIn(struct vdIn *vd, char *device, int width,
     if (IOCTL_VIDEO(vd->fd, VIDIOC_G_FMT, &currentFormat) == 0) {
         currentWidth = currentFormat.fmt.pix.width;
         currentHeight = currentFormat.fmt.pix.height;
-        DBG("%Current size: dx%d\n", currentWidth, currentHeight);
+        DBG("Current size: %dx%d\n", currentWidth, currentHeight);
     }
 
     pglobal->in.in_formats = malloc(0 * sizeof(struct v4l2_fmtdesc));
@@ -181,7 +181,7 @@ error:
   free(vd->videodevice);
   free(vd->status);
   free(vd->pictName);
-  close(vd->fd);
+  CLOSE_VIDEO(vd->fd);
   return -1;
 }
 
@@ -192,6 +192,7 @@ static int init_v4l2(struct vdIn *vd)
 
   if ((vd->fd = OPEN_VIDEO(vd->videodevice, O_RDWR)) == -1) {
     perror("ERROR opening V4L interface");
+    DBG("errno: %d", errno);
     return -1;
   }
 
@@ -231,13 +232,13 @@ static int init_v4l2(struct vdIn *vd)
   vd->fmt.fmt.pix.field = V4L2_FIELD_ANY;
   ret = IOCTL_VIDEO(vd->fd, VIDIOC_S_FMT, &vd->fmt);
   if (ret < 0) {
-    fprintf(stderr, "Unable to set format: %d res: %dx%d", vd->formatIn, vd->width, vd->height);
+    fprintf(stderr, "Unable to set format: %d res: %dx%d\n", vd->formatIn, vd->width, vd->height);
     goto fatal;
   }
 
   if ((vd->fmt.fmt.pix.width != vd->width) ||
       (vd->fmt.fmt.pix.height != vd->height)) {
-    fprintf(stderr, "i: The format asked unavailable, so the  width %d height %d \n", vd->fmt.fmt.pix.width, vd->fmt.fmt.pix.height);
+    fprintf(stderr, "i: The format asked unavailable, so the width %d height %d \n", vd->fmt.fmt.pix.width, vd->fmt.fmt.pix.height);
     vd->width = vd->fmt.fmt.pix.width;
     vd->height = vd->fmt.fmt.pix.height;
     /*
@@ -299,7 +300,7 @@ static int init_v4l2(struct vdIn *vd)
       fprintf(stderr, "length: %u offset: %u\n", vd->buf.length, vd->buf.m.offset);
 
     vd->mem[i] = mmap(0 /* start anywhere */ ,
-                      vd->buf.length, PROT_READ, MAP_SHARED, vd->fd,
+                      vd->buf.length, PROT_READ | PROT_WRITE, MAP_SHARED, vd->fd,
                       vd->buf.m.offset);
     if (vd->mem[i] == MAP_FAILED) {
       perror("Unable to map buffer");
@@ -615,48 +616,38 @@ void control_readed(struct vdIn *vd,struct v4l2_queryctrl *ctrl, globals *pgloba
     }
 };
 
-
+/*  It should set the capture resolution
+    Cheated from the openCV cap_libv4l.cpp the method is the following:
+    Turn off the stream (video_disable)
+    Unmap buffers
+    Close the filedescriptor
+    Initialize the camera again with the new resolution
+*/
 int setResolution(struct vdIn *vd, int width, int height)
 {
     int ret;
     DBG("setResolution(%d, %d)\n", width, height);
 
     vd->streamingState = STREAMING_PAUSED;
-    if (video_disable(vd, STREAMING_PAUSED) == 0) {
-        ret = IOCTL_VIDEO(vd->fd, VIDIOC_G_FMT, &vd->fmt);
-        if (ret != 0) {
-            DBG("Unable to get current format\n");
-            return ret;
-        } else {
-            DBG("Current size: %d, %d)\n", vd->fmt.fmt.pix.width, vd->fmt.fmt.pix.height);
+    if (video_disable(vd, STREAMING_PAUSED) == 0) { // do streamoff
+        DBG("Unmap buffers\n");
+        int i;
+        for (i = 0; i < NB_BUFFER; i++)
+            munmap (vd->mem[i], vd->buf.length);
+
+        if(CLOSE_VIDEO(vd->fd) == 0) {
+            DBG("Device closed successfully\n");
         }
 
-        vd->fmt.fmt.pix.width = width;
-        vd->fmt.fmt.pix.height = height;
-        ret = IOCTL_VIDEO(vd->fd, VIDIOC_S_FMT, &vd->fmt);
-
-        if (ret != 0) {
-            DBG("Unable to set the new format code: %d errno: %d\n", ret, errno);
-            if (errno == EBUSY)
-                DBG("EBUSY: IO is in progress\n");
-        } else {
-            DBG("New resolution is successfully applied\n");
-        }
-
-        if (video_enable(vd) == 0) {
-            DBG("Streaming on again\n");
-            memset(&vd->rb, 0, sizeof(struct v4l2_requestbuffers));
-            vd->rb.count = NB_BUFFER;
-            vd->rb.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-            vd->rb.memory = V4L2_MEMORY_MMAP;
-
-            ret = IOCTL_VIDEO(vd->fd, VIDIOC_REQBUFS, &vd->rb);
-            if (ret < 0) {
-                perror("Unable to reallocate buffers");
-            }
-        } else {
-            DBG("Unable to reenable streaming\n");
+        vd->width = width;
+        vd->height = height;
+        if (init_v4l2 (vd) < 0) {
+            fprintf (stderr, " Init v4L2 failed !! exit fatal \n");
             return -1;
+        } else {
+            DBG("reinit done\n");
+            video_enable(vd);
+            return 0;
         }
     } else {
         DBG("Unable to disable streaming\n");

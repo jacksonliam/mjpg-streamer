@@ -764,11 +764,13 @@ void *cam_thread( void *arg ) {
     pthread_cond_broadcast(&pglobal->db_update);
     pthread_mutex_unlock( &pglobal->db );
 
-    DBG("waiting for next frame\n");
 
     /* only use usleep if the fps is below 5, otherwise the overhead is too long */
     if ( videoIn->fps < 5 ) {
+        DBG("waiting for next frame for %d us\n", 1000*1000/videoIn->fps);
       usleep(1000*1000/videoIn->fps);
+    } else {
+        DBG("waiting for next frame\n");
     }
   }
 

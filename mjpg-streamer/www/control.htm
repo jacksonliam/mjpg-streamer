@@ -45,8 +45,13 @@
         }
         
         function setResolution(id) {
+        	$("#statustd").text("");
 			$.get('/?action=command&command=0&value=' + id + '&type=1', function(data){
-             alert("Data Loaded: " + data);
+             if (data == 0) {
+             	$("#statustd").text("Success");
+             } else {
+             	$("#statustd").text("Error: " + data);
+             }
            });
         }
 
@@ -163,9 +168,13 @@
 	<div id="tabs-resolution">
 		<table id="resolution">
 			<tr>
-				<td>Resolution - Currently broken</td>
+				<td>Resolution</td>
 				<td id="resolutions"></td>
 			</tr>			
+			<tr>
+				<td>Status:</td>
+				<td id="statustd"></td>
+			</tr>						
 		</table>
 	</div>
   </div>

@@ -1170,8 +1170,12 @@ void send_Info(int fd)
                     ,
                     pglobal->in.in_formats[i].format.index,
                     pglobal->in.in_formats[i].format.description,
+#ifdef V4L2_FMT_FLAG_COMPRESSED
                     pglobal->in.in_formats[i].format.flags&V4L2_FMT_FLAG_COMPRESSED?"true":"false",
+#endif
+#ifdef V4L2_FMT_FLAG_EMULATED
                     pglobal->in.in_formats[i].format.flags&V4L2_FMT_FLAG_EMULATED?"true":"false",
+#endif
                     pglobal->in.in_formats[i].currentResolution!=-1?"true":"false",
                     resolutionsString
                     );

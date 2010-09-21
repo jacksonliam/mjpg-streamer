@@ -5,18 +5,21 @@
     <title>MJPG-streamer</title>
     <meta http-equiv="content-type" content="text/html; charset=iso-8859-1" />
     <link rel="stylesheet" href="style.css" type="text/css" />
-    <<!--<script type="text/javascript" src="jquery.js"></script>    
-    <script type="text/javascript" src="jquery.rotate.js"></script>    -->
+    <script type="text/javascript" src="jquery.js"></script>    
+    <script type="text/javascript" src="jquery.rotate.js"></script>
     <!--[if IE 6]>
     <link rel="stylesheet" href="fix.css" type="text/css" />
     <![endif]-->
     
     <script type="text/javascript">
     $(document).ready(function() {
-		$('#rotatebutton').click(function() {
+		$('#rotateleft').click(function() {
 	  		$('#streamimage').rotateLeft();
-	  		$('#streamimage').attr("src", "/?action=stream");
 		});
+
+		$('#rotateright').click(function() {
+	  		$('#streamimage').rotateRight();
+		});		
 	});
 	</script>
   </head>
@@ -51,8 +54,8 @@
       <p><pre>&lt;img src="/?action=stream" /&gt;</pre></p>
 
       <img id="streamimage" src="/?action=stream" />
-	 <!--<button id="rotatebutton" type="button">Rotate</button>-->
-	
+	 <button id="rotateleft" type="button">Rotate left</button>
+	 <button id="rotateright" type="button">Rotate right</button>
       <p>&copy; The <a href="http://mjpg-streamer.sf.net">MJPG-streamer team</a> | Design by <a href="http://andreasviklund.com">Andreas Viklund</a></p>
     </div>
   </body>
