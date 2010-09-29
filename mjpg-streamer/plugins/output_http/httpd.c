@@ -1163,8 +1163,12 @@ void send_Info(int fd)
                     "\t\t{\n"
                     "\t\t\t\"id\": \"%d\",\n"
                     "\t\t\t\"name\": \"%s\",\n"
+#ifdef V4L2_FMT_FLAG_COMPRESSED
                     "\t\t\t\"compressed\": \"%s\",\n"
+#endif
+#ifdef V4L2_FMT_FLAG_EMULATED
                     "\t\t\t\"emulated\": \"%s\",\n"
+#endif
                     "\t\t\t\"current\": \"%s\",\n"
                     "\t\t\t\"resolutions\": {%s}"
                     ,

@@ -14,11 +14,26 @@
     <script type="text/javascript">
     $(document).ready(function() {
 		$('#rotateleft').click(function() {
-	  		$('#streamimage').rotateLeft();
+			$('#streamimage').addClass('image-rotated-right');
 		});
 
 		$('#rotateright').click(function() {
-	  		$('#streamimage').rotateRight();
+			$('#streamimage').addClass('image-rotated-left');
+		});	
+
+		$('#rotatenormal').click(function() {
+			$('#streamimage').removeClass('image-rotated-left');	
+			$('#streamimage').removeClass('image-rotated-right');
+			$('#streamimage').removeClass('image-mirrored');							
+			$('#streamimage').addClass('image-rotated-normal');
+		});			
+				
+		$('#mirror').click(function() {
+			if($('#mirror').attr('checked')) {
+				$('#streamimage').addClass('image-mirrored');
+			} else {
+				$('#streamimage').removeClass('image-mirrored');
+			}
 		});		
 	});
 	</script>
@@ -54,8 +69,10 @@
       <p><pre>&lt;img src="/?action=stream" /&gt;</pre></p>
 
       <img id="streamimage" src="/?action=stream" />
-	 <button id="rotateleft" type="button">Rotate left</button>
-	 <button id="rotateright" type="button">Rotate right</button>
+<!---	 <button id="rotateleft" type="button">Rotate left</button>
+	 <button id="rotatenormal" type="button">Normal position</button>	 
+	 <button id="rotateright" type="button">Rotate right</button> --->
+ 	 <input type="checkbox" id="mirror">Mirror image</input>
       <p>&copy; The <a href="http://mjpg-streamer.sf.net">MJPG-streamer team</a> | Design by <a href="http://andreasviklund.com">Andreas Viklund</a></p>
     </div>
   </body>
