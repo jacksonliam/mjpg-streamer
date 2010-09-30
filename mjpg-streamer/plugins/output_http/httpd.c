@@ -608,7 +608,7 @@ void command(int id, int fd, char *parameter) {
       return;
     }
     ivalue = MAX(MIN(strtol(svalue, NULL, 10), INT_MAX), INT_MIN);
-    DBG("converted value form string %s to integer %d\n", svalue, ivalue);
+    DBG("The command value converted value form string %s to integer %d\n", svalue, ivalue);
   }
 
   int typecode = -1;
@@ -622,43 +622,35 @@ void command(int id, int fd, char *parameter) {
       return;
     }
     typecode = MAX(MIN(strtol(svalue, NULL, 10), INT_MAX), INT_MIN);
-    DBG("Type value converted value form string %s to integer %d\n", svalue, typecode);
+    DBG("The command type value converted value form string %s to integer %d\n", svalue, typecode);
   }
 
-  /*
-   * determine command, try the input command-mappings first
-   * this is the interface to send commands to the input plugin.
-   * if the input-plugin does not implement the optional command
-   * function, a short error is reported to the HTTP-client.
-   */
-  /*for ( i=0; i < LENGTH_OF(in_cmd_mapping); i++ ) {
-    if ( strcmp(in_cmd_mapping[i].string, command) == 0 ) {
-
-      if ( pglobal->in.cmd == NULL )
-        continue;
-
-      //res = pglobal->in.cmd(in_cmd_mapping[i].cmd, ivalue);
-      break;
+  int dest = -1;
+  if ( (value = strstr(parameter, "dest=")) != NULL ) {
+    value += strlen("dest=");
+    len = strspn(value, "-1234567890");
+    if ( (svalue = strndup(value, len)) == NULL ) {
+      if (command != NULL) free(command);
+      send_error(fd, 500, "could not allocate memory");
+      LOG("could not allocate memory\n");
+      return;
     }
+    dest = MAX(MIN(strtol(svalue, NULL, 10), INT_MAX), INT_MIN);
+    DBG("The command destination value converted value form string %s to integer %d\n", svalue, typecode);
   }
 
-  /* check if the command is for the output plugin itself */
-  /*for ( i=0; i < LENGTH_OF(out_cmd_mapping); i++ ) {
-    if ( strcmp(out_cmd_mapping[i].string, command) == 0 ) {
-      res = output_cmd(id, out_cmd_mapping[i].cmd, ivalue);
-      break;
-    }
-  }*/
+  switch(dest) {
+    case Dest_Input:
+        res = pglobal->in.cmd_new(command_id, ivalue, typecode);
+        break;
+    case Dest_Output:
+        break;
+    case Dest_Program:
+        break;
+    default:
+        fprintf(stderr, "Illegal command destination: %d\n", dest);
+  }
 
-  /* check if the command is for the mjpg-streamer application itself */
-  /*for ( i=0; i < LENGTH_OF(control_cmd_mapping); i++ ) {
-    if ( strcmp(control_cmd_mapping[i].string, command) == 0 ) {
-      res = pglobal->control(control_cmd_mapping[i].cmd, value);
-      break;
-    }
-  }*/
-
-  res = pglobal->in.cmd_new(command_id, ivalue, typecode);
   /* Send HTTP-response */
   sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
                   "Content-type: text/plain\r\n" \
@@ -714,12 +706,22 @@ void *client_thread( void *arg ) {
   /* determine what to deliver */
   if ( strstr(buffer, "GET /?action=snapshot") != NULL ) {
     req.type = A_SNAPSHOT;
+#ifdef WXP_COMPAT
+  } else if ( strstr(buffer, "GET /cam_1.jpg") != NULL ) {
+    req.type = A_SNAPSHOT;
+#endif
   } else if ( strstr(buffer, "GET /?action=stream") != NULL ) {
     req.type = A_STREAM;
+#ifdef WXP_COMPAT
+  } else if ( strstr(buffer, "GET /cam_1.mjpg") != NULL ) {
+    req.type = A_STREAM;
+#endif
   } else if ( strstr(buffer, "GET /controls.json") != NULL ) {
-    req.type = A_JSON;
+    req.type = A_V4L2_JSON;
+  } else if ( strstr(buffer, "GET /controls_extended.json") != NULL ) {
+    req.type = A_UVC_EXT_JSON;
   } else if ( strstr(buffer, "GET /info.json") != NULL ) {
-    req.type = A_INFO;
+    req.type = A_INFO_JSON;
   } else if ( strstr(buffer, "GET /?action=command") != NULL ) {
     int len;
     req.type = A_COMMAND;
@@ -832,13 +834,17 @@ void *client_thread( void *arg ) {
       }
       command(lcfd.pc->id, lcfd.fd, req.parameter);
       break;
-	case A_JSON:
-		DBG("Request for parameres JSON file\n");
-		send_JSON(lcfd.fd);
+	case A_V4L2_JSON:
+		DBG("Request for the V4L2 controls JSON file\n");
+		send_V4L2_JSON(lcfd.fd);
 		break;
-    case A_INFO:
+	case A_UVC_EXT_JSON:
+		DBG("Request for the UVC extended JSON file\n");
+		send_UVCExt_JSON(lcfd.fd);
+		break;
+    case A_INFO_JSON:
     	DBG("Request for info JSON file\n");
-    	send_Info(lcfd.fd);
+    	send_Info_JSON(lcfd.fd);
     	break;
     case A_FILE:
       if ( lcfd.pc->conf.www_folder == NULL )
@@ -1029,7 +1035,7 @@ Description.: Send a JSON file which is contains information about the input plu
 Input Value.: fildescriptor fd to send the answer to
 Return Value: -
 ******************************************************************************/
-void send_JSON(int fd)
+void send_V4L2_JSON(int fd)
 {
 	char buffer[BUFFER_SIZE*4] = {0}; // FIXME do reallocation if the buffer size is small
 	int i;
@@ -1111,7 +1117,7 @@ void send_JSON(int fd)
 	}
 }
 
-void send_Info(int fd)
+void send_Info_JSON(int fd)
 {
     char buffer[BUFFER_SIZE*4] = {0}; // FIXME do reallocation if the buffer size is small
 	int i = 0;
@@ -1210,7 +1216,62 @@ void send_Info(int fd)
 	}
 }
 
+void send_UVCExt_JSON(int fd)
+{
+    char buffer[BUFFER_SIZE*4] = {0}; // FIXME do reallocation if the buffer size is small
+	int i = 0;
+	sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
+                  "Content-type: %s\r\n" \
+                  STD_HEADER \
+                  "\r\n", "application/x-javascript");
 
+    DBG("Serving the info JSON file\n");
+
+     sprintf(buffer + strlen(buffer),
+            "{\n"
+            "\t\"ext-controls\": [\n");
+    if (pglobal->in.in_formats!= NULL) {
+        for(i = 0; i < pglobal->in.formatCount; i++) {
+            char *resolutionsString = calloc(0, 0);
+            int resolutionsStringLength = 0;
+            sprintf(buffer + strlen(buffer),
+                    "\t\t{\n"
+                    "\t\t\t\"id\": \"%d\",\n"
+                    "\t\t\t\"name\": \"%s\",\n"
+                    "\t\t\t\"current\": \"%s\",\n"
+                    "\t\t\t\"resolutions\": {%s}"
+                    ,
+                    pglobal->in.in_formats[i].format.index,
+                    pglobal->in.in_formats[i].format.description,
+                    pglobal->in.in_formats[i].currentResolution!=-1?"true":"false",
+                    resolutionsString
+                    );
+
+            if (pglobal->in.in_formats[i].currentResolution!=-1) {
+                sprintf(buffer + strlen(buffer),
+                    ",\n\t\t\t\"currentResolution\": \"%d\"\n",
+                    pglobal->in.in_formats[i].currentResolution
+                    );
+            }
+
+            if (i != (pglobal->in.formatCount - 1)) {
+                sprintf(buffer + strlen(buffer), "\t\t},\n");
+            } else {
+                sprintf(buffer + strlen(buffer), "\t\t}\n");
+            }
+
+            free(resolutionsString);
+        }
+    }
+    sprintf(buffer + strlen(buffer),
+            "\n\t]\n"
+            "}\n");
+    i = strlen(buffer);
+	/* first transmit HTTP-header, afterwards transmit content of file */
+	if (write(fd, buffer, i) < 0 ) {
+		DBG("unable to serve the control JSON file\n");
+	}
+}
 
 
 

@@ -83,9 +83,15 @@ output_file.so: mjpg_streamer.h utils.h
 	make -C plugins/output_file all
 	cp plugins/output_file/output_file.so .
 
+ifeq ($(WXP_COMPAT),true)
+output_http.so: mjpg_streamer.h utils.h
+	make -C plugins/output_http WXP_COMPAT=true all
+	cp plugins/output_http/output_http.so .
+else
 output_http.so: mjpg_streamer.h utils.h
 	make -C plugins/output_http all
 	cp plugins/output_http/output_http.so .
+endif
 
 output_udp.so: mjpg_streamer.h utils.h
 	make -C plugins/output_udp all

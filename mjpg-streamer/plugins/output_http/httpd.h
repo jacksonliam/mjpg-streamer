@@ -98,7 +98,23 @@ static const struct {
 };
 
 /* the webserver determines between these values for an answer */
-typedef enum { A_UNKNOWN, A_SNAPSHOT, A_STREAM, A_COMMAND,  A_FILE, A_JSON, A_INFO } answer_t;
+typedef enum {
+    A_UNKNOWN,
+    A_SNAPSHOT,
+    A_STREAM,
+    A_COMMAND,
+    A_FILE,
+    A_V4L2_JSON,
+    A_UVC_EXT_JSON,
+    A_INFO_JSON,
+} answer_t;
+
+/* an enum to */
+typedef enum {
+    Dest_Input = 0,
+    Dest_Output = 1,
+    Dest_Program = 2,
+} command_dest;
 
 /*
  * the client sends information with each request
@@ -148,8 +164,9 @@ typedef struct {
 /* prototypes */
 void *server_thread(void *arg);
 void send_error(int fd, int which, char *message);
-void send_JSON(int fd);
-void send_Info(int fd);
+void send_V4L2_JSON(int fd);
+void send_Info_JSON(int fd);
+void send_UVCExt_JSON(int fd);
 
 
 

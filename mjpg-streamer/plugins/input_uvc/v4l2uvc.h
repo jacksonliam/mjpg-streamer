@@ -83,6 +83,7 @@ struct vdIn {
 };
 
 int init_videoIn(struct vdIn *vd, char *device, int width, int height, int fps, int format, int grabmethod, globals *pglobal);
+void enumerateControls(struct vdIn *vd, globals *pglobal);
 void control_readed(struct vdIn *vd, struct v4l2_queryctrl *ctrl, globals *pglobal);
 int setResolution(struct vdIn *vd, int width, int height);
 

@@ -15,6 +15,10 @@ CFLAGS += -O1 -DLINUX -D_GNU_SOURCE -Wall -shared -fPIC -g
 #CFLAGS += -DDEBUG
 LFLAGS += -lpthread -ldl
 
+ifeq ($(WXP_COMPAT),true)
+CFLAGS += -DWXP_COMPAT
+endif
+
 all: output_http.so
 
 clean:

@@ -38,6 +38,7 @@ typedef enum _in_cmd_type in_cmd_type;
 enum _in_cmd_type {
     IN_CMD_V4l2 = 0,
     IN_CMD_RESOLUTION = 1,
+    IN_CMD_UVC_EXT = 2,
   IN_CMD_UNKNOWN,
   IN_CMD_HELLO,
   IN_CMD_RESET,

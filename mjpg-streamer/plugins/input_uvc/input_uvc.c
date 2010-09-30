@@ -304,6 +304,7 @@ int input_init(input_parameter *param) {
   if (dynctrls)
     initDynCtrls(videoIn->fd);
 
+  enumerateControls(videoIn, pglobal); // enumerate V4L2 controls after UVC extended mapping
   /*
    * switch the LED according to the command line parameters (if any)
    */

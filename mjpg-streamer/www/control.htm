@@ -24,7 +24,7 @@
   <body>
     <script type="text/javascript"> 
 		function setControl(controlId, value) {
-          $.get('/?action=command&command='+ controlId + '&value=' + value  + '&type=0');
+          $.get('/?action=command&command='+ controlId + '&value=' + value  + '&type=0&dest=0');
         }
 
         function setControl_bool(controlId, value) {
@@ -39,14 +39,14 @@
             alert("The input string has to be least"+minlength+" caracters!");
             return;
           }
-          $.get('/?action=command&command='+ controlId + '&value=' + value + '&type=0', function(data){
+          $.get('/?action=command&command='+ controlId + '&value=' + value + '&type=0&dest=0', function(data){
              alert("Data Loaded: " + data);
            });
         }
         
         function setResolution(id) {
         	$("#statustd").text("");
-			$.get('/?action=command&command=0&value=' + id + '&type=1', function(data){
+			$.get('/?action=command&command=0&value=' + id + '&type=1&dest=0', function(data){
              if (data == 0) {
              	$("#statustd").text("Success");
              } else {
@@ -161,6 +161,7 @@
 	<ul>
 		<li><a href="#tabs-controls">Controls</a></li>
 		<li><a href="#tabs-resolution">Resolution</a></li>
+		<!---<li><a href="#tabs-extended">Resolution</a></li>--->
 	</ul>
 	<div id="tabs-controls">
 		<table id="control"></table>

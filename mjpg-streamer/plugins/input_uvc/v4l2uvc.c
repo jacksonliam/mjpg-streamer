@@ -61,42 +61,6 @@ int init_videoIn(struct vdIn *vd, char *device, int width,
         goto error;;
     }
 
-    // enumerating v4l2 controls
-    struct v4l2_queryctrl ctrl;
-    pglobal->in.parametercount = 0;
-    pglobal->in.in_parameters = malloc(0 * sizeof(input_control));
-    /* Enumerate the v4l2 controls
-     Try the extended control API first */
-    #ifdef V4L2_CTRL_FLAG_NEXT_CTRL
-    ctrl.id = V4L2_CTRL_FLAG_NEXT_CTRL;
-    if(0 == IOCTL_VIDEO(vd->fd, VIDIOC_QUERYCTRL, &ctrl)) {
-        do {
-            control_readed(vd, &ctrl, pglobal);
-            ctrl.id |= V4L2_CTRL_FLAG_NEXT_CTRL;
-        } while(0 == ioctl (vd->fd, VIDIOC_QUERYCTRL, &ctrl));
-    } else
-    #endif
-    {
-        /* Fall back on the standard API */
-        /* Check all the standard controls */
-        int i;
-        for(i = V4L2_CID_BASE; i<V4L2_CID_LASTP1; i++) {
-            ctrl.id = i;
-            if(IOCTL_VIDEO(vd->fd, VIDIOC_QUERYCTRL, &ctrl) == 0) {
-                control_readed(vd, &ctrl, pglobal);
-            }
-        }
-
-        /* Check any custom controls */
-        for(i=V4L2_CID_PRIVATE_BASE; ; i++) {
-            ctrl.id = i;
-            if(IOCTL_VIDEO(vd->fd, VIDIOC_QUERYCTRL, &ctrl) == 0) {
-                control_readed(vd, &ctrl, pglobal);
-            } else {
-                break;
-            }
-        }
-    }
 
     // enumerating formats
     int currentWidth, currentHeight = 0;
@@ -654,4 +618,44 @@ int setResolution(struct vdIn *vd, int width, int height)
         return -1;
     }
     return ret;
+}
+
+void enumerateControls(struct vdIn *vd, globals *pglobal)
+{
+    // enumerating v4l2 controls
+    struct v4l2_queryctrl ctrl;
+    pglobal->in.parametercount = 0;
+    pglobal->in.in_parameters = malloc(0 * sizeof(input_control));
+    /* Enumerate the v4l2 controls
+     Try the extended control API first */
+    #ifdef V4L2_CTRL_FLAG_NEXT_CTRL
+    ctrl.id = V4L2_CTRL_FLAG_NEXT_CTRL;
+    if(0 == IOCTL_VIDEO(vd->fd, VIDIOC_QUERYCTRL, &ctrl)) {
+        do {
+            control_readed(vd, &ctrl, pglobal);
+            ctrl.id |= V4L2_CTRL_FLAG_NEXT_CTRL;
+        } while(0 == ioctl (vd->fd, VIDIOC_QUERYCTRL, &ctrl));
+    } else
+    #endif
+    {
+        /* Fall back on the standard API */
+        /* Check all the standard controls */
+        int i;
+        for(i = V4L2_CID_BASE; i<V4L2_CID_LASTP1; i++) {
+            ctrl.id = i;
+            if(IOCTL_VIDEO(vd->fd, VIDIOC_QUERYCTRL, &ctrl) == 0) {
+                control_readed(vd, &ctrl, pglobal);
+            }
+        }
+
+        /* Check any custom controls */
+        for(i=V4L2_CID_PRIVATE_BASE; ; i++) {
+            ctrl.id = i;
+            if(IOCTL_VIDEO(vd->fd, VIDIOC_QUERYCTRL, &ctrl) == 0) {
+                control_readed(vd, &ctrl, pglobal);
+            } else {
+                break;
+            }
+        }
+    }
 }
