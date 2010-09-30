@@ -86,18 +86,100 @@ body > #sidebar
 width:520px; height: 390px;
 }
 
-.image-mirrored
-{-moz-transform: scaleY(-1);}
+#xform {
+	text-align:right;
+	margin:0 !important;
+}
+#streamwrap {
+	height:350px
+}
+#streamwrap.rotated {
+	height:450px
+}
+p.xform-p {
+	height:5px;
+	margin-bottom:0 !important;
+}
+p.xform-p.rotated {
+	height:50px;
+	margin-bottom:20px !important;
+}
 
-.image-rotated-left
-{-moz-transform: scaleY(0.75); -moz-transform: scaleY(0.75); -moz-transform: rotate(90deg);}
+/*
+	CSS3 transformations: rotate, flip, mirror
+*/
 
-.image-rotated-right
-{-moz-transform: scaleY(0.75); -moz-transform: scaleY(0.75); -moz-transform: rotate(270deg);}
-
-.image-rotated-normal
-{-moz-transform: rotate(0deg);-moz-transform: scaleY(1);-moz-transform: scaleX(1);}
-
-
-
-
+img.x-rotated-0 {}
+img.x-rotated-90 {
+	-moz-transform: rotate(90deg);
+	-webkit-transform: rotate(90deg);
+}
+img.x-rotated-180 {
+	-moz-transform: rotate(180deg);
+	-webkit-transform: rotate(180deg);
+}
+img.x-rotated-270 {
+	-moz-transform: rotate(270deg);
+	-webkit-transform: rotate(270deg);
+}
+img.x-mirrored-rotated-0 {
+	-moz-transform: scaleX(-1);
+	-webkit-transform: scaleX(-1);
+}
+img.x-mirrored-rotated-90 {
+	-moz-transform: rotate(90deg) scaleX(-1);
+	-webkit-transform: rotate(90deg) scaleX(-1);
+}
+img.x-mirrored-rotated-180 {
+	-moz-transform: rotate(180deg) scaleX(-1);
+	-webkit-transform: rotate(180deg) scaleX(-1);
+}
+img.x-mirrored-rotated-270 {
+	-moz-transform: rotate(270deg) scaleX(-1);
+	-webkit-transform: rotate(270deg) scaleX(-1);
+}
+img.x-flipped-rotated-0 {
+	-moz-transform: scaleY(-1);
+	-webkit-transform: scaleY(-1);
+}
+img.x-flipped-rotated-90 {
+	-moz-transform: rotate(90deg) scaleY(-1);
+	-webkit-transform: rotate(90deg) scaleY(-1);
+}
+img.x-flipped-rotated-180 {
+	-moz-transform: rotate(180deg) scaleY(-1);
+	-webkit-transform: rotate(180deg) scaleY(-1);
+}
+img.x-flipped-rotated-270 {
+	-moz-transform: rotate(270deg) scaleY(-1);
+	-webkit-transform: rotate(270deg) scaleY(-1);
+}
+img.x-flipped-mirrored-rotated-0 {
+	-moz-transform: scale(-1,-1);
+	-webkit-transform: scale(-1,-1);
+}
+img.x-flipped-mirrored-rotated-90 {
+	-moz-transform: rotate(90deg) scale(-1,-1);
+	-webkit-transform: rotate(90deg) scale(-1,-1);
+}
+img.x-flipped-mirrored-rotated-180 {
+	-moz-transform: rotate(180deg) scale(-1,-1);
+	-webkit-transform: rotate(180deg) scale(-1,-1);
+}
+img.x-flipped-mirrored-rotated-270 {
+	-moz-transform: rotate(270deg) scale(-1,-1);
+	-webkit-transform: rotate(270deg) scale(-1,-1);
+}
+.btnface {
+	height:30px;
+	width:30px;
+}
+#rotate .btnface {
+	background:url("rotateicons.png") no-repeat scroll 7px 50% transparent;
+}
+#flip .btnface {
+	background:url("rotateicons.png") no-repeat scroll -65px 50% transparent;
+}
+#mirror .btnface {
+	background:url("rotateicons.png") no-repeat scroll -30px 50% transparent;
+}

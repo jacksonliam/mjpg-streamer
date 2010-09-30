@@ -10,31 +10,36 @@
     <!--[if IE 6]>
     <link rel="stylesheet" href="fix.css" type="text/css" />
     <![endif]-->
-    
     <script type="text/javascript">
-    $(document).ready(function() {
-		$('#rotateleft').click(function() {
-			$('#streamimage').addClass('image-rotated-right');
+    
+    var phi = 0, flipped = 0, mirrored = 0;
+
+	function setXformClass () {
+		$('.xform').each(function(idx,el) {
+			el.className = "xform x" +(flipped ? "-flipped":"") + (mirrored ? "-mirrored" : "") + "-rotated-" + phi;
 		});
-
-		$('#rotateright').click(function() {
-			$('#streamimage').addClass('image-rotated-left');
-		});	
-
-		$('#rotatenormal').click(function() {
-			$('#streamimage').removeClass('image-rotated-left');	
-			$('#streamimage').removeClass('image-rotated-right');
-			$('#streamimage').removeClass('image-mirrored');							
-			$('#streamimage').addClass('image-rotated-normal');
-		});			
-				
-		$('#mirror').click(function() {
-			if($('#mirror').attr('checked')) {
-				$('#streamimage').addClass('image-mirrored');
+	}
+    $(document).ready(function() {
+		// set rotation angle phi and toggle rotate class
+		$('#rotate').click(function() {
+			phi = (phi + 90) % 360;
+			setXformClass();
+			if (phi % 180) {
+				$('.xform-p').addClass('rotated');
 			} else {
-				$('#streamimage').removeClass('image-mirrored');
+				$('.xform-p').removeClass('rotated');
 			}
-		});		
+		});
+		// toggle mirror class component
+		$('#mirror').click(function() {
+			mirrored = ! mirrored;
+			setXformClass();
+		});
+		// toggle flip class component
+		$('#flip').click(function() {
+			flipped = ! flipped;
+			setXformClass();
+		});
 	});
 	</script>
   </head>
@@ -68,12 +73,16 @@
       <h3>Source snippet</h3>
       <p><pre>&lt;img src="/?action=stream" /&gt;</pre></p>
 
-      <img id="streamimage" src="/?action=stream" />
-<!---	 <button id="rotateleft" type="button">Rotate left</button>
-	 <button id="rotatenormal" type="button">Normal position</button>	 
-	 <button id="rotateright" type="button">Rotate right</button> --->
- 	 <input type="checkbox" id="mirror">Mirror image</input>
-      <p>&copy; The <a href="http://mjpg-streamer.sf.net">MJPG-streamer team</a> | Design by <a href="http://andreasviklund.com">Andreas Viklund</a></p>
-    </div>
+	<p id="xform">
+		<button id="rotate"><div class="btnface"></div></button>
+		<button id="mirror"><div class="btnface"></div></button>
+		<button id="flip"><div class="btnface"></div></button>
+	</p>
+	<p class="xform-p"></p>
+	<p id="streamwrap" class="xform-p">
+		<img id="streamimage" class="xform" src="/?action=stream" />
+	</p>
+
+	<p>&copy; The <a href="http://mjpg-streamer.sf.net">MJPG-streamer team</a> | Design by <a href="http://andreasviklund.com">Andreas Viklund</a></p>
   </body>
 </html>
