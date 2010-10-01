@@ -761,7 +761,10 @@ void *cam_thread( void *arg ) {
     prev_size = global->size;
 #endif
 
-    /* signal fresh_frame */
+	/* copy this frame's timestamp to user space */
+	pglobal->timestamp = videoIn->buf.timestamp;
+
+	/* signal fresh_frame */
     pthread_cond_broadcast(&pglobal->db_update);
     pthread_mutex_unlock( &pglobal->db );
 
@@ -820,7 +823,7 @@ int input_cmd_new(__u32 control, __s32 value, __u32 typecode)
     int i = 0;
     DBG("Requested cmd: %d, type: %d value: %d\n", control, typecode, value);
     switch (typecode) {
-        case IN_CMD_V4l2: {
+        case IN_CMD_V4L2: {
             for (i = 0; i<pglobal->in.parametercount; i++) {
                 if (pglobal->in.in_parameters[i].ctrl.id == control) {
                     DBG("Found the requested control: %s\n", pglobal->in.in_parameters[i].ctrl.name);
@@ -846,6 +849,8 @@ int input_cmd_new(__u32 control, __s32 value, __u32 typecode)
                 pglobal->in.in_formats[pglobal->in.currentFormat].currentResolution = value;
             }
             return ret;
+        } break;
+        case IN_CMD_UVC_EXT: {
         } break;
     }
     return ret;

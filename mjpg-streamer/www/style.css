@@ -183,3 +183,10 @@ img.x-flipped-mirrored-rotated-270 {
 #mirror .btnface {
 	background:url("rotateicons.png") no-repeat scroll -30px 50% transparent;
 }
+
+/* averages */
+
+#fN {
+	position: relative;
+	top: 5px;
+}

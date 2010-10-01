@@ -142,13 +142,14 @@ void initDynCtrls(int dev) {
       if ( errno != EEXIST ) {
         DBG("uvcioc ctrl add error: errno=%d (retval=%d)\n", errno, err);
       } else {
+
         DBG("control %d already exists\n", i);
       }
     }
   }
 
   /* after adding the controls, add the mapping now */
-  for ( i=0; i<LENGTH_OF(xu_mappings); i++ ) {
+  /*for ( i=0; i<LENGTH_OF(xu_mappings); i++ ) {
     DBG("mapping controls for %s\n", xu_mappings[i].name);
     errno=0;
     if ((err=IOCTL_VIDEO(dev, UVCIOC_CTRL_MAP, &xu_mappings[i])) < 0) {
@@ -158,7 +159,7 @@ void initDynCtrls(int dev) {
         DBG("mapping %d already exists\n", i);
       }
     }
-  }
+  }*/
 }
 
 /*

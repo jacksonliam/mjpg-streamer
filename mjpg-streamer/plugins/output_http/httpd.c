@@ -46,7 +46,6 @@
 #define V4L2_CTRL_TYPE_STRING_SUPPORTED
 #endif
 
-
 static globals *pglobal;
 extern context servers[MAX_OUTPUT_PLUGINS];
 
@@ -299,6 +298,7 @@ void send_snapshot(int fd) {
   unsigned char *frame=NULL;
   int frame_size=0;
   char buffer[BUFFER_SIZE] = {0};
+  struct timeval timestamp;
 
   /* wait for a fresh frame */
   pthread_cond_wait(&pglobal->db_update, &pglobal->db);
@@ -313,6 +313,8 @@ void send_snapshot(int fd) {
     send_error(fd, 500, "not enough memory");
     return;
   }
+  /* copy v4l2_buffer timeval to user space */
+  timestamp = pglobal->timestamp;
 
   memcpy(frame, pglobal->buf, frame_size);
   DBG("got frame (size: %d kB)\n", frame_size/1024);
@@ -323,7 +325,8 @@ void send_snapshot(int fd) {
   sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
                   STD_HEADER \
                   "Content-type: image/jpeg\r\n" \
-                  "\r\n");
+                  "X-Timestamp: %d.%06d\r\n" \
+                  "\r\n", (int) timestamp.tv_sec, (int) timestamp.tv_usec);
 
   /* send header and image now */
   if( write(fd, buffer, strlen(buffer)) < 0 || \
@@ -344,9 +347,9 @@ void send_stream(int fd) {
   unsigned char *frame=NULL, *tmp=NULL;
   int frame_size=0, max_frame_size=0;
   char buffer[BUFFER_SIZE] = {0};
+  struct timeval timestamp;
 
   DBG("preparing header\n");
-
   sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
                   STD_HEADER \
                   "Content-Type: multipart/x-mixed-replace;boundary=" BOUNDARY "\r\n" \
@@ -383,6 +386,9 @@ void send_stream(int fd) {
       frame = tmp;
     }
 
+    /* copy v4l2_buffer timeval to user space */
+    timestamp = pglobal->timestamp;
+
     memcpy(frame, pglobal->buf, frame_size);
     DBG("got frame (size: %d kB)\n", frame_size/1024);
 
@@ -395,7 +401,8 @@ void send_stream(int fd) {
      */
     sprintf(buffer, "Content-Type: image/jpeg\r\n" \
                     "Content-Length: %d\r\n" \
-                    "\r\n", frame_size);
+                    "X-Timestamp: %d.%06d\r\n" \
+                    "\r\n", frame_size, timestamp.tv_sec, timestamp.tv_usec);
     DBG("sending intemdiate header\n");
     if ( write(fd, buffer, strlen(buffer)) < 0 ) break;
 
@@ -836,7 +843,7 @@ void *client_thread( void *arg ) {
       break;
 	case A_V4L2_JSON:
 		DBG("Request for the V4L2 controls JSON file\n");
-		send_V4L2_JSON(lcfd.fd);
+		send_Controls_JSON(lcfd.fd);
 		break;
 	case A_UVC_EXT_JSON:
 		DBG("Request for the UVC extended JSON file\n");
@@ -1035,7 +1042,7 @@ Description.: Send a JSON file which is contains information about the input plu
 Input Value.: fildescriptor fd to send the answer to
 Return Value: -
 ******************************************************************************/
-void send_V4L2_JSON(int fd)
+void send_Controls_JSON(int fd)
 {
 	char buffer[BUFFER_SIZE*4] = {0}; // FIXME do reallocation if the buffer size is small
 	int i;
@@ -1075,7 +1082,8 @@ void send_V4L2_JSON(int fd)
                     "\t\t\t\"max\": \"%d\",\n"
                     "\t\t\t\"step\": \"%d\",\n"
                     "\t\t\t\"default\": \"%d\",\n"
-                    "\t\t\t\"value\": \"%d\"",
+                    "\t\t\t\"value\": \"%d\",\n"
+                    "\t\t\t\"dest\": \"0\"",
                     pglobal->in.in_parameters[i].ctrl.name,
                     pglobal->in.in_parameters[i].ctrl.id,
                     pglobal->in.in_parameters[i].ctrl.type,
@@ -1215,70 +1223,4 @@ void send_Info_JSON(int fd)
 		DBG("unable to serve the control JSON file\n");
 	}
 }
-
-void send_UVCExt_JSON(int fd)
-{
-    char buffer[BUFFER_SIZE*4] = {0}; // FIXME do reallocation if the buffer size is small
-	int i = 0;
-	sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
-                  "Content-type: %s\r\n" \
-                  STD_HEADER \
-                  "\r\n", "application/x-javascript");
-
-    DBG("Serving the info JSON file\n");
-
-     sprintf(buffer + strlen(buffer),
-            "{\n"
-            "\t\"ext-controls\": [\n");
-    if (pglobal->in.in_formats!= NULL) {
-        for(i = 0; i < pglobal->in.formatCount; i++) {
-            char *resolutionsString = calloc(0, 0);
-            int resolutionsStringLength = 0;
-            sprintf(buffer + strlen(buffer),
-                    "\t\t{\n"
-                    "\t\t\t\"id\": \"%d\",\n"
-                    "\t\t\t\"name\": \"%s\",\n"
-                    "\t\t\t\"current\": \"%s\",\n"
-                    "\t\t\t\"resolutions\": {%s}"
-                    ,
-                    pglobal->in.in_formats[i].format.index,
-                    pglobal->in.in_formats[i].format.description,
-                    pglobal->in.in_formats[i].currentResolution!=-1?"true":"false",
-                    resolutionsString
-                    );
-
-            if (pglobal->in.in_formats[i].currentResolution!=-1) {
-                sprintf(buffer + strlen(buffer),
-                    ",\n\t\t\t\"currentResolution\": \"%d\"\n",
-                    pglobal->in.in_formats[i].currentResolution
-                    );
-            }
-
-            if (i != (pglobal->in.formatCount - 1)) {
-                sprintf(buffer + strlen(buffer), "\t\t},\n");
-            } else {
-                sprintf(buffer + strlen(buffer), "\t\t}\n");
-            }
-
-            free(resolutionsString);
-        }
-    }
-    sprintf(buffer + strlen(buffer),
-            "\n\t]\n"
-            "}\n");
-    i = strlen(buffer);
-	/* first transmit HTTP-header, afterwards transmit content of file */
-	if (write(fd, buffer, i) < 0 ) {
-		DBG("unable to serve the control JSON file\n");
-	}
-}
-
-
-
-
-
-
-
-
-
 

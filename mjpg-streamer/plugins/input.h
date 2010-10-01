@@ -36,7 +36,7 @@ struct _input_parameter {
 /* commands which can be send to the input plugin */
 typedef enum _in_cmd_type in_cmd_type;
 enum _in_cmd_type {
-    IN_CMD_V4l2 = 0,
+    IN_CMD_V4L2 = 0,
     IN_CMD_RESOLUTION = 1,
     IN_CMD_UVC_EXT = 2,
   IN_CMD_UNKNOWN,
@@ -77,6 +77,7 @@ struct _input_control {
     int value;
     struct v4l2_querymenu *menuitems;
     struct v4l2_capability cap;
+    in_cmd_type dest;
 };
 
 typedef struct _input_resolution input_resolution;
@@ -110,5 +111,5 @@ struct _input {
     int (*stop)(void);
     int (*run)(void);
     int (*cmd)(int , int);
-    int (*cmd_new)(__u32, __s32, __u32);
+    int (*cmd_new)(__u32 control, __s32 value, __u32 type);
 };

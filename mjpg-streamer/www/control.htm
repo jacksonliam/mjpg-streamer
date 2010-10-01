@@ -23,30 +23,30 @@
   </head>
   <body>
     <script type="text/javascript"> 
-		function setControl(controlId, value) {
-          $.get('/?action=command&command='+ controlId + '&value=' + value  + '&type=0&dest=0');
+		function setControl(controlId, value, dest) {
+          $.get('/?action=command&command='+ controlId + '&value=' + value  + '&type=0&dest='+ de);
         }
 
-        function setControl_bool(controlId, value) {
+        function setControl_bool(controlId, value, dest) {
           if (value == false)
-            setControl(controlId, 0);
+            setControl(controlId, 0, dest);
           else
-            setControl(controlId, 1);
+            setControl(controlId, 1, dest);
         }
 
-        function setControl_string(controlId, string, minlength) {
+        function setControl_string(controlId, string, minlength, dest) {
           if (string.length < minlength) {
             alert("The input string has to be least"+minlength+" caracters!");
             return;
           }
-          $.get('/?action=command&command='+ controlId + '&value=' + value + '&type=0&dest=0', function(data){
+          $.get('/?action=command&command='+ controlId + '&value=' + value + '&type=0&dest=' + dest, function(data){
              alert("Data Loaded: " + data);
            });
         }
         
-        function setResolution(id) {
+        function setResolution(id, dest) {
         	$("#statustd").text("");
-			$.get('/?action=command&command=0&value=' + id + '&type=1&dest=0', function(data){
+			$.get('/?action=command&command=0&value=' + id + '&type=1&dest=' + dest, function(data){
              if (data == 0) {
              	$("#statustd").text("Success");
              } else {
@@ -74,16 +74,12 @@
 
               $("<td/>").attr("id", "td-ctrl-"+item.id).appendTo("#tr-"+item.id);
               if((item.type == 1) || (item.type == 5)) { // integer type controls
-                var options = {
-		                min: item.min,							// Set lower limit or null for no limit.
-		                max: item.max,							// Set upper limit or null for no limit.
-		                step: item.step,						// Set increment size.
-	                }
+                var options = {min: item.min, max: item.max, step: item.step,}
                 $("<input/>")
                   .attr("value", item.value)
                   .attr("id", "spinbox-"+item.id)
                   .SpinButton(options)
-                  .bind("valueChanged", function() {setControl(item.id, $(this).val());})
+                  .bind("valueChanged", function() {setControl(item.id, $(this).val(), $(this).dest());})
                   .appendTo("#td-ctrl-"+item.id);
               } else if (item.type == 2) { // boolean type controls
                 if (item.value == "1")
@@ -95,7 +91,7 @@
                 else
                   $("<input/>")
                     .attr("type", "checkbox")
-                    .change(function(){setControl(item.id, ($(this).attr("checked")?1:0));})
+                    .change(function(){setControl(item.id, ($(this).attr("checked")?1:0), $(this).dest());})
                     .appendTo("#td-ctrl-"+item.id);
               } else if (item.type == 7) { // string type controls
                   $("<input/>").attr("value", item.value).appendTo("#td-ctrl-"+item.id);
@@ -104,7 +100,7 @@
                   .attr("name", "select-"+item.id)
                   .attr("id", "menu-"+item.id)
                   .attr("style", "width: 100%;")
-                  .change(function(){setControl(item.id, $(this).val());})
+                  .change(function(){setControl(item.id, $(this).val(), $(this).dest());})
                   .appendTo("#td-ctrl-"+item.id);
                 $.each(item.menu, function(val, text) {
                     if (item.value == val) {
@@ -118,13 +114,13 @@
                   .attr("type", "button")
                   .attr("style", "width: 100%; height: 100%;")
                   .text(item.name)
-                  .click(function(){setControl(item.id, 0);})
+                  .click(function(){setControl(item.id, 0, $(this).dest());})
                   .appendTo("#td-ctrl-"+item.id);
               } else if (item.type == 7) { // string  type
                 $("<input/>")
                     .attr("type", "text")
                     .attr("maxlength", item.max)
-                    .change(function(){setControl_string(item.id, $(this).text(), item.min);})
+                    .change(function(){setControl_string(item.id, $(this).text(), item.min, $(this).dest());})
                     .appendTo("#td-ctrl-"+item.id);
               } else {
                  alert("Unknown control type: "+item.type);

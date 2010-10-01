@@ -164,9 +164,8 @@ typedef struct {
 /* prototypes */
 void *server_thread(void *arg);
 void send_error(int fd, int which, char *message);
-void send_V4L2_JSON(int fd);
+void send_Controls_JSON(int fd);
 void send_Info_JSON(int fd);
-void send_UVCExt_JSON(int fd);
 
 
 

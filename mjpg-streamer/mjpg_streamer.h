@@ -55,7 +55,9 @@ struct _globals {
   /* global JPG frame, this is more or less the "database" */
   unsigned char *buf;
   int size;
-
+  /* v4l2_buffer timestamp */
+  struct timeval timestamp;
+  
   /* input plugin */
   input in;
 

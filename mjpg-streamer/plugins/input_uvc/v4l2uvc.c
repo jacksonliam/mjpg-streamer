@@ -548,12 +548,14 @@ void control_readed(struct vdIn *vd,struct v4l2_queryctrl *ctrl, globals *pgloba
 {
     struct v4l2_control c;
     c.id = ctrl->id;
-    if(IOCTL_VIDEO(vd->fd, VIDIOC_G_CTRL, &c) != -1) {
+    int ret = IOCTL_VIDEO(vd->fd, VIDIOC_G_CTRL, &c);
+    if(ret == 0) {
         pglobal->in.in_parameters =
             (input_control*)realloc(
                                            pglobal->in.in_parameters,
                                            (pglobal->in.parametercount + 1) * sizeof(input_control));
             memcpy(&pglobal->in.in_parameters[pglobal->in.parametercount].ctrl, ctrl, sizeof(struct v4l2_queryctrl));
+            pglobal->in.in_parameters[pglobal->in.parametercount].dest = IN_CMD_V4L2;
             pglobal->in.in_parameters[pglobal->in.parametercount].value = c.value;
             if (ctrl->type == V4L2_CTRL_TYPE_MENU) {
                 pglobal->in.in_parameters[pglobal->in.parametercount].menuitems =
@@ -576,7 +578,7 @@ void control_readed(struct vdIn *vd,struct v4l2_queryctrl *ctrl, globals *pgloba
             DBG("V4L2 parameter found: %s value %d \n", ctrl->name, c.value);
             pglobal->in.parametercount++;
     } else {
-        DBG("Unable to get the value of %s", ctrl->name);
+        DBG("Unable to get the value of %s retcode: %d\n", ctrl->name, ret);
     }
 };
 
