@@ -7,9 +7,8 @@ Put capture timestamp to the EXIF data
 Save and load the configuration from a file. 
 
 Plugins:
-Create UDP based streaming plugin
+Create som kind of UDP/RTP based streaming plugin
 Create stream from desktop plugin
 
-WWW:
-Add simple image transformation commands to the webpage (mirror, rotate using jquery) WIP but broken
+
 

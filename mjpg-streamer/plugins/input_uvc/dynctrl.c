@@ -64,6 +64,20 @@ static struct uvc_xu_control_info xu_ctrls[] = {
     .index    = 0,
     .size     = 3,
     .flags    = UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_CUR | UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_RES | UVC_CONTROL_GET_DEF
+  },
+  {
+      .entity   =  UVC_GUID_LOGITECH_VIDEO_PIPE,
+      .selector = XU_COLOR_PROCESSING_DISABLE,
+      .index    = 4,
+      .size     = 1,
+      .flags    = UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_CUR | UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_RES | UVC_CONTROL_GET_DEF
+  },
+  {
+      .entity   = UVC_GUID_LOGITECH_VIDEO_PIPE,
+      .selector = XU_RAW_DATA_BITS_PER_PIXEL,
+      .index    = 7,
+      .size     = 1,
+      .flags    = UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_CUR | UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_RES | UVC_CONTROL_GET_DEF
   }
 };
 
@@ -91,13 +105,33 @@ static struct uvc_xu_control_mapping xu_mappings[] = {
   },
   {
     .id        = V4L2_CID_PANTILT_RESET_LOGITECH,
-    .name      = "Pan/Tilt (reset)",
+    .name      = "Pan/Tilt reset",
     .entity    = UVC_GUID_LOGITECH_MOTOR_CONTROL,
     .selector  = XU_MOTORCONTROL_PANTILT_RESET,
     .size      = 2,
     .offset    = 0,
     .v4l2_type = V4L2_CTRL_TYPE_INTEGER,
-    .data_type = UVC_CTRL_DATA_TYPE_ENUM
+    .data_type = UVC_CTRL_DATA_TYPE_UNSIGNED
+  },
+  {
+    .id        = V4L2_CID_PAN_RESET_LOGITECH,
+    .name      = "Pan reset",
+    .entity    = UVC_GUID_LOGITECH_MOTOR_CONTROL,
+    .selector  = XU_MOTORCONTROL_PANTILT_RESET,
+    .size      = 1,
+    .offset    = 0,
+    .v4l2_type = V4L2_CTRL_TYPE_INTEGER,
+    .data_type = UVC_CTRL_DATA_TYPE_UNSIGNED
+  },
+  {
+    .id        = V4L2_CID_TILT_RESET_LOGITECH,
+    .name      = "Tilt reset",
+    .entity    = UVC_GUID_LOGITECH_MOTOR_CONTROL,
+    .selector  = XU_MOTORCONTROL_PANTILT_RESET,
+    .size      = 1,
+    .offset    = 1,
+    .v4l2_type = V4L2_CTRL_TYPE_INTEGER,
+    .data_type = UVC_CTRL_DATA_TYPE_UNSIGNED
   },
   {
     .id        = V4L2_CID_FOCUS_LOGITECH,
@@ -128,7 +162,27 @@ static struct uvc_xu_control_mapping xu_mappings[] = {
     .offset    = 16,
     .v4l2_type = V4L2_CTRL_TYPE_INTEGER,
     .data_type = UVC_CTRL_DATA_TYPE_UNSIGNED
-  }
+  },
+  {
+      .id = V4L2_CID_DISABLE_PROCESSING,
+      .name = "Disable video processing",
+      .entity = UVC_GUID_LOGITECH_VIDEO_PIPE,
+      .selector = XU_COLOR_PROCESSING_DISABLE,
+      .size = 8,
+      .offset = 0,
+      .v4l2_type = V4L2_CTRL_TYPE_BOOLEAN,
+      .data_type = UVC_CTRL_DATA_TYPE_BOOLEAN,
+  },
+  {
+      .id = V4L2_CID_RAW_BITS_PER_PIXEL,
+      .name = "Raw bits per pixel",
+      .entity = UVC_GUID_LOGITECH_VIDEO_PIPE,
+      .selector = XU_RAW_DATA_BITS_PER_PIXEL,
+      .size = 8,
+      .offset = 0,
+      .v4l2_type = V4L2_CTRL_TYPE_INTEGER,
+      .data_type = UVC_CTRL_DATA_TYPE_UNSIGNED,
+  },
 };
 
 void initDynCtrls(int dev) {
@@ -149,7 +203,7 @@ void initDynCtrls(int dev) {
   }
 
   /* after adding the controls, add the mapping now */
-  /*for ( i=0; i<LENGTH_OF(xu_mappings); i++ ) {
+  for ( i=0; i<LENGTH_OF(xu_mappings); i++ ) {
     DBG("mapping controls for %s\n", xu_mappings[i].name);
     errno=0;
     if ((err=IOCTL_VIDEO(dev, UVCIOC_CTRL_MAP, &xu_mappings[i])) < 0) {
@@ -159,7 +213,7 @@ void initDynCtrls(int dev) {
         DBG("mapping %d already exists\n", i);
       }
     }
-  }*/
+  }
 }
 
 /*
