@@ -578,7 +578,7 @@ void control_readed(struct vdIn *vd,struct v4l2_queryctrl *ctrl, globals *pgloba
             DBG("V4L2 parameter found: %s value %d \n", ctrl->name, c.value);
             pglobal->in.parametercount++;
     } else {
-        DBG("Unable to get the value of %s retcode: %d\n", ctrl->name, ret);
+        DBG("Unable to get the value of %s retcode: %d errno: %d\n", ctrl->name, ret, errno);
     }
 };
 
