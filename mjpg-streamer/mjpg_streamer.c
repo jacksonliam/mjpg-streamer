@@ -318,7 +318,6 @@ int main(int argc, char *argv[])
     exit(EXIT_FAILURE);
   }
   /* try to find optional command */
-  global.in.cmd = dlsym(global.in.handle, "input_cmd");
   global.in.cmd_new = dlsym(global.in.handle, "input_cmd_new");
 
   global.in.param.parameter_string = strchr(input, ' ');

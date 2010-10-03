@@ -80,7 +80,6 @@ static int dynctrls = 1;
 void *cam_thread( void *);
 void cam_cleanup(void *);
 void help(void);
-int input_cmd(in_cmd_type, int);
 int input_cmd_new(__u32 control, __s32 value, __u32 typecode);
 
 
@@ -97,7 +96,6 @@ Return Value: 0 if everything is fine
 int input_init(input_parameter *param) {
   char *argv[MAX_ARGUMENTS]={NULL}, *dev = "/dev/video0", *s;
   int argc=1, width=640, height=480, fps=5, format=V4L2_PIX_FMT_MJPEG, i;
-  in_cmd_type led = IN_CMD_LED_AUTO;
 
   /* initialize the mutes variable */
   if( pthread_mutex_init(&controls_mutex, NULL) != 0 ) {
@@ -305,11 +303,6 @@ int input_init(input_parameter *param) {
     initDynCtrls(videoIn->fd);
 
   enumerateControls(videoIn, pglobal); // enumerate V4L2 controls after UVC extended mapping
-  /*
-   * switch the LED according to the command line parameters (if any)
-   */
-  input_cmd(led, 0);
-
   return 0;
 }
 
@@ -341,324 +334,6 @@ int input_run(void) {
   pthread_detach(cam);
 
   return 0;
-}
-
-/******************************************************************************
-Description.: process commands, allows to set certain runtime configurations
-              and settings like pan/tilt, colors, saturation etc.
-Input Value.: * cmd specifies the command, a complete list is maintained in
-                the file "input.h"
-              * value is used for commands that make use of a parameter.
-Return Value: depends in the command, for most cases 0 means no errors and
-              -1 signals an error. This is just rule of thumb, not more!
-******************************************************************************/
-int input_cmd(in_cmd_type cmd, int value) {
-  int res=0;
-  static int pan=0, tilt=0, pan_tilt_valid=-1;
-  static int focus=-1;
-  const int one_degree = ONE_DEGREE;
-
-  /* certain commands do not need the mutex */
-  if ( cmd != IN_CMD_RESET_PAN_TILT_NO_MUTEX )
-    pthread_mutex_lock( &controls_mutex );
-
-  switch (cmd) {
-    case IN_CMD_HELLO:
-      fprintf(stderr, "Hello from input plugin\n");
-      break;
-
-    case IN_CMD_RESET:
-      DBG("about to reset all image controls to defaults\n");
-      res = v4l2ResetControl(videoIn, V4L2_CID_BRIGHTNESS);
-      res |= v4l2ResetControl(videoIn, V4L2_CID_CONTRAST);
-      res |= v4l2ResetControl(videoIn, V4L2_CID_SATURATION);
-      res |= v4l2ResetControl(videoIn, V4L2_CID_GAIN);
-      if ( res != 0 ) res = -1;
-      break;
-
-    case IN_CMD_RESET_PAN_TILT:
-    case IN_CMD_RESET_PAN_TILT_NO_MUTEX:
-      DBG("about to set pan/tilt to default position\n");
-      if ( uvcPanTilt(videoIn->fd, 0, 0, 3) != 0 ) {
-        res = -1;
-        break;
-      }
-      pan_tilt_valid = 1;
-      pan = tilt = 0;
-      sleep(4);
-      break;
-
-    case IN_CMD_PAN_SET:
-      DBG("set pan to %d degrees\n", value);
-
-      /* in order to calculate absolute positions we must check for initialized values */
-      if ( pan_tilt_valid != 1 ) {
-        if ( input_cmd(IN_CMD_RESET_PAN_TILT_NO_MUTEX, 0) == -1 ) {
-          res = -1;
-          break;
-        }
-      }
-
-      /* limit pan-value to min and max, multiply it with constant "one_degree" */
-      value = MIN(MAX(value*one_degree, MIN_PAN), MAX_PAN);
-
-      /* calculate the relative degrees to move to the desired absolute pan-value */
-      if( (res = value - pan) == 0 ) {
-        /* do not move if this would mean to move by 0 degrees */
-        res = pan/one_degree;
-        break;
-      }
-
-      /* move it */
-      pan = value;
-      uvcPanTilt(videoIn->fd, res, 0, 0);
-      res = pan/one_degree;
-
-      DBG("pan: %d\n", pan);
-      break;
-
-    case IN_CMD_PAN_PLUS:
-      DBG("pan +\n");
-
-      if ( pan_tilt_valid != 1 ) {
-        if ( input_cmd(IN_CMD_RESET_PAN_TILT_NO_MUTEX, 0) == -1 ) {
-          res = -1;
-          break;
-        }
-      }
-
-      if ( (MAX_PAN) >= (pan+MIN_RES) ) {
-        pan += MIN_RES;
-        uvcPanTilt(videoIn->fd, MIN_RES, 0, 0);
-      }
-      res = pan/one_degree;
-
-      DBG("pan: %d\n", pan);
-      break;
-
-    case IN_CMD_PAN_MINUS:
-      DBG("pan -\n");
-
-      if ( pan_tilt_valid != 1 ) {
-        if ( input_cmd(IN_CMD_RESET_PAN_TILT_NO_MUTEX, 0) == -1 ) {
-          res = -1;
-          break;
-        }
-      }
-
-      if ( (MIN_PAN) <= (pan-MIN_RES) ) {
-        pan -= MIN_RES;
-        uvcPanTilt(videoIn->fd, -MIN_RES, 0, 0);
-      }
-      res = pan/one_degree;
-
-      DBG("pan: %d\n", pan);
-      break;
-
-    case IN_CMD_TILT_SET:
-      DBG("set tilt to %d degrees\n", value);
-
-      if ( pan_tilt_valid != 1 ) {
-        if ( input_cmd(IN_CMD_RESET_PAN_TILT_NO_MUTEX, 0) == -1 ) {
-          res = -1;
-          break;
-        }
-      }
-
-      /* limit pan-value to min and max, multiply it with constant "one_degree" */
-      value = MIN(MAX(value*one_degree, MIN_TILT), MAX_TILT);
-
-      /* calculate the relative degrees to move to the desired absolute pan-value */
-      if( (res = value - tilt) == 0 ) {
-        /* do not move if this would mean to move by 0 degrees */
-        res = tilt/one_degree;
-        break;
-      }
-
-      /* move it */
-      tilt = value;
-      uvcPanTilt(videoIn->fd, 0, res, 0);
-      res = tilt/one_degree;
-
-      DBG("tilt: %d\n", tilt);
-      break;
-
-    case IN_CMD_TILT_PLUS:
-      DBG("tilt +\n");
-
-      if ( pan_tilt_valid != 1 ) {
-        if ( input_cmd(IN_CMD_RESET_PAN_TILT_NO_MUTEX, 0) == -1 ) {
-          res = -1;
-          break;
-        }
-      }
-
-      if ( (MAX_TILT) >= (tilt+MIN_RES) ) {
-        tilt += MIN_RES;
-        uvcPanTilt(videoIn->fd, 0, MIN_RES, 0);
-      }
-      res = tilt/one_degree;
-
-      DBG("tilt: %d\n", tilt);
-      break;
-
-    case IN_CMD_TILT_MINUS:
-      DBG("tilt -\n");
-
-      if ( pan_tilt_valid != 1 ) {
-        if ( input_cmd(IN_CMD_RESET_PAN_TILT_NO_MUTEX, 0) == -1 ) {
-          res = -1;
-          break;
-        }
-      }
-
-      if ( (MIN_TILT) <= (tilt-MIN_RES) ) {
-        tilt -= MIN_RES;
-        uvcPanTilt(videoIn->fd, 0, -MIN_RES, 0);
-      }
-      res = tilt/one_degree;
-
-      DBG("tilt: %d\n", tilt);
-      break;
-
-    case IN_CMD_SATURATION_PLUS:
-      DBG("saturation + (%d)\n", v4l2GetControl (videoIn, V4L2_CID_SATURATION));
-      res = v4l2UpControl(videoIn, V4L2_CID_SATURATION);
-      break;
-
-    case IN_CMD_SATURATION_MINUS:
-      DBG("saturation - (%d)\n", v4l2GetControl (videoIn, V4L2_CID_SATURATION));
-      res = v4l2DownControl(videoIn, V4L2_CID_SATURATION);
-      break;
-
-    case IN_CMD_CONTRAST_PLUS:
-      DBG("contrast + (%d)\n", v4l2GetControl (videoIn, V4L2_CID_CONTRAST));
-      res = v4l2UpControl(videoIn, V4L2_CID_CONTRAST);
-      break;
-
-    case IN_CMD_CONTRAST_MINUS:
-      DBG("contrast - (%d)\n", v4l2GetControl (videoIn, V4L2_CID_CONTRAST));
-      res = v4l2DownControl(videoIn, V4L2_CID_CONTRAST);
-      break;
-
-    case IN_CMD_BRIGHTNESS_PLUS:
-      DBG("brightness + (%d)\n", v4l2GetControl (videoIn, V4L2_CID_BRIGHTNESS));
-      res = v4l2UpControl(videoIn, V4L2_CID_BRIGHTNESS);
-      break;
-
-    case IN_CMD_BRIGHTNESS_MINUS:
-      DBG("brightness - (%d)\n", v4l2GetControl (videoIn, V4L2_CID_BRIGHTNESS));
-      res = v4l2DownControl(videoIn, V4L2_CID_BRIGHTNESS);
-      break;
-
-    case IN_CMD_GAIN_PLUS:
-      DBG("gain + (%d)\n", v4l2GetControl (videoIn, V4L2_CID_GAIN));
-      res = v4l2UpControl(videoIn, V4L2_CID_GAIN);
-      break;
-
-    case IN_CMD_GAIN_MINUS:
-      DBG("gain - (%d)\n", v4l2GetControl (videoIn, V4L2_CID_GAIN));
-      res = v4l2DownControl(videoIn, V4L2_CID_GAIN);
-      break;
-
-    case IN_CMD_FOCUS_PLUS:
-      DBG("focus + (%d)\n", focus);
-
-      value=MIN(MAX(focus+10,0),255);
-
-      if ( (res = v4l2SetControl(videoIn, V4L2_CID_FOCUS_LOGITECH, value)) == 0) {
-        focus = value;
-      }
-      res = focus;
-      break;
-
-    case IN_CMD_FOCUS_MINUS:
-      DBG("focus - (%d)\n", focus);
-
-      value=MIN(MAX(focus-10,0),255);
-
-      if ( (res = v4l2SetControl(videoIn, V4L2_CID_FOCUS_LOGITECH, value)) == 0) {
-        focus = value;
-      }
-      res = focus;
-      break;
-
-    case IN_CMD_FOCUS_SET:
-      value=MIN(MAX(value,0),255);
-      DBG("set focus to %d\n", value);
-
-      if ( (res = v4l2SetControl(videoIn, V4L2_CID_FOCUS_LOGITECH, value)) == 0) {
-        focus = value;
-      }
-      res = focus;
-      break;
-
-    /* switch the webcam LED permanently on */
-    case IN_CMD_LED_ON:
-      res = v4l2SetControl(videoIn, V4L2_CID_LED1_MODE_LOGITECH, 1);
-    break;
-
-    /* switch the webcam LED permanently off */
-    case IN_CMD_LED_OFF:
-      res = v4l2SetControl(videoIn, V4L2_CID_LED1_MODE_LOGITECH, 0);
-    break;
-
-    /* switch the webcam LED on if streaming, off if not streaming */
-    case IN_CMD_LED_AUTO:
-      res = v4l2SetControl(videoIn, V4L2_CID_LED1_MODE_LOGITECH, 3);
-    break;
-
-    /* let the webcam LED blink at a given hardcoded intervall */
-    case IN_CMD_LED_BLINK:
-      res = v4l2SetControl(videoIn, V4L2_CID_LED1_MODE_LOGITECH, 2);
-      res = v4l2SetControl(videoIn, V4L2_CID_LED1_FREQUENCY_LOGITECH, 255);
-    break;
-
-    case IN_CMD_EXPOSURE_MANUAL:
-      res = v4l2SetControl(videoIn, V4L2_CID_EXPOSURE_AUTO, 0);
-      /*{ struct v4l2_control control;
-      control.id    =V4L2_CID_EXPOSURE_AUTO_PRIORITY;
-					control.value =0;
-					if ((value = IOCTL_VIDEO(videoIn->fd, VIDIOC_S_CTRL, &control)) < 0)
-						printf("Set Auto Exposure off error\n");
-					else
-						printf("11Auto Exposure set to %d\n", control.value);
-
-  }*/
-    printf("uga manual: %d\n", res);
-    break;
-
-    case IN_CMD_EXPOSURE_AUTO:
-      res = v4l2SetControl(videoIn, V4L2_CID_EXPOSURE_AUTO, 3);
-      printf("uga auto: %d\n", res);
-    /*  { struct v4l2_control control;
-      control.id    =V4L2_CID_EXPOSURE_AUTO;
-					control.value =1;
-					if ((value = IOCTL_VIDEO(videoIn->fd, VIDIOC_S_CTRL, &control)) < 0)
-						printf("Set Auto Exposure on error\n");
-					else
-						printf("22Auto Exposure set to %d\n", control.value);
-
-  }*/
-    break;
-
-    case IN_CMD_EXPOSURE_SHUTTER_PRIO:
-      res = v4l2SetControl(videoIn, V4L2_CID_EXPOSURE_AUTO, 4);
-    break;
-
-    case IN_CMD_EXPOSURE_APERTURE_PRIO:
-      res = v4l2SetControl(videoIn, V4L2_CID_EXPOSURE_AUTO, 8);
-    break;
-
-    default:
-      DBG("nothing matched\n");
-      res = -1;
-  }
-
-  if ( cmd != IN_CMD_RESET_PAN_TILT_NO_MUTEX )
-    pthread_mutex_unlock( &controls_mutex );
-
-  return res;
 }
 
 /*** private functions for this plugin below ***/
@@ -800,9 +475,6 @@ void cam_cleanup(void *arg) {
   first_run = 0;
   IPRINT("cleaning up ressources allocated by input thread\n");
 
-  /* restore behaviour of the LED to auto */
-  input_cmd(IN_CMD_LED_AUTO, 0);
-
   close_v4l2(videoIn);
   if (videoIn->tmpbuffer != NULL) free(videoIn->tmpbuffer);
   if (videoIn != NULL) free(videoIn);
@@ -849,8 +521,6 @@ int input_cmd_new(__u32 control, __s32 value, __u32 typecode)
                 pglobal->in.in_formats[pglobal->in.currentFormat].currentResolution = value;
             }
             return ret;
-        } break;
-        case IN_CMD_UVC_EXT: {
         } break;
     }
     return ret;

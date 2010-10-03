@@ -36,7 +36,7 @@ PLUGINS += input_testpicture.so
 PLUGINS += output_autofocus.so
 PLUGINS += input_gspcav1.so
 PLUGINS += input_file.so
-PLUGINS += input_control.so
+# PLUGINS += input_control.so
 # PLUGINS += input_http.so
 # PLUGINS += output_viewer.so
 

@@ -845,10 +845,6 @@ void *client_thread( void *arg ) {
 		DBG("Request for the V4L2 controls JSON file\n");
 		send_Controls_JSON(lcfd.fd);
 		break;
-	case A_UVC_EXT_JSON:
-		DBG("Request for the UVC extended JSON file\n");
-		send_UVCExt_JSON(lcfd.fd);
-		break;
     case A_INFO_JSON:
     	DBG("Request for info JSON file\n");
     	send_Info_JSON(lcfd.fd);

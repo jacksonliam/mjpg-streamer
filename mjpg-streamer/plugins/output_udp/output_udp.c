@@ -109,8 +109,8 @@ void worker_cleanup(void *arg) {
 /******************************************************************************
 Description.: this is the main worker thread
               it loops forever, grabs a fresh frame and stores it to file
-Input Value.: 
-Return Value: 
+Input Value.:
+Return Value:
 ******************************************************************************/
 void *worker_thread( void *arg ) {
   int ok = 1, frame_size=0, rc = 0;
@@ -119,7 +119,7 @@ void *worker_thread( void *arg ) {
 
   /* set cleanup handler to cleanup allocated ressources */
   pthread_cleanup_push(worker_cleanup, NULL);
-  
+
   // set UDP server data structures ---------------------------
   if (port <= 0) {
 	OPRINT("a valid UDP port must be provided\n");
@@ -127,7 +127,8 @@ void *worker_thread( void *arg ) {
   }
   struct sockaddr_in addr;
   int sd;
-  int bytes, addr_len=sizeof(addr);
+  int bytes;
+  unsigned int addr_len=sizeof(addr);
   char udpbuffer[1024] = {0};
   sd = socket(PF_INET, SOCK_DGRAM, 0);
   bzero(&addr, sizeof(addr));
@@ -137,7 +138,7 @@ void *worker_thread( void *arg ) {
   if ( bind(sd, (struct sockaddr*)&addr, sizeof(addr)) != 0 )
 	perror("bind");
   // -----------------------------------------------------------
-    
+
   while ( ok >= 0 && !pglobal->stop ) {
     DBG("waiting for a UDP message\n");
 
@@ -145,7 +146,7 @@ void *worker_thread( void *arg ) {
     memset(udpbuffer, 0, sizeof(udpbuffer));
     bytes = recvfrom(sd, udpbuffer, sizeof(udpbuffer), 0, (struct sockaddr*)&addr, &addr_len);
     // ---------------------------------------------------------
-	
+
     DBG("waiting for fresh frame\n");
     pthread_cond_wait(&pglobal->db_update, &pglobal->db);
 
@@ -173,7 +174,7 @@ void *worker_thread( void *arg ) {
     pthread_mutex_unlock( &pglobal->db );
 
     /* only save a file if a name came in with the UDP message */
-    if (strlen(udpbuffer) > 0) { 
+    if (strlen(udpbuffer) > 0) {
       DBG("writing file: %s\n", udpbuffer);
 
       /* open file for write. Path must pre-exist */
@@ -342,7 +343,7 @@ int output_init(output_parameter *param) {
 		break;
 	}
   }
-  
+
   pglobal = param->global;
 
   OPRINT("output folder.....: %s\n", folder);
