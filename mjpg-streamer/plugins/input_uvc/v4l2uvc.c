@@ -555,7 +555,7 @@ void control_readed(struct vdIn *vd,struct v4l2_queryctrl *ctrl, globals *pgloba
                                            pglobal->in.in_parameters,
                                            (pglobal->in.parametercount + 1) * sizeof(input_control));
             memcpy(&pglobal->in.in_parameters[pglobal->in.parametercount].ctrl, ctrl, sizeof(struct v4l2_queryctrl));
-            pglobal->in.in_parameters[pglobal->in.parametercount].dest = IN_CMD_V4L2;
+            pglobal->in.in_parameters[pglobal->in.parametercount].type = IN_CMD_V4L2;
             pglobal->in.in_parameters[pglobal->in.parametercount].value = c.value;
             if (ctrl->type == V4L2_CTRL_TYPE_MENU) {
                 pglobal->in.in_parameters[pglobal->in.parametercount].menuitems =
@@ -578,7 +578,7 @@ void control_readed(struct vdIn *vd,struct v4l2_queryctrl *ctrl, globals *pgloba
             DBG("V4L2 parameter found: %s value %d \n", ctrl->name, c.value);
             pglobal->in.parametercount++;
     } else {
-        DBG("Unable to get the value of %s retcode: %d errno: %d\n", ctrl->name, ret, errno);
+        DBG("Unable to get the value of %s retcode: %d  %s\n", ctrl->name, ret, strerror(errno));
     }
 };
 
@@ -660,4 +660,36 @@ void enumerateControls(struct vdIn *vd, globals *pglobal)
             }
         }
     }
+
+    memset(&pglobal->in.jpegcomp, 0, sizeof(struct v4l2_jpegcompression));
+  if (IOCTL_VIDEO(vd->fd, VIDIOC_G_JPEGCOMP, &pglobal->in.jpegcomp) != EINVAL) {
+      DBG("JPEG compression details:\n");
+      DBG("Quality: %d\n", pglobal->in.jpegcomp.quality);
+      DBG("APPn: %d\n", pglobal->in.jpegcomp.APPn);
+      DBG("APP length: %d\n", pglobal->in.jpegcomp.APP_len);
+      DBG("APP data: %s\n", pglobal->in.jpegcomp.APP_data);
+      DBG("COM length: %d\n", pglobal->in.jpegcomp.COM_len);
+      DBG("COM data: %s\n", pglobal->in.jpegcomp.COM_data);
+     struct v4l2_queryctrl ctrl_jpeg;
+     ctrl_jpeg.id = 1;
+     sprintf((char*)&ctrl_jpeg.name, "JPEG quality");
+     ctrl_jpeg.minimum = 0;
+     ctrl_jpeg.maximum = 100;
+     ctrl_jpeg.step = 1;
+     ctrl_jpeg.default_value = 50;
+     ctrl_jpeg.flags = 0;
+     ctrl_jpeg.type = V4L2_CTRL_TYPE_INTEGER;
+      pglobal->in.in_parameters =
+            (input_control*)realloc(
+                                           pglobal->in.in_parameters,
+                                           (pglobal->in.parametercount + 1) * sizeof(input_control));
+            memcpy(&pglobal->in.in_parameters[pglobal->in.parametercount].ctrl, &ctrl_jpeg, sizeof(struct v4l2_queryctrl));
+            pglobal->in.in_parameters[pglobal->in.parametercount].type = IN_CMD_JPEG_QUALITY;
+            pglobal->in.in_parameters[pglobal->in.parametercount].value = pglobal->in.jpegcomp.quality;
+        pglobal->in.parametercount++;
+  } else {
+      DBG("Modifying the setting of the JPEG compression is not supported\n");
+      pglobal->in.jpegcomp.quality = -1;
+  }
+
 }

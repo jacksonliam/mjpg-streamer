@@ -23,23 +23,23 @@
   </head>
   <body>
     <script type="text/javascript"> 
-		function setControl(controlId, value, dest) {
-          $.get('/?action=command&command='+ controlId + '&value=' + value  + '&type=0&dest='+ de);
+		function setControl(controlId, value, dest, typecode) {
+          $.get('/?action=command&command='+ controlId + '&value=' + value  + '&dest='+ dest + '&typecode=' + typecode);
         }
 
-        function setControl_bool(controlId, value, dest) {
+        function setControl_bool(controlId, value, dest, typecode) {
           if (value == false)
-            setControl(controlId, 0, dest);
+            setControl(controlId, 0, dest, typecode);
           else
-            setControl(controlId, 1, dest);
+            setControl(controlId, 1, dest, typecode);
         }
 
-        function setControl_string(controlId, string, minlength, dest) {
+        function setControl_string(controlId, string, minlength, dest, typecode) {
           if (string.length < minlength) {
             alert("The input string has to be least"+minlength+" caracters!");
             return;
           }
-          $.get('/?action=command&command='+ controlId + '&value=' + value + '&type=0&dest=' + dest, function(data){
+          $.get('/?action=command&command='+ controlId + '&value=' + value + '&dest=' + dest + '&typecode=' + typecode, function(data){
              alert("Data Loaded: " + data);
            });
         }
@@ -60,6 +60,7 @@
           function(data) {
             $.each(data.controls, function(i,item){
               $("<tr/>").attr("id", "tr-"+item.id).appendTo("#control");
+              alert(item.code);
               // BUTTON type controls does not have a label 
               if (item.type == 4) {
                 $("<td/>").appendTo("#tr-"+item.id);
@@ -79,8 +80,8 @@
                   .attr("value", item.value)
                   .attr("id", "spinbox-"+item.id)
                   .SpinButton(options)
-                  .bind("valueChanged", function() {setControl(item.id, $(this).val(), $(this).dest());})
-                  .appendTo("#td-ctrl-"+item.id);
+                  .bind("valueChanged", function() {setControl(item.id, $(this).val(), item.dest, item._code);})
+                  .appendTo("#td-ctrl-"+item.id); 
               } else if (item.type == 2) { // boolean type controls
                 if (item.value == "1")
                   $("<input/>")
@@ -91,7 +92,7 @@
                 else
                   $("<input/>")
                     .attr("type", "checkbox")
-                    .change(function(){setControl(item.id, ($(this).attr("checked")?1:0), $(this).dest());})
+                    .change(function(){setControl(item.id, ($(this).attr("checked")?1:0), item.dest, item.typecode);})
                     .appendTo("#td-ctrl-"+item.id);
               } else if (item.type == 7) { // string type controls
                   $("<input/>").attr("value", item.value).appendTo("#td-ctrl-"+item.id);
@@ -100,7 +101,7 @@
                   .attr("name", "select-"+item.id)
                   .attr("id", "menu-"+item.id)
                   .attr("style", "width: 100%;")
-                  .change(function(){setControl(item.id, $(this).val(), $(this).dest());})
+                  .change(function(){setControl(item.id, $(this).val(), item.dest, item.typecode);})
                   .appendTo("#td-ctrl-"+item.id);
                 $.each(item.menu, function(val, text) {
                     if (item.value == val) {
@@ -114,13 +115,13 @@
                   .attr("type", "button")
                   .attr("style", "width: 100%; height: 100%;")
                   .text(item.name)
-                  .click(function(){setControl(item.id, 0, $(this).dest());})
+                  .click(function(){setControl(item.id, 0, item.dest, item.typecode);})
                   .appendTo("#td-ctrl-"+item.id);
               } else if (item.type == 7) { // string  type
                 $("<input/>")
                     .attr("type", "text")
                     .attr("maxlength", item.max)
-                    .change(function(){setControl_string(item.id, $(this).text(), item.min, $(this).dest());})
+                    .change(function(){setControl_string(item.id, $(this).text(), item.min, item.dest, item.typecode);})
                     .appendTo("#td-ctrl-"+item.id);
               } else {
                  alert("Unknown control type: "+item.type);

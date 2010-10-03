@@ -293,7 +293,6 @@ int input_init(input_parameter *param) {
     closelog();
     exit(EXIT_FAILURE);
   }
-
   /*
    * recent linux-uvc driver (revision > ~#125) requires to use dynctrls
    * for pan/tilt/focus/...
@@ -302,7 +301,7 @@ int input_init(input_parameter *param) {
   if (dynctrls)
     initDynCtrls(videoIn->fd);
 
-  enumerateControls(videoIn, pglobal); // enumerate V4L2 controls after UVC extended mapping
+   enumerateControls(videoIn, pglobal); // enumerate V4L2 controls after UVC extended mapping
   return 0;
 }
 
@@ -522,6 +521,19 @@ int input_cmd_new(__u32 control, __s32 value, __u32 typecode)
             }
             return ret;
         } break;
+        case IN_CMD_JPEG_QUALITY:
+            if ((value > 0) && (value < 101)) {
+                pglobal->in.jpegcomp.quality = value;
+                if (IOCTL_VIDEO(videoIn->fd, VIDIOC_S_JPEGCOMP, &pglobal->in.jpegcomp) != EINVAL) {
+                    DBG("JPEG quality is set to %d\n", value);
+                    ret = 0;
+                } else {
+                    DBG("Setting the JPEG quality is not supported\n");
+                }
+            } else {
+                DBG("Quality is out of range\n");
+            }
+            break;
     }
     return ret;
 }

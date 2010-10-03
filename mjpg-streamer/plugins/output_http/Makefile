@@ -12,7 +12,7 @@ CC = gcc
 OTHER_HEADERS = ../../mjpg_streamer.h ../../utils.h ../output.h ../input.h
 
 CFLAGS += -O1 -DLINUX -D_GNU_SOURCE -Wall -shared -fPIC -g
-#CFLAGS += -DDEBUG
+CFLAGS += -DDEBUG
 LFLAGS += -lpthread -ldl
 
 ifeq ($(WXP_COMPAT),true)

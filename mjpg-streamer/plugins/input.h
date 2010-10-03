@@ -38,6 +38,7 @@ typedef enum _in_cmd_type in_cmd_type;
 enum _in_cmd_type {
     IN_CMD_V4L2 = 0,
     IN_CMD_RESOLUTION = 1,
+    IN_CMD_JPEG_QUALITY = 2,
 };
 
 typedef struct _input_control input_control;
@@ -46,7 +47,7 @@ struct _input_control {
     int value;
     struct v4l2_querymenu *menuitems;
     struct v4l2_capability cap;
-    in_cmd_type dest;
+    in_cmd_type type;
 };
 
 typedef struct _input_resolution input_resolution;
@@ -71,6 +72,8 @@ struct _input {
   input_parameter param;
   input_control *in_parameters;
   int parametercount;
+
+  struct v4l2_jpegcompression jpegcomp;
 
   input_format *in_formats;
   int formatCount;

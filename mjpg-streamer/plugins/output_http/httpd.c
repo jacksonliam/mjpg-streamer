@@ -619,8 +619,8 @@ void command(int id, int fd, char *parameter) {
   }
 
   int typecode = -1;
-  if ( (value = strstr(parameter, "type=")) != NULL ) {
-    value += strlen("type=");
+  if ( (value = strstr(parameter, "typecode=")) != NULL ) {
+    value += strlen("typecode=");
     len = strspn(value, "-1234567890");
     if ( (svalue = strndup(value, len)) == NULL ) {
       if (command != NULL) free(command);
@@ -643,7 +643,7 @@ void command(int id, int fd, char *parameter) {
       return;
     }
     dest = MAX(MIN(strtol(svalue, NULL, 10), INT_MAX), INT_MIN);
-    DBG("The command destination value converted value form string %s to integer %d\n", svalue, typecode);
+    DBG("The command destination value converted value form string %s to integer %d\n", svalue, dest);
   }
 
   switch(dest) {
@@ -1079,7 +1079,8 @@ void send_Controls_JSON(int fd)
                     "\t\t\t\"step\": \"%d\",\n"
                     "\t\t\t\"default\": \"%d\",\n"
                     "\t\t\t\"value\": \"%d\",\n"
-                    "\t\t\t\"dest\": \"0\"",
+                    "\t\t\t\"dest\": \"0\",\n"
+                    "\t\t\t\"typecode:\": \"%d\"",
                     pglobal->in.in_parameters[i].ctrl.name,
                     pglobal->in.in_parameters[i].ctrl.id,
                     pglobal->in.in_parameters[i].ctrl.type,
@@ -1087,7 +1088,8 @@ void send_Controls_JSON(int fd)
                     pglobal->in.in_parameters[i].ctrl.maximum,
                     pglobal->in.in_parameters[i].ctrl.step,
                     pglobal->in.in_parameters[i].ctrl.default_value,
-                    pglobal->in.in_parameters[i].value
+                    pglobal->in.in_parameters[i].value,
+                    pglobal->in.in_parameters[i].type
                     );
 
             if (pglobal->in.in_parameters[i].ctrl.type == V4L2_CTRL_TYPE_MENU) {

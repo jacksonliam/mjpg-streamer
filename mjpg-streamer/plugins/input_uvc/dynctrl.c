@@ -38,6 +38,29 @@
 #define LENGTH_OF_XU_CTR (6)
 #define LENGTH_OF_XU_MAP (10)
 
+/* ioctl with a number of retries in the case of failure
+* args:
+* fd - device descriptor
+* IOCTL_X - ioctl reference
+* arg - pointer to ioctl data
+* returns - ioctl result
+*/
+int xioctl(int fd, int IOCTL_X, void *arg)
+{
+	int ret = 0;
+	int tries= IOCTL_RETRY;
+	do
+	{
+		ret = IOCTL_VIDEO(fd, IOCTL_X, arg);
+	}
+	while (ret && tries-- &&
+			((errno == EINTR) || (errno == EAGAIN) || (errno == ETIMEDOUT)));
+
+	if (ret && (tries <= 0)) DBG("ioctl (%i) retried %i times - giving up: %s)\n", IOCTL_X, IOCTL_RETRY, strerror(errno));
+
+	return (ret);
+}
+
 static struct uvc_xu_control_info xu_ctrls[] =
 {
 	{
@@ -199,7 +222,7 @@ int initDynCtrls(int fd)
 	for ( i=0; i<LENGTH_OF_XU_CTR; i++ )
 	{
 		DBG("Adding control for %s\n", xu_mappings[i].name);
-		if ((err=IOCTL_VIDEO(fd, UVCIOC_CTRL_ADD, &xu_ctrls[i])) < 0 ) {
+		if ((err=xioctl(fd, UVCIOC_CTRL_ADD, &xu_ctrls[i])) < 0 ) {
 			if ((errno != EEXIST) || (errno != EACCES)) {
 			    DBG("UVCIOC_CTRL_ADD - Error\n");
 			} else if (errno == EACCES) {
@@ -211,7 +234,7 @@ int initDynCtrls(int fd)
 	/* after adding the controls, add the mapping now */
 	for ( i=0; i<LENGTH_OF_XU_MAP; i++ ) {
 		DBG("mapping control for %s\n", xu_mappings[i].name);
-		if ((err=IOCTL_VIDEO(fd, UVCIOC_CTRL_MAP, &xu_mappings[i])) < 0) {
+		if ((err=xioctl(fd, UVCIOC_CTRL_MAP, &xu_mappings[i])) < 0) {
 			if ((errno!=EEXIST) || (errno != EACCES)) {
 				DBG("UVCIOC_CTRL_MAP - Error\n");
 			} else if (errno == EACCES) {

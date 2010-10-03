@@ -23,6 +23,7 @@
 #define V4L2_DYNA_CTRLS_H
 
 #include <linux/videodev2.h>
+#include <string.h>
 
 #ifdef USE_LIBV4L2
 #include <libv4l2.h>
@@ -34,6 +35,19 @@
 #define OPEN_VIDEO(fd, flags) open(fd, flags)
 #define CLOSE_VIDEO(fd) close(fd)
 #endif
+
+//set ioctl retries to 4 - linux uvc as increased timeout from 1000 to 3000 ms
+#define IOCTL_RETRY 16
+
+/* ioctl with a number of retries in the case of I/O failure
+* args:
+* fd - device descriptor
+* IOCTL_X - ioctl reference
+* arg - pointer to ioctl data
+* returns - ioctl result
+*/
+int xioctl(int fd, int IOCTL_X, void *arg);
+
 /*
  * Dynamic controls
  */
