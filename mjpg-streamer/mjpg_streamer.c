@@ -143,24 +143,6 @@ Description.:
 Input Value.:
 Return Value:
 ******************************************************************************/
-int control(int command, char *details) {
-
-  switch(command) {
-    case CONTROL_CMD_RECONFIGURE_INPUT:
-      printf("will reload input plugin: %s\n", details);
-      break;
-    default:
-      LOG("unknown control command received\n");
-  }
-  return 0;
-}
-
-
-/******************************************************************************
-Description.:
-Input Value.:
-Return Value:
-******************************************************************************/
 int main(int argc, char *argv[])
 {
   char *input  = "input_uvc.so --resolution 640x480 --fps 5 --device /dev/video0";
@@ -171,7 +153,6 @@ int main(int argc, char *argv[])
   output[0] = "output_http.so --port 8080";
   global.outcnt = 0;
 
-  global.control = control;
 
   /* parameter parsing */
   while(1) {
@@ -282,7 +263,11 @@ int main(int argc, char *argv[])
    * messages like the following will only be visible on your terminal
    * if not running in daemon mode
    */
+   #ifdef SVN_REV
+   LOG("MJPG Streamer Version: svn rev: %s\n", SVN_REV);
+   #else
   LOG("MJPG Streamer Version.: %s\n", SOURCE_VERSION);
+  #endif
 
   /* check if at least one output plugin was selected */
   if ( global.outcnt == 0 ) {

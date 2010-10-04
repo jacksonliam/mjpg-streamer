@@ -38,12 +38,12 @@
 /* global variables that are accessed by all plugins */
 typedef struct _globals globals;
 
-/* commands which can be send to mjpg-streamer */
-typedef enum _control_cmd_type control_cmd_type;
-enum _control_cmd_type {
-  CONTROL_CMD_UNKNOWN = 0,
-  CONTROL_CMD_RECONFIGURE_INPUT
-};
+/* an enum to identify the commands destination*/
+typedef enum {
+    Dest_Input = 0,
+    Dest_Output = 1,
+    Dest_Program = 2,
+} command_dest;
 
 struct _globals {
   int stop;
@@ -57,7 +57,7 @@ struct _globals {
   int size;
   /* v4l2_buffer timestamp */
   struct timeval timestamp;
-  
+
   /* input plugin */
   input in;
 
@@ -66,5 +66,5 @@ struct _globals {
   int outcnt;
 
   /* pointer to control functions */
-  int (*control)(int command, char *details);
+  //int (*control)(int command, char *details);
 };

@@ -89,14 +89,6 @@ static const struct {
   { "store", OUT_CMD_STORE }
 };
 
-/* mapping between command string and command type */
-static const struct {
-  const char *string;
-  const control_cmd_type cmd;
-} control_cmd_mapping[] = {
-  { "reconfigure_input", CONTROL_CMD_RECONFIGURE_INPUT }
-};
-
 /* the webserver determines between these values for an answer */
 typedef enum {
     A_UNKNOWN,
@@ -108,13 +100,6 @@ typedef enum {
     A_UVC_EXT_JSON,
     A_INFO_JSON,
 } answer_t;
-
-/* an enum to */
-typedef enum {
-    Dest_Input = 0,
-    Dest_Output = 1,
-    Dest_Program = 2,
-} command_dest;
 
 /*
  * the client sends information with each request

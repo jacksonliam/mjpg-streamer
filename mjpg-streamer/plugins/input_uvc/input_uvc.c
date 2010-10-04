@@ -522,7 +522,7 @@ int input_cmd_new(__u32 control, __s32 value, __u32 typecode)
             return ret;
         } break;
         case IN_CMD_JPEG_QUALITY:
-            if ((value > 0) && (value < 101)) {
+            if ((value >= 0) && (value < 101)) {
                 pglobal->in.jpegcomp.quality = value;
                 if (IOCTL_VIDEO(videoIn->fd, VIDIOC_S_JPEGCOMP, &pglobal->in.jpegcomp) != EINVAL) {
                     DBG("JPEG quality is set to %d\n", value);

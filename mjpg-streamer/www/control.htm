@@ -1,4 +1,4 @@
-<html>
+<html style="overflow-y: auto;">
   <head>
     <script type="text/javascript" src="jquery.js"></script>
     
@@ -60,7 +60,6 @@
           function(data) {
             $.each(data.controls, function(i,item){
               $("<tr/>").attr("id", "tr-"+item.id).appendTo("#control");
-              alert(item.code);
               // BUTTON type controls does not have a label 
               if (item.type == 4) {
                 $("<td/>").appendTo("#tr-"+item.id);
@@ -80,7 +79,7 @@
                   .attr("value", item.value)
                   .attr("id", "spinbox-"+item.id)
                   .SpinButton(options)
-                  .bind("valueChanged", function() {setControl(item.id, $(this).val(), item.dest, item._code);})
+                  .bind("valueChanged", function() {setControl(item.id, $(this).val(), item.dest, item.typecode);})
                   .appendTo("#td-ctrl-"+item.id); 
               } else if (item.type == 2) { // boolean type controls
                 if (item.value == "1")

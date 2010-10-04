@@ -1040,7 +1040,7 @@ Return Value: -
 ******************************************************************************/
 void send_Controls_JSON(int fd)
 {
-	char buffer[BUFFER_SIZE*4] = {0}; // FIXME do reallocation if the buffer size is small
+	char buffer[BUFFER_SIZE*8] = {0}; // FIXME do reallocation if the buffer size is small
 	int i;
 	sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
                   "Content-type: %s\r\n" \
@@ -1080,7 +1080,8 @@ void send_Controls_JSON(int fd)
                     "\t\t\t\"default\": \"%d\",\n"
                     "\t\t\t\"value\": \"%d\",\n"
                     "\t\t\t\"dest\": \"0\",\n"
-                    "\t\t\t\"typecode:\": \"%d\"",
+                    "\t\t\t\"flags\": \"%d\",\n"
+                    "\t\t\t\"typecode\": \"%d\"",
                     pglobal->in.in_parameters[i].ctrl.name,
                     pglobal->in.in_parameters[i].ctrl.id,
                     pglobal->in.in_parameters[i].ctrl.type,
@@ -1089,6 +1090,8 @@ void send_Controls_JSON(int fd)
                     pglobal->in.in_parameters[i].ctrl.step,
                     pglobal->in.in_parameters[i].ctrl.default_value,
                     pglobal->in.in_parameters[i].value,
+                    // 0 is the code of the input plugin
+                    pglobal->in.in_parameters[i].ctrl.flags,
                     pglobal->in.in_parameters[i].type
                     );
 
