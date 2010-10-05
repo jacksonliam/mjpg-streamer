@@ -18,7 +18,7 @@ LFLAGS += -lv4l2
 CFLAGS += -DUSE_LIBV4L2
 endif
 
-CFLAGS += -DDEBUG
+#CFLAGS += -DDEBUG
 LFLAGS += -ljpeg
 
 all: input_uvc.so

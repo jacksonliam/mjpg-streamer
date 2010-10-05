@@ -37,7 +37,6 @@
 #include <errno.h>
 #include <limits.h>
 #include <linux/videodev.h>
-#include <libv4l2.h>
 #include <linux/version.h>
 #include "../../mjpg_streamer.h"
 #include "../../utils.h"
