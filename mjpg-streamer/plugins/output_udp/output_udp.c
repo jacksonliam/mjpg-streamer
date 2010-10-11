@@ -57,6 +57,13 @@
 #define OUTPUT_PLUGIN_NAME "UDP output plugin"
 #define MAX_ARGUMENTS 32
 
+enum RTSP_State {
+	RTSP_State_Setup,
+	RTSP_State_Playing,
+	RTSP_State_Paused,
+	RTSP_State_Teardown,
+};
+
 static pthread_t worker;
 static globals *pglobal;
 static int fd, delay, max_frame_size;
@@ -146,6 +153,8 @@ void *worker_thread( void *arg ) {
     memset(udpbuffer, 0, sizeof(udpbuffer));
     bytes = recvfrom(sd, udpbuffer, sizeof(udpbuffer), 0, (struct sockaddr*)&addr, &addr_len);
     // ---------------------------------------------------------
+    
+    
 
     DBG("waiting for fresh frame\n");
     pthread_cond_wait(&pglobal->db_update, &pglobal->db);
@@ -380,4 +389,5 @@ int output_run(int id) {
   pthread_detach(worker);
   return 0;
 }
+
 

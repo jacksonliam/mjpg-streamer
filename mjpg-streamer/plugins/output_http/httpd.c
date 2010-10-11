@@ -401,7 +401,7 @@ void send_stream(int fd) {
     sprintf(buffer, "Content-Type: image/jpeg\r\n" \
                     "Content-Length: %d\r\n" \
                     "X-Timestamp: %d.%06d\r\n" \
-                    "\r\n", frame_size, timestamp.tv_sec, timestamp.tv_usec);
+                    "\r\n", frame_size, (int)timestamp.tv_sec, (int)timestamp.tv_usec);
     DBG("sending intemdiate header\n");
     if ( write(fd, buffer, strlen(buffer)) < 0 ) break;
 

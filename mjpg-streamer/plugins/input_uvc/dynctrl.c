@@ -1,25 +1,24 @@
-/*******************************************************************************
-# Linux-UVC streaming input-plugin for MJPG-streamer                           #
-#                                                                              #
-# This package work with the Logitech UVC based webcams with the mjpeg feature #
-#                                                                              #
-# Copyright (C)      2007 Tom Stöveken                                         #
-#                                                                              #
-# This program is free software; you can redistribute it and/or modify         #
-# it under the terms of the GNU General Public License as published by         #
-# the Free Software Foundation; either version 2 of the License, or            #
-# (at your option) any later version.                                          #
-#                                                                              #
-# This program is distributed in the hope that it will be useful,              #
-# but WITHOUT ANY WARRANTY; without even the implied warranty of               #
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                #
-# GNU General Public License for more details.                                 #
-#                                                                              #
-# You should have received a copy of the GNU General Public License            #
-# along with this program; if not, write to the Free Software                  #
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA    #
-#                                                                              #
-*******************************************************************************/
+/*******************************************************************************#
+#           guvcview              http://guvcview.berlios.de                    #
+#                                                                               #
+#           Paulo Assis <pj.assis@gmail.com>                                    #
+#                                                                               #
+# This program is free software; you can redistribute it and/or modify          #
+# it under the terms of the GNU General Public License as published by          #
+# the Free Software Foundation; either version 2 of the License, or             #
+# (at your option) any later version.                                           #
+#                                                                               #
+# This program is distributed in the hope that it will be useful,               #
+# but WITHOUT ANY WARRANTY; without even the implied warranty of                #
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                 #
+# GNU General Public License for more details.                                  #
+#                                                                               #
+# You should have received a copy of the GNU General Public License             #
+# along with this program; if not, write to the Free Software                   #
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA     #
+#                                                                               #
+********************************************************************************/
+
 
 #include <sys/ioctl.h>
 #include <sys/time.h>
@@ -38,28 +37,6 @@
 #define LENGTH_OF_XU_CTR (6)
 #define LENGTH_OF_XU_MAP (10)
 
-/* ioctl with a number of retries in the case of failure
-* args:
-* fd - device descriptor
-* IOCTL_X - ioctl reference
-* arg - pointer to ioctl data
-* returns - ioctl result
-*/
-int xioctl(int fd, int IOCTL_X, void *arg)
-{
-	int ret = 0;
-	int tries= IOCTL_RETRY;
-	do
-	{
-		ret = IOCTL_VIDEO(fd, IOCTL_X, arg);
-	}
-	while (ret && tries-- &&
-			((errno == EINTR) || (errno == EAGAIN) || (errno == ETIMEDOUT)));
-
-	if (ret && (tries <= 0)) DBG("ioctl (%i) retried %i times - giving up: %s)\n", IOCTL_X, IOCTL_RETRY, strerror(errno));
-
-	return (ret);
-}
 
 static struct uvc_xu_control_info xu_ctrls[] =
 {
@@ -68,42 +45,42 @@ static struct uvc_xu_control_info xu_ctrls[] =
 		.selector = XU_MOTORCONTROL_PANTILT_RELATIVE,
 		.index    = 0,
 		.size     = 4,
-		.flags    = UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_DEF | UVC_CONTROL_AUTO_UPDATE
+		.flags    = UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_DEF
 	},
 	{
 		.entity   = UVC_GUID_LOGITECH_MOTOR_CONTROL,
 		.selector = XU_MOTORCONTROL_PANTILT_RESET,
 		.index    = 1,
 		.size     = 1,
-		.flags    = UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_RES | UVC_CONTROL_GET_DEF | UVC_CONTROL_AUTO_UPDATE
+		.flags    = UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_RES | UVC_CONTROL_GET_DEF
 	},
 	{
 		.entity   = UVC_GUID_LOGITECH_MOTOR_CONTROL,
 		.selector = XU_MOTORCONTROL_FOCUS,
 		.index    = 2,
 		.size     = 6,
-		.flags    = UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_CUR | UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX |UVC_CONTROL_GET_DEF | UVC_CONTROL_AUTO_UPDATE
+		.flags    = UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_CUR | UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX |UVC_CONTROL_GET_DEF
 	},
 	{
 		.entity   = UVC_GUID_LOGITECH_VIDEO_PIPE,
 		.selector = XU_COLOR_PROCESSING_DISABLE,
 		.index    = 4,
 		.size     = 1,
-		.flags    = UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_CUR |UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_RES | UVC_CONTROL_GET_DEF | UVC_CONTROL_AUTO_UPDATE
+		.flags    = UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_CUR |UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_RES | UVC_CONTROL_GET_DEF
 	},
 	{
 		.entity   = UVC_GUID_LOGITECH_VIDEO_PIPE,
 		.selector = XU_RAW_DATA_BITS_PER_PIXEL,
 		.index    = 7,
 		.size     = 1,
-		.flags    = UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_CUR |UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_RES | UVC_CONTROL_GET_DEF | UVC_CONTROL_AUTO_UPDATE
+		.flags    = UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_CUR |UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_RES | UVC_CONTROL_GET_DEF
 	},
 	{
 		.entity   = UVC_GUID_LOGITECH_USER_HW_CONTROL,
 		.selector = XU_HW_CONTROL_LED1,
 		.index    = 0,
 		.size     = 3,
-		.flags    = UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_CUR |UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_RES | UVC_CONTROL_GET_DEF | UVC_CONTROL_AUTO_UPDATE
+		.flags    = UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_CUR |UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_RES | UVC_CONTROL_GET_DEF
 	},
 
 };
@@ -112,7 +89,7 @@ static struct uvc_xu_control_info xu_ctrls[] =
 static struct uvc_xu_control_mapping xu_mappings[] =
 {
 	{
-		.id        = V4L2_CID_PAN_RELATIVE,
+		.id        = V4L2_CID_PAN_RELATIVE_NEW,
 		.name      = "Pan (relative)",
 		.entity    = UVC_GUID_LOGITECH_MOTOR_CONTROL,
 		.selector  = XU_MOTORCONTROL_PANTILT_RELATIVE,
@@ -122,7 +99,7 @@ static struct uvc_xu_control_mapping xu_mappings[] =
 		.data_type = UVC_CTRL_DATA_TYPE_SIGNED
 	},
 	{
-		.id        = V4L2_CID_TILT_RELATIVE,
+		.id        = V4L2_CID_TILT_RELATIVE_NEW,
 		.name      = "Tilt (relative)",
 		.entity    = UVC_GUID_LOGITECH_MOTOR_CONTROL,
 		.selector  = XU_MOTORCONTROL_PANTILT_RELATIVE,
@@ -132,7 +109,7 @@ static struct uvc_xu_control_mapping xu_mappings[] =
 		.data_type = UVC_CTRL_DATA_TYPE_SIGNED
 	},
 	{
-		.id        = V4L2_CID_PAN_RESET,
+		.id        = V4L2_CID_PAN_RESET_NEW,
 		.name      = "Pan Reset",
 		.entity    = UVC_GUID_LOGITECH_MOTOR_CONTROL,
 		.selector  = XU_MOTORCONTROL_PANTILT_RESET,
@@ -142,7 +119,7 @@ static struct uvc_xu_control_mapping xu_mappings[] =
 		.data_type = UVC_CTRL_DATA_TYPE_UNSIGNED
 	},
 	{
-		.id        = V4L2_CID_TILT_RESET,
+		.id        = V4L2_CID_TILT_RESET_NEW,
 		.name      = "Tilt Reset",
 		.entity    = UVC_GUID_LOGITECH_MOTOR_CONTROL,
 		.selector  = XU_MOTORCONTROL_PANTILT_RESET,
@@ -221,26 +198,22 @@ int initDynCtrls(int fd)
 	/* try to add all controls listed above */
 	for ( i=0; i<LENGTH_OF_XU_CTR; i++ )
 	{
-		DBG("Adding control for %s\n", xu_mappings[i].name);
-		if ((err=xioctl(fd, UVCIOC_CTRL_ADD, &xu_ctrls[i])) < 0 ) {
-			if ((errno != EEXIST) || (errno != EACCES)) {
-			    DBG("UVCIOC_CTRL_ADD - Error\n");
-			} else if (errno == EACCES) {
-				DBG("need admin previledges for adding extension controls\n");
-			}
-			else DBG("Control exists\n");
+		fprintf(stderr, "Adding control for %s\n", xu_mappings[i].name);
+		if ((err=IOCTL_VIDEO(fd, UVCIOC_CTRL_ADD, &xu_ctrls[i])) < 0 )
+		{
+			if (errno != EEXIST) perror("UVCIOC_CTRL_ADD - Error");
+			//else perror("Control exists");
 		}
 	}
 	/* after adding the controls, add the mapping now */
-	for ( i=0; i<LENGTH_OF_XU_MAP; i++ ) {
-		DBG("mapping control for %s\n", xu_mappings[i].name);
-		if ((err=xioctl(fd, UVCIOC_CTRL_MAP, &xu_mappings[i])) < 0) {
-			if ((errno!=EEXIST) || (errno != EACCES)) {
-				DBG("UVCIOC_CTRL_MAP - Error\n");
-			} else if (errno == EACCES) {
-				DBG("need admin previledges for adding extension controls\n");
-			}
-			else DBG("Mapping exists\n");
+	for ( i=0; i<LENGTH_OF_XU_MAP; i++ )
+	{
+		fprintf(stderr, "mapping control for %s\n", xu_mappings[i].name);
+		if ((err=IOCTL_VIDEO
+       (fd, UVCIOC_CTRL_MAP, &xu_mappings[i])) < 0)
+		{
+			if (errno!=EEXIST) perror("UVCIOC_CTRL_MAP - Error");
+			//else perror("Mapping exists");
 		}
 	}
 	return 0;
