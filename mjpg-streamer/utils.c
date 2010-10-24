@@ -29,13 +29,14 @@
 #include <wait.h>
 #include <time.h>
 #include <limits.h>
+#include <linux/stat.h>
 
 #include "utils.h"
 
 /******************************************************************************
-Description.: 
-Input Value.: 
-Return Value: 
+Description.:
+Input Value.:
+Return Value:
 ******************************************************************************/
 void daemon_mode(void) {
   int fr=0;
@@ -77,7 +78,7 @@ void daemon_mode(void) {
   close(2);
 
   open("/dev/null", O_RDWR);
-  
+
   fr = dup(0);
   fr = dup(0);
 }

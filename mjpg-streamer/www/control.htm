@@ -56,7 +56,7 @@
         }
 
 
-        $.getJSON("controls.json",
+        $.getJSON("input.json",
           function(data) {
             $.each(data.controls, function(i,item){
               $("<tr/>").attr("id", "tr-"+item.id).appendTo("#control");
@@ -132,7 +132,7 @@
           }
         );
         
-        $.getJSON("info.json",
+        $.getJSON("input.json",
           function(data) {
           	$.each(data.formats, function(i,item){
           	  if (item.current == "true") {

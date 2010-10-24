@@ -70,6 +70,7 @@ static int fd, delay, max_frame_size;
 static char *folder = "/tmp";
 static unsigned char *frame=NULL;
 static char *command = NULL;
+static int input_number = 0;
 
 // UDP port
 static int port = 0;
@@ -88,6 +89,7 @@ void help(void) {
                   " [-d | --delay ].........: delay after saving pictures in ms\n" \
                   " [-c | --command ].......: execute command after saveing picture\n" \
                   " [-p | --port ]..........: UDP port to listen for picture requests. UDP message is the filename to save\n\n" \
+                  " [-i | --input ].......: read frames from the specified input plugin (first input plugin between the arguments is the 0th)\n\n" \
                   " ---------------------------------------------------------------\n");
 }
 
@@ -153,14 +155,14 @@ void *worker_thread( void *arg ) {
     memset(udpbuffer, 0, sizeof(udpbuffer));
     bytes = recvfrom(sd, udpbuffer, sizeof(udpbuffer), 0, (struct sockaddr*)&addr, &addr_len);
     // ---------------------------------------------------------
-    
-    
+
+
 
     DBG("waiting for fresh frame\n");
-    pthread_cond_wait(&pglobal->db_update, &pglobal->db);
+    pthread_cond_wait(&pglobal->in[input_number].db_update, &pglobal->in[input_number].db);
 
     /* read buffer */
-    frame_size = pglobal->size;
+    frame_size = pglobal->in[input_number].size;
 
     /* check if buffer for frame is large enough, increase it if necessary */
     if ( frame_size > max_frame_size ) {
@@ -168,7 +170,7 @@ void *worker_thread( void *arg ) {
 
       max_frame_size = frame_size+(1<<16);
       if ( (tmp_framebuffer = realloc(frame, max_frame_size)) == NULL ) {
-        pthread_mutex_unlock( &pglobal->db );
+        pthread_mutex_unlock( &pglobal->in[input_number].db );
         LOG("not enough memory\n");
         return NULL;
       }
@@ -177,10 +179,10 @@ void *worker_thread( void *arg ) {
     }
 
     /* copy frame to our local buffer now */
-    memcpy(frame, pglobal->buf, frame_size);
+    memcpy(frame, pglobal->in[input_number].buf, frame_size);
 
     /* allow others to access the global buffer again */
-    pthread_mutex_unlock( &pglobal->db );
+    pthread_mutex_unlock( &pglobal->in[input_number].db );
 
     /* only save a file if a name came in with the UDP message */
     if (strlen(udpbuffer) > 0) {
@@ -298,6 +300,8 @@ int output_init(output_parameter *param) {
       {"command", required_argument, 0, 0},
       {"p", required_argument, 0, 0},
       {"port", required_argument, 0, 0},
+      {"i", required_argument, 0, 0},
+      {"input", required_argument, 0, 0},
       {0, 0, 0, 0}
     };
 
@@ -344,17 +348,27 @@ int output_init(output_parameter *param) {
         DBG("case 6,7\n");
         command = strdup(optarg);
         break;
-		/* p, p */
-		case 8:
+		/* p, port */
+      case 8:
 	  case 9:
 		DBG("case 8,9\n");
 		port = atoi(optarg);
 		break;
+	  /* i, input */
+      case 10:
+      case 11:
+        DBG("case 10,11\n");
+        input_number = atoi(optarg);
+        break;
 	}
   }
 
   pglobal = param->global;
-
+  if (!(input_number < pglobal->incnt)) {
+      OPRINT("ERROR: the %d input_plugin number is too much only %d plugins loaded\n", input_number, pglobal->incnt);
+      return 1;
+  }
+  OPRINT("input plugin.....: %d: %s\n", input_number, pglobal->in[input_number].plugin);
   OPRINT("output folder.....: %s\n", folder);
   OPRINT("delay after save..: %d\n", delay);
    OPRINT("command...........: %s\n", (command==NULL)?"disabled":command);

@@ -46,6 +46,9 @@
 #include "jpeg_utils.h"
 #include "dynctrl.h"
 
+
+
+
 #define INPUT_PLUGIN_NAME "UVC webcam grabber"
 #define MAX_ARGUMENTS 32
 
@@ -69,9 +72,6 @@ static const struct {
 };
 
 /* private functions and variables to this plugin */
-pthread_t cam;
-pthread_mutex_t controls_mutex;
-struct vdIn *videoIn;
 static globals *pglobal;
 static int gquality = 80;
 static unsigned int minimum_size = 0;
@@ -80,7 +80,7 @@ static int dynctrls = 1;
 void *cam_thread( void *);
 void cam_cleanup(void *);
 void help(void);
-int input_cmd_new(__u32 control, __s32 value, __u32 typecode);
+int input_cmd(int plugin, unsigned int control, unsigned int typecode, int value);
 
 
 /*** plugin interface functions ***/
@@ -93,12 +93,12 @@ Return Value: 0 if everything is fine
               1 if "--help" was triggered, in this case the calling programm
               should stop running and leave.
 ******************************************************************************/
-int input_init(input_parameter *param) {
+int input_init(input_parameter *param, int id) {
   char *argv[MAX_ARGUMENTS]={NULL}, *dev = "/dev/video0", *s;
   int argc=1, width=640, height=480, fps=5, format=V4L2_PIX_FMT_MJPEG, i;
 
   /* initialize the mutes variable */
-  if( pthread_mutex_init(&controls_mutex, NULL) != 0 ) {
+  if( pthread_mutex_init(&cams[id].controls_mutex, NULL) != 0 ) {
     IPRINT("could not initialize mutex variable\n");
     exit(EXIT_FAILURE);
   }
@@ -267,17 +267,17 @@ int input_init(input_parameter *param) {
         return 1;
     }
   }
-
-  /* keep a pointer to the global variables */
-  pglobal = param->global;
+  DBG("input id: %d\n", id);
+  cams[id].id = id;
+  cams[id].pglobal = param->global;
 
   /* allocate webcam datastructure */
-  videoIn = malloc(sizeof(struct vdIn));
-  if ( videoIn == NULL ) {
+  cams[id].videoIn = malloc(sizeof(struct vdIn));
+  if ( cams[id].videoIn == NULL ) {
     IPRINT("not enough memory for videoIn\n");
     exit(EXIT_FAILURE);
   }
-  memset(videoIn, 0, sizeof(struct vdIn));
+  memset(cams[id].videoIn, 0, sizeof(struct vdIn));
 
   /* display the parsed values */
   IPRINT("Using V4L2 device.: %s\n", dev);
@@ -287,8 +287,9 @@ int input_init(input_parameter *param) {
   if ( format == V4L2_PIX_FMT_YUYV )
     IPRINT("JPEG Quality......: %d\n", gquality);
 
+  DBG("vdIn pn: %d\n", id);
   /* open video device and prepare data structure */
-  if (init_videoIn(videoIn, dev, width, height, fps, format, 1, pglobal) < 0) {
+  if (init_videoIn(cams[id].videoIn, dev, width, height, fps, format, 1, cams[id].pglobal, id) < 0) {
     IPRINT("init_VideoIn failed\n");
     closelog();
     exit(EXIT_FAILURE);
@@ -299,9 +300,9 @@ int input_init(input_parameter *param) {
    * dynctrls must get initialized
    */
   if (dynctrls)
-    initDynCtrls(videoIn->fd);
+    initDynCtrls(cams[id].videoIn->fd);
 
-   enumerateControls(videoIn, pglobal); // enumerate V4L2 controls after UVC extended mapping
+  enumerateControls(cams[id].videoIn, cams[id].pglobal, id); // enumerate V4L2 controls after UVC extended mapping
   return 0;
 }
 
@@ -310,10 +311,9 @@ Description.: Stops the execution of worker thread
 Input Value.: -
 Return Value: always 0
 ******************************************************************************/
-int input_stop(void) {
-  DBG("will cancel input thread\n");
-  pthread_cancel(cam);
-
+int input_stop(int id) {
+  DBG("will cancel camera thread #%02d\n", id);
+  pthread_cancel(cams[id].threadID);
   return 0;
 }
 
@@ -322,16 +322,17 @@ Description.: spins of a worker thread
 Input Value.: -
 Return Value: always 0
 ******************************************************************************/
-int input_run(void) {
-  pglobal->buf = malloc(videoIn->framesizeIn);
-  if (pglobal->buf == NULL) {
+int input_run(int id) {
+  cams[id].pglobal->in[id].buf = malloc(cams[id].videoIn->framesizeIn);
+  if (cams[id].pglobal->in[id].buf == NULL) {
     fprintf(stderr, "could not allocate memory\n");
     exit(EXIT_FAILURE);
   }
 
-  pthread_create(&cam, 0, cam_thread, NULL);
-  pthread_detach(cam);
-
+  DBG("launching camera thread #%02d %d\n", id);
+  /* create thread and pass context to thread function */
+  pthread_create(&(cams[id].threadID), NULL, cam_thread, &(cams[id]));
+  pthread_detach(cams[id].threadID);
   return 0;
 }
 
@@ -380,22 +381,25 @@ Input Value.: unused
 Return Value: unused, always NULL
 ******************************************************************************/
 void *cam_thread( void *arg ) {
+
+  context *pcontext = arg;
+  pglobal = pcontext->pglobal;
+
   /* set cleanup handler to cleanup allocated ressources */
   pthread_cleanup_push(cam_cleanup, NULL);
 
   while( !pglobal->stop ) {
-
-    while (videoIn->streamingState == STREAMING_PAUSED) {
-        usleep(1); // maybe not the best and FIXME
+    while (pcontext->videoIn->streamingState == STREAMING_PAUSED) {
+        usleep(1); // maybe not the best way so FIXME
     }
 
     /* grab a frame */
-    if( uvcGrab(videoIn) < 0 ) {
+    if( uvcGrab(pcontext->videoIn) < 0 ) {
       IPRINT("Error grabbing frames\n");
       exit(EXIT_FAILURE);
     }
 
-    DBG("received frame of size: %d\n", videoIn->buf.bytesused);
+    DBG("received frame of size: %d from plugin: %d\n", pcontext->videoIn->buf.bytesused, pcontext->id);
 
     /*
      * Workaround for broken, corrupted frames:
@@ -404,13 +408,13 @@ void *cam_thread( void *arg ) {
      * For example a VGA (640x480) webcam picture is normally >= 8kByte large,
      * corrupted frames are smaller.
      */
-    if ( videoIn->buf.bytesused < minimum_size ) {
+    if (pcontext->videoIn->buf.bytesused < minimum_size ) {
       DBG("dropping too small frame, assuming it as broken\n");
       continue;
     }
 
     /* copy JPG picture to global buffer */
-    pthread_mutex_lock( &pglobal->db );
+    pthread_mutex_lock( &pglobal->in[pcontext->id].db );
 
     /*
      * If capturing in YUV mode convert to JPEG now.
@@ -418,13 +422,12 @@ void *cam_thread( void *arg ) {
      * Getting JPEGs straight from the webcam, is one of the major advantages of
      * Linux-UVC compatible devices.
      */
-    if (videoIn->formatIn == V4L2_PIX_FMT_YUYV) {
-      DBG("compressing frame\n");
-      pglobal->size = compress_yuyv_to_jpeg(videoIn, pglobal->buf, videoIn->framesizeIn, gquality);
-    }
-    else {
-      DBG("copying frame\n");
-      pglobal->size = memcpy_picture(pglobal->buf, videoIn->tmpbuffer, videoIn->buf.bytesused);
+    if (pcontext->videoIn->formatIn == V4L2_PIX_FMT_YUYV) {
+      DBG("compressing frame from input: %d\n", (int)pcontext->id);
+      pglobal->in[pcontext->id].size = compress_yuyv_to_jpeg(pcontext->videoIn, pglobal->in[pcontext->id].buf, pcontext->videoIn->framesizeIn, gquality);
+    } else {
+      DBG("copying frame from input: %d\n", (int)pcontext->id);
+      pglobal->in[pcontext->id].size = memcpy_picture(pglobal->in[pcontext->id].buf, pcontext->videoIn->tmpbuffer, pcontext->videoIn->buf.bytesused);
     }
 
 #if 0
@@ -436,17 +439,17 @@ void *cam_thread( void *arg ) {
 #endif
 
 	/* copy this frame's timestamp to user space */
-	pglobal->timestamp = videoIn->buf.timestamp;
+	pglobal->in[pcontext->id].timestamp = pcontext->videoIn->buf.timestamp;
 
 	/* signal fresh_frame */
-    pthread_cond_broadcast(&pglobal->db_update);
-    pthread_mutex_unlock( &pglobal->db );
+    pthread_cond_broadcast(&pglobal->in[pcontext->id].db_update);
+    pthread_mutex_unlock( &pglobal->in[pcontext->id].db );
 
 
     /* only use usleep if the fps is below 5, otherwise the overhead is too long */
-    if ( videoIn->fps < 5 ) {
-        DBG("waiting for next frame for %d us\n", 1000*1000/videoIn->fps);
-      usleep(1000*1000/videoIn->fps);
+    if ( pcontext->videoIn->fps < 5 ) {
+        DBG("waiting for next frame for %d us\n", 1000*1000/pcontext->videoIn->fps);
+      usleep(1000*1000/pcontext->videoIn->fps);
     } else {
         DBG("waiting for next frame\n");
     }
@@ -465,7 +468,8 @@ Return Value:
 ******************************************************************************/
 void cam_cleanup(void *arg) {
   static unsigned char first_run=1;
-
+  context *pcontext = arg;
+  pglobal = pcontext->pglobal;
   if ( !first_run ) {
     DBG("already cleaned up ressources\n");
     return;
@@ -474,10 +478,11 @@ void cam_cleanup(void *arg) {
   first_run = 0;
   IPRINT("cleaning up ressources allocated by input thread\n");
 
-  close_v4l2(videoIn);
-  if (videoIn->tmpbuffer != NULL) free(videoIn->tmpbuffer);
-  if (videoIn != NULL) free(videoIn);
-  if (pglobal->buf != NULL) free(pglobal->buf);
+  close_v4l2(pcontext->videoIn);
+  if (pcontext->videoIn->tmpbuffer != NULL) free(pcontext->videoIn->tmpbuffer);
+  if (pcontext->videoIn != NULL) free(pcontext->videoIn);
+  if (pglobal->in[pcontext->id].buf != NULL)
+    free(pglobal->in[pcontext->id].buf);
 }
 
 /******************************************************************************
@@ -488,19 +493,19 @@ Input Value.: * control specifies the selected v4l2 control's id
 Return Value: depends in the command, for most cases 0 means no errors and
               -1 signals an error. This is just rule of thumb, not more!
 ******************************************************************************/
-int input_cmd_new(__u32 control, __s32 value, __u32 typecode)
+int input_cmd(int plugin, unsigned int control_id, unsigned int typecode, int value)
 {
     int ret = -1;
     int i = 0;
-    DBG("Requested cmd: %d, type: %d value: %d\n", control, typecode, value);
+    DBG("Requested cmd for the %d plugin: %d, type: %d value: %d\n", plugin,  control_id, typecode, value);
     switch (typecode) {
         case IN_CMD_V4L2: {
-            for (i = 0; i<pglobal->in.parametercount; i++) {
-                if (pglobal->in.in_parameters[i].ctrl.id == control) {
-                    DBG("Found the requested control: %s\n", pglobal->in.in_parameters[i].ctrl.name);
-                    ret = v4l2SetControl(videoIn, control, value);
+            for (i = 0; i<pglobal->in[plugin].parametercount; i++) {
+                if (pglobal->in[plugin].in_parameters[i].ctrl.id == control_id) {
+                    DBG("Found the requested control: %s\n", pglobal->in[plugin].in_parameters[i].ctrl.name);
+                    ret = v4l2SetControl(cams[plugin].videoIn, control_id, value);
                     if (ret == 0) {
-                        pglobal->in.in_parameters[i].value = value;
+                        pglobal->in[plugin].in_parameters[i].value = value;
                     }
                     return ret;
                     break;
@@ -509,22 +514,22 @@ int input_cmd_new(__u32 control, __s32 value, __u32 typecode)
         } break;
         case IN_CMD_RESOLUTION: {
             // the value points to the current formats nth resolution
-            if (value > (pglobal->in.in_formats[pglobal->in.currentFormat].resolutionCount -1)) {
+            if (value > (pglobal->in[plugin].in_formats[pglobal->in[plugin].currentFormat].resolutionCount -1)) {
                 DBG("The value is out of range");
                 return -1;
             }
-            int height = pglobal->in.in_formats[pglobal->in.currentFormat].supportedResolutions[value].height;
-            int width = pglobal->in.in_formats[pglobal->in.currentFormat].supportedResolutions[value].width;
-            ret = setResolution(videoIn, width, height);
+            int height = pglobal->in[plugin].in_formats[pglobal->in[plugin].currentFormat].supportedResolutions[value].height;
+            int width = pglobal->in[plugin].in_formats[pglobal->in[plugin].currentFormat].supportedResolutions[value].width;
+            ret = setResolution(cams[plugin].videoIn, width, height);
             if (ret == 0) {
-                pglobal->in.in_formats[pglobal->in.currentFormat].currentResolution = value;
+                pglobal->in[plugin].in_formats[pglobal->in[plugin].currentFormat].currentResolution = value;
             }
             return ret;
         } break;
         case IN_CMD_JPEG_QUALITY:
             if ((value >= 0) && (value < 101)) {
-                pglobal->in.jpegcomp.quality = value;
-                if (IOCTL_VIDEO(videoIn->fd, VIDIOC_S_JPEGCOMP, &pglobal->in.jpegcomp) != EINVAL) {
+                pglobal->in[plugin].jpegcomp.quality = value;
+                if (IOCTL_VIDEO(cams[plugin].videoIn->fd, VIDIOC_S_JPEGCOMP, &pglobal->in[plugin].jpegcomp) != EINVAL) {
                     DBG("JPEG quality is set to %d\n", value);
                     ret = 0;
                 } else {

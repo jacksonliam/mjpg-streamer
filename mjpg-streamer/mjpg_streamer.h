@@ -20,6 +20,9 @@
 #                                                                              #
 *******************************************************************************/
 #define SOURCE_VERSION "2.0"
+
+/* FIXME take a look to the output_http clients thread marked with fixme if you want to set more then 10 plugins */
+#define MAX_INPUT_PLUGINS 10
 #define MAX_OUTPUT_PLUGINS 10
 #include <linux/types.h>          /* for videodev2.h */
 #include <linux/videodev2.h>
@@ -48,18 +51,9 @@ typedef enum {
 struct _globals {
   int stop;
 
-  /* signal fresh frames */
-  pthread_mutex_t db;
-  pthread_cond_t  db_update;
-
-  /* global JPG frame, this is more or less the "database" */
-  unsigned char *buf;
-  int size;
-  /* v4l2_buffer timestamp */
-  struct timeval timestamp;
-
   /* input plugin */
-  input in;
+  input in[MAX_INPUT_PLUGINS];
+  int incnt;
 
   /* output plugin */
   output out[MAX_OUTPUT_PLUGINS];

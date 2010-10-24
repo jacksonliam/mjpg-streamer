@@ -49,6 +49,7 @@ static pthread_t worker;
 static globals *pglobal;
 static int fd, delay;
 static unsigned char *frame=NULL;
+static int plugin_number;
 
 /******************************************************************************
 Description.: print a help message
@@ -107,13 +108,13 @@ void *worker_thread( void *arg ) {
 
   while ( !pglobal->stop ) {
     DBG("waiting for fresh frame\n");
-    pthread_cond_wait(&pglobal->db_update, &pglobal->db);
+    pthread_cond_wait(&pglobal->in[plugin_number].db_update, &pglobal->in[plugin_number].db);
 
     /* read buffer */
-    frame_size = pglobal->size;
-    memcpy(frame, pglobal->buf, frame_size);
+    frame_size = pglobal->in[plugin_number].size;
+    memcpy(frame, pglobal->in[plugin_number].buf, frame_size);
 
-    pthread_mutex_unlock( &pglobal->db );
+    pthread_mutex_unlock( &pglobal->in[plugin_number].db );
 
     /* process frame */
     sv = getFrameSharpnessValue(frame, frame_size);
@@ -212,6 +213,8 @@ int output_init(output_parameter *param) {
       {"help", no_argument, 0, 0},
       {"d", required_argument, 0, 0},
       {"delay", required_argument, 0, 0},
+      {"i", required_argument, 0, 0},
+      {"input", required_argument, 0, 0},
       {0, 0, 0, 0}
     };
 
@@ -240,6 +243,11 @@ int output_init(output_parameter *param) {
       case 3:
         DBG("case 2,3\n");
         delay = atoi(optarg);
+        break;
+        /* i input */
+    case 4:
+    case 5:
+        plugin_number = atoi(optarg);
         break;
     }
   }

@@ -28,6 +28,7 @@
 /* parameters for input plugin */
 typedef struct _input_parameter input_parameter;
 struct _input_parameter {
+  int id;
   char *parameter_string;
   struct _globals *global;
 };
@@ -46,7 +47,6 @@ struct _input_control {
     struct v4l2_queryctrl ctrl;
     int value;
     struct v4l2_querymenu *menuitems;
-    struct v4l2_capability cap;
     in_cmd_type type;
 };
 
@@ -69,19 +69,33 @@ typedef struct _input input;
 struct _input {
   char *plugin;
   void *handle;
-  input_parameter param;
+
+  input_parameter param; // this holds the command line arguments
+
+  // input plugin parameters
   input_control *in_parameters;
   int parametercount;
 
+
   struct v4l2_jpegcompression jpegcomp;
+
+  /* signal fresh frames */
+  pthread_mutex_t db;
+  pthread_cond_t  db_update;
+
+  /* global JPG frame, this is more or less the "database" */
+  unsigned char *buf;
+  int size;
+
+  /* v4l2_buffer timestamp */
+  struct timeval timestamp;
 
   input_format *in_formats;
   int formatCount;
   int currentFormat; // holds the current format number
 
-    int (*init)(input_parameter *);
-    int (*stop)(void);
-    int (*run)(void);
-    int (*cmd)(int , int);
-    int (*cmd_new)(__u32 control, __s32 value, __u32 type);
+    int (*init)(input_parameter *, int id);
+    int (*stop)(int);
+    int (*run)(int);
+    int (*cmd)(int plugin, unsigned int control_id, unsigned int type, int value);
 };

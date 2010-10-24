@@ -49,15 +49,17 @@ static int delay = 0;
 static char *folder = NULL;
 static char *filename = NULL;
 static int rm = 0;
+static int plugin_number;
 
 /* global variables for this plugin */
 static int fd, rc, wd, size;
 static struct inotify_event *ev;
 
 /*** plugin interface functions ***/
-int input_init(input_parameter *param) {
+int input_init(input_parameter *param, int id) {
   char *argv[MAX_ARGUMENTS]={NULL};
   int argc=1, i;
+  plugin_number = id;
 
   /* convert the single parameter-string to an array of strings */
   argv[0] = INPUT_PLUGIN_NAME;
@@ -181,15 +183,15 @@ int input_init(input_parameter *param) {
   return 0;
 }
 
-int input_stop(void) {
+int input_stop(int id) {
   DBG("will cancel input thread\n");
   pthread_cancel(worker);
 
   return 0;
 }
 
-int input_run(void) {
-  pglobal->buf = NULL;
+int input_run(int id) {
+  pglobal->in[id].buf = NULL;
 
   rc = fd = inotify_init();
   if ( rc == -1 ) {
@@ -211,7 +213,7 @@ int input_run(void) {
   }
 
   if( pthread_create(&worker, 0, worker_thread, NULL) != 0) {
-    free(pglobal->buf);
+    free(pglobal->in[id].buf);
     fprintf(stderr, "could not start worker thread\n");
     exit(EXIT_FAILURE);
   }
@@ -292,29 +294,29 @@ void *worker_thread( void *arg ) {
     filesize = stats.st_size;
 
     /* copy frame from file to global buffer */
-    pthread_mutex_lock( &pglobal->db );
+    pthread_mutex_lock( &pglobal->in[plugin_number].db );
 
     /* allocate memory for frame */
-    if ( pglobal->buf != NULL ) free(pglobal->buf);
-    pglobal->buf = malloc(filesize + (1<<16));
-    if (pglobal->buf == NULL) {
+    if ( pglobal->in[plugin_number].buf != NULL ) free(pglobal->in[plugin_number].buf);
+    pglobal->in[plugin_number].buf = malloc(filesize + (1<<16));
+    if (pglobal->in[plugin_number].buf == NULL) {
       fprintf(stderr, "could not allocate memory\n");
       break;
     }
 
-    if ( (pglobal->size = read(file, pglobal->buf, filesize)) == -1) {
+    if ( (pglobal->in[plugin_number].size = read(file, pglobal->in[plugin_number].buf, filesize)) == -1) {
       perror("could not read from file");
-      free(pglobal->buf); pglobal->buf = NULL; pglobal->size = 0;
-      pthread_mutex_unlock( &pglobal->db );
+      free(pglobal->in[plugin_number].buf); pglobal->in[plugin_number].buf = NULL; pglobal->in[plugin_number].size = 0;
+      pthread_mutex_unlock( &pglobal->in[plugin_number].db );
       close(file);
       break;
     }
 
-    DBG("new frame copied (size: %d)\n", pglobal->size);
+    DBG("new frame copied (size: %d)\n", pglobal->in[plugin_number].size);
 
     /* signal fresh_frame */
-    pthread_cond_broadcast(&pglobal->db_update);
-    pthread_mutex_unlock( &pglobal->db );
+    pthread_cond_broadcast(&pglobal->in[plugin_number].db_update);
+    pthread_mutex_unlock( &pglobal->in[plugin_number].db );
 
     close(file);
 
@@ -347,7 +349,7 @@ void worker_cleanup(void *arg) {
   first_run = 0;
   DBG("cleaning up ressources allocated by input thread\n");
 
-  if (pglobal->buf != NULL) free(pglobal->buf);
+  if (pglobal->in[plugin_number].buf != NULL) free(pglobal->in[plugin_number].buf);
 
   free(ev);
 

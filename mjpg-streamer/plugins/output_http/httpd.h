@@ -96,9 +96,8 @@ typedef enum {
     A_STREAM,
     A_COMMAND,
     A_FILE,
-    A_V4L2_JSON,
-    A_UVC_EXT_JSON,
-    A_INFO_JSON,
+    A_INPUT_JSON,
+    A_PROGRAM_JSON,
 } answer_t;
 
 /*
@@ -149,8 +148,8 @@ typedef struct {
 /* prototypes */
 void *server_thread(void *arg);
 void send_error(int fd, int which, char *message);
-void send_Controls_JSON(int fd);
-void send_Info_JSON(int fd);
+void send_Input_JSON(int fd, int plugin_number);
+void send_Program_JSON(int fd);
 
 
 

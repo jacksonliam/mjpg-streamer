@@ -293,32 +293,36 @@ Description.: Send a complete HTTP response and a single JPG-frame.
 Input Value.: fildescriptor fd to send the answer to
 Return Value: -
 ******************************************************************************/
-void send_snapshot(int fd) {
+void send_snapshot(int fd, int input_number) {
   unsigned char *frame=NULL;
   int frame_size=0;
   char buffer[BUFFER_SIZE] = {0};
   struct timeval timestamp;
+  if (!(input_number < pglobal->incnt)) {
+      send_error(fd, 404, "Could not open file");
+      return;
+  }
 
   /* wait for a fresh frame */
-  pthread_cond_wait(&pglobal->db_update, &pglobal->db);
+  pthread_cond_wait(&pglobal->in[input_number].db_update, &pglobal->in[input_number].db);
 
   /* read buffer */
-  frame_size = pglobal->size;
+  frame_size = pglobal->in[input_number].size;
 
   /* allocate a buffer for this single frame */
   if ( (frame = malloc(frame_size+1)) == NULL ) {
     free(frame);
-    pthread_mutex_unlock( &pglobal->db );
+    pthread_mutex_unlock( &pglobal->in[input_number].db );
     send_error(fd, 500, "not enough memory");
     return;
   }
   /* copy v4l2_buffer timeval to user space */
-  timestamp = pglobal->timestamp;
+  timestamp = pglobal->in[input_number].timestamp;
 
-  memcpy(frame, pglobal->buf, frame_size);
+  memcpy(frame, pglobal->in[input_number].buf, frame_size);
   DBG("got frame (size: %d kB)\n", frame_size/1024);
 
-  pthread_mutex_unlock( &pglobal->db );
+  pthread_mutex_unlock( &pglobal->in[input_number].db );
 
   /* write the response */
   sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
@@ -342,11 +346,15 @@ Description.: Send a complete HTTP response and a stream of JPG-frames.
 Input Value.: fildescriptor fd to send the answer to
 Return Value: -
 ******************************************************************************/
-void send_stream(int fd) {
+void send_stream(int fd, int input_number) {
   unsigned char *frame=NULL, *tmp=NULL;
   int frame_size=0, max_frame_size=0;
   char buffer[BUFFER_SIZE] = {0};
   struct timeval timestamp;
+  if (!(input_number < pglobal->incnt)) {
+      send_error(fd, 404, "Could not open file");
+      return;
+  }
 
   DBG("preparing header\n");
   sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
@@ -365,10 +373,10 @@ void send_stream(int fd) {
   while ( !pglobal->stop ) {
 
     /* wait for fresh frames */
-    pthread_cond_wait(&pglobal->db_update, &pglobal->db);
+    pthread_cond_wait(&pglobal->in[input_number].db_update, &pglobal->in[input_number].db);
 
     /* read buffer */
-    frame_size = pglobal->size;
+    frame_size = pglobal->in[input_number].size;
 
     /* check if framebuffer is large enough, increase it if necessary */
     if ( frame_size > max_frame_size ) {
@@ -377,7 +385,7 @@ void send_stream(int fd) {
       max_frame_size = frame_size+TEN_K;
       if ( (tmp = realloc(frame, max_frame_size)) == NULL ) {
         free(frame);
-        pthread_mutex_unlock( &pglobal->db );
+        pthread_mutex_unlock( &pglobal->in[input_number].db );
         send_error(fd, 500, "not enough memory");
         return;
       }
@@ -386,12 +394,12 @@ void send_stream(int fd) {
     }
 
     /* copy v4l2_buffer timeval to user space */
-    timestamp = pglobal->timestamp;
+    timestamp = pglobal->in[input_number].timestamp;
 
-    memcpy(frame, pglobal->buf, frame_size);
+    memcpy(frame, pglobal->in[input_number].buf, frame_size);
     DBG("got frame (size: %d kB)\n", frame_size/1024);
 
-    pthread_mutex_unlock( &pglobal->db );
+    pthread_mutex_unlock( &pglobal->in[input_number].db );
 
     /*
      * print the individual mimetype and the length
@@ -645,9 +653,27 @@ void command(int id, int fd, char *parameter) {
     DBG("The command destination value converted value form string %s to integer %d\n", svalue, dest);
   }
 
+  int plugin_no = 0;
+  if ( (value = strstr(parameter, "pn=")) != NULL ) {
+    value += strlen("pn=");
+    len = strspn(value, "-1234567890");
+    if ( (svalue = strndup(value, len)) == NULL ) {
+      if (command != NULL) free(command);
+      send_error(fd, 500, "could not allocate memory");
+      LOG("could not allocate memory\n");
+      return;
+    }
+    plugin_no = MAX(MIN(strtol(svalue, NULL, 10), INT_MAX), INT_MIN);
+    DBG("The plugin number converted value form string %s to integer %d\n", svalue, dest);
+  }
+
   switch(dest) {
     case Dest_Input:
-        res = pglobal->in.cmd_new(command_id, ivalue, typecode);
+        if(plugin_no < pglobal->incnt) {
+            res = pglobal->in[plugin_no].cmd(plugin_no, command_id, ivalue, typecode);
+        } else {
+            DBG("Invalid plugin number: %d because only %d input plugins loaded", plugin_no,  pglobal->incnt);
+        }
         break;
     case Dest_Output:
         break;
@@ -685,6 +711,8 @@ Return Value: always NULL
 /* thread for clients that connected to this server */
 void *client_thread( void *arg ) {
   int cnt;
+  char input_suffixed = 0;
+  int input_number = 0;
   char buffer[BUFFER_SIZE]={0}, *pb=buffer;
   iobuffer iobuf;
   request req;
@@ -713,21 +741,24 @@ void *client_thread( void *arg ) {
   if ( strstr(buffer, "GET /?action=snapshot") != NULL ) {
     req.type = A_SNAPSHOT;
 #ifdef WXP_COMPAT
-  } else if ( strstr(buffer, "GET /cam_1.jpg") != NULL ) {
+  } else if (( strstr(buffer, "GET /cam") != NULL ) && ( strstr(buffer, ".jpg") != NULL )) {
     req.type = A_SNAPSHOT;
 #endif
+    input_suffixed = 255;
   } else if ( strstr(buffer, "GET /?action=stream") != NULL ) {
+      input_suffixed = 255;
     req.type = A_STREAM;
 #ifdef WXP_COMPAT
-  } else if ( strstr(buffer, "GET /cam_1.mjpg") != NULL ) {
+  } else if (( strstr(buffer, "GET /cam") != NULL ) && ( strstr(buffer, ".mjpg") != NULL )) {
     req.type = A_STREAM;
 #endif
-  } else if ( strstr(buffer, "GET /controls.json") != NULL ) {
-    req.type = A_V4L2_JSON;
-  } else if ( strstr(buffer, "GET /controls_extended.json") != NULL ) {
-    req.type = A_UVC_EXT_JSON;
-  } else if ( strstr(buffer, "GET /info.json") != NULL ) {
-    req.type = A_INFO_JSON;
+    input_suffixed = 255;
+  } else if (( strstr(buffer, "GET /input") != NULL ) && (strstr(buffer, ".json") != NULL )) {
+    req.type = A_INPUT_JSON;
+    input_suffixed = 255;
+  } else if ( strstr(buffer, "GET /program.json") != NULL ) {
+    req.type = A_PROGRAM_JSON;
+    input_suffixed = 255;
   } else if ( strstr(buffer, "GET /?action=command") != NULL ) {
     int len;
     req.type = A_COMMAND;
@@ -786,6 +817,23 @@ void *client_thread( void *arg ) {
   }
 
   /*
+   * Since when we are working with multiple input plugins
+   * there are some url which could have a _[plugin number suffix]
+   * For compatibility reasons it could be left in that case the output will be
+   * generated from the 0. input plugin
+   */
+  if (input_suffixed) {
+      char *sch = strchr(buffer, '_');
+      if (sch != NULL) { // there is an _ in the url so the input number should be present
+        DBG("sch %s\n", sch+1); // FIXME if more than 10 input plugin is added
+        char numStr[1];
+        strncpy(numStr, sch+1, 1);
+        input_number = atoi(numStr);
+      }
+      DBG("input plugin_no: %d\n", input_number);
+  }
+
+  /*
    * parse the rest of the HTTP-request
    * the end of the request-header is marked by a single, empty line with "\r\n"
    */
@@ -826,12 +874,12 @@ void *client_thread( void *arg ) {
   /* now it's time to answer */
   switch ( req.type ) {
     case A_SNAPSHOT:
-      DBG("Request for snapshot\n");
-      send_snapshot(lcfd.fd);
+      DBG("Request for snapshot from input: %d\n", input_number);
+      send_snapshot(lcfd.fd, input_number);
       break;
     case A_STREAM:
-      DBG("Request for stream\n");
-      send_stream(lcfd.fd);
+      DBG("Request for stream from input: %d\n", input_number);
+      send_stream(lcfd.fd, input_number);
       break;
     case A_COMMAND:
       if ( lcfd.pc->conf.nocommands ) {
@@ -840,14 +888,14 @@ void *client_thread( void *arg ) {
       }
       command(lcfd.pc->id, lcfd.fd, req.parameter);
       break;
-	case A_V4L2_JSON:
-		DBG("Request for the V4L2 controls JSON file\n");
-		send_Controls_JSON(lcfd.fd);
+	case A_INPUT_JSON:
+		DBG("Request for the Input plugin descriptor JSON file\n");
+		send_Input_JSON(lcfd.fd, input_number);
 		break;
-    case A_INFO_JSON:
-    	DBG("Request for info JSON file\n");
-    	send_Info_JSON(lcfd.fd);
-    	break;
+	case A_PROGRAM_JSON:
+		DBG("Request for the program descriptor JSON file\n");
+		send_Program_JSON(lcfd.fd);
+		break;
     case A_FILE:
       if ( lcfd.pc->conf.www_folder == NULL )
         send_error(lcfd.fd, 501, "no www-folder configured");
@@ -1037,32 +1085,36 @@ Description.: Send a JSON file which is contains information about the input plu
 Input Value.: fildescriptor fd to send the answer to
 Return Value: -
 ******************************************************************************/
-void send_Controls_JSON(int fd)
+void send_Input_JSON(int fd, int plugin_number)
 {
-	char buffer[BUFFER_SIZE*8] = {0}; // FIXME do reallocation if the buffer size is small
+	char buffer[BUFFER_SIZE*16] = {0}; // FIXME do reallocation if the buffer size is small
 	int i;
 	sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
                   "Content-type: %s\r\n" \
                   STD_HEADER \
                   "\r\n", "application/x-javascript");
 
-    DBG("Serving the commands JSON file\n");
+    DBG("Serving the input plugin %d descriptor JSON file\n", plugin_number);
 
 
     sprintf(buffer + strlen(buffer),
             "{\n"
             "\t\"controls\": [\n");
-    if (pglobal->in.in_parameters != NULL) {
-        for(i = 0; i < pglobal->in.parametercount; i++) {
+    if (pglobal->in[plugin_number].in_parameters != NULL) {
+        for(i = 0; i < pglobal->in[plugin_number].parametercount; i++) {
             char *menuString = calloc(0,0);
-            if(pglobal->in.in_parameters[i].ctrl.type == V4L2_CTRL_TYPE_MENU) {
-                if (pglobal->in.in_parameters[i].menuitems != NULL) {
+            if(pglobal->in[plugin_number].in_parameters[i].ctrl.type == V4L2_CTRL_TYPE_MENU) {
+                if (pglobal->in[plugin_number].in_parameters[i].menuitems != NULL) {
                     int j, k = 1;
-                    for (j = pglobal->in.in_parameters[i].ctrl.minimum; j<=pglobal->in.in_parameters[i].ctrl.maximum; j++) {
+                    for (j = pglobal->in[plugin_number].in_parameters[i].ctrl.minimum; j<=pglobal->in[plugin_number].in_parameters[i].ctrl.maximum; j++) {
                         int prevSize = strlen(menuString);
-                        int itemLength = strlen((char*)&pglobal->in.in_parameters[i].menuitems[j].name)  + strlen("\"\": \"\", ");
+                        int itemLength = strlen((char*)&pglobal->in[plugin_number].in_parameters[i].menuitems[j].name)  + strlen("\"\": \"\"");
                         menuString = realloc(menuString, (prevSize + itemLength + 3) * (sizeof(char)));
-                        sprintf(menuString + prevSize, "\"%d\": \"%s\", ", j ,(char*)&pglobal->in.in_parameters[i].menuitems[j].name);
+                        if (j != pglobal->in[plugin_number].in_parameters[i].ctrl.maximum) {
+                            sprintf(menuString + prevSize, "\"%d\": \"%s\", ", j ,(char*)&pglobal->in[plugin_number].in_parameters[i].menuitems[j].name);
+                        } else {
+                            sprintf(menuString + prevSize, "\"%d\": \"%s\"", j ,(char*)&pglobal->in[plugin_number].in_parameters[i].menuitems[j].name);
+                        }
                         k++;
                     }
                 }
@@ -1081,20 +1133,20 @@ void send_Controls_JSON(int fd)
                     "\t\t\t\"dest\": \"0\",\n"
                     "\t\t\t\"flags\": \"%d\",\n"
                     "\t\t\t\"typecode\": \"%d\"",
-                    pglobal->in.in_parameters[i].ctrl.name,
-                    pglobal->in.in_parameters[i].ctrl.id,
-                    pglobal->in.in_parameters[i].ctrl.type,
-                    pglobal->in.in_parameters[i].ctrl.minimum,
-                    pglobal->in.in_parameters[i].ctrl.maximum,
-                    pglobal->in.in_parameters[i].ctrl.step,
-                    pglobal->in.in_parameters[i].ctrl.default_value,
-                    pglobal->in.in_parameters[i].value,
+                    pglobal->in[plugin_number].in_parameters[i].ctrl.name,
+                    pglobal->in[plugin_number].in_parameters[i].ctrl.id,
+                    pglobal->in[plugin_number].in_parameters[i].ctrl.type,
+                    pglobal->in[plugin_number].in_parameters[i].ctrl.minimum,
+                    pglobal->in[plugin_number].in_parameters[i].ctrl.maximum,
+                    pglobal->in[plugin_number].in_parameters[i].ctrl.step,
+                    pglobal->in[plugin_number].in_parameters[i].ctrl.default_value,
+                    pglobal->in[plugin_number].in_parameters[i].value,
                     // 0 is the code of the input plugin
-                    pglobal->in.in_parameters[i].ctrl.flags,
-                    pglobal->in.in_parameters[i].type
+                    pglobal->in[plugin_number].in_parameters[i].ctrl.flags,
+                    pglobal->in[plugin_number].in_parameters[i].type
                     );
 
-            if (pglobal->in.in_parameters[i].ctrl.type == V4L2_CTRL_TYPE_MENU) {
+            if (pglobal->in[plugin_number].in_parameters[i].ctrl.type == V4L2_CTRL_TYPE_MENU) {
                 sprintf(buffer + strlen(buffer),
                         ",\n"
                         "\t\t\t\"menu\": {%s}\n"
@@ -1106,70 +1158,52 @@ void send_Controls_JSON(int fd)
                         "\t\t}");
             }
 
-            if (i != (pglobal->in.parametercount-1)) {
+            if (i != (pglobal->in[plugin_number].parametercount-1)) {
                 sprintf(buffer + strlen(buffer), ",\n");
             }
             free(menuString);
         }
     } else {
-        DBG("The input plugin has no input paramters\n");
+        DBG("The input plugin has no paramters\n");
     }
     sprintf(buffer + strlen(buffer),
-            "\n\t]\n"
-            "}\n");
-	i = strlen(buffer);
+            "\n\t],\n"
+            /*"},\n"*/);
 
-	/* first transmit HTTP-header, afterwards transmit content of file */
-	if (write(fd, buffer, i) < 0 ) {
-		DBG("unable to serve the control JSON file\n");
-	}
-}
-
-void send_Info_JSON(int fd)
-{
-    char buffer[BUFFER_SIZE*4] = {0}; // FIXME do reallocation if the buffer size is small
-	int i = 0;
-	sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
-                  "Content-type: %s\r\n" \
-                  STD_HEADER \
-                  "\r\n", "application/x-javascript");
-
-    DBG("Serving the info JSON file\n");
-
-     sprintf(buffer + strlen(buffer),
-            "{\n"
+    sprintf(buffer + strlen(buffer),
+            //"{\n"
             "\t\"formats\": [\n");
-    if (pglobal->in.in_formats!= NULL) {
-        for(i = 0; i < pglobal->in.formatCount; i++) {
+    if (pglobal->in[plugin_number].in_formats!= NULL) {
+        for(i = 0; i < pglobal->in[plugin_number].formatCount; i++) {
             char *resolutionsString = calloc(0, 0);
             int resolutionsStringLength = 0;
             int j = 0;
-            for (j = 0; j<pglobal->in.in_formats[i].resolutionCount; j++) {
+            for (j = 0; j<pglobal->in[plugin_number].in_formats[i].resolutionCount; j++) {
                 char buffer_num[6];
                 memset(buffer_num, '\0', 6);
                 // JSON format example:
                 // {"0": "320x240", "1": "640x480", "2": "960x720"}
                 sprintf(buffer_num, "%d", j);
                 resolutionsStringLength += strlen(buffer_num);
-                sprintf(buffer_num, "%d", pglobal->in.in_formats[i].supportedResolutions[j].width);
+                sprintf(buffer_num, "%d", pglobal->in[plugin_number].in_formats[i].supportedResolutions[j].width);
                 resolutionsStringLength += strlen(buffer_num);
-                sprintf(buffer_num, "%d", pglobal->in.in_formats[i].supportedResolutions[j].height);
+                sprintf(buffer_num, "%d", pglobal->in[plugin_number].in_formats[i].supportedResolutions[j].height);
                 resolutionsStringLength += strlen(buffer_num);
                 resolutionsString = realloc(resolutionsString, resolutionsStringLength * sizeof(char*));
-                if (j != (pglobal->in.in_formats[i].resolutionCount - 1)) {
+                if (j != (pglobal->in[plugin_number].in_formats[i].resolutionCount - 1)) {
                     resolutionsStringLength += strlen("\"\": \"x\", ");
                     sprintf(resolutionsString + strlen(resolutionsString),
                             "\"%d\": \"%dx%d\", ",
                             j,
-                            pglobal->in.in_formats[i].supportedResolutions[j].width,
-                            pglobal->in.in_formats[i].supportedResolutions[j].height);
+                            pglobal->in[plugin_number].in_formats[i].supportedResolutions[j].width,
+                            pglobal->in[plugin_number].in_formats[i].supportedResolutions[j].height);
                 } else {
                     resolutionsStringLength += strlen("\"\": \"x\"");
                     sprintf(resolutionsString + strlen(resolutionsString),
                             "\"%d\": \"%dx%d\"",
                             j,
-                            pglobal->in.in_formats[i].supportedResolutions[j].width,
-                            pglobal->in.in_formats[i].supportedResolutions[j].height);
+                            pglobal->in[plugin_number].in_formats[i].supportedResolutions[j].width,
+                            pglobal->in[plugin_number].in_formats[i].supportedResolutions[j].height);
                 }
             }
 
@@ -1186,26 +1220,26 @@ void send_Info_JSON(int fd)
                     "\t\t\t\"current\": \"%s\",\n"
                     "\t\t\t\"resolutions\": {%s}"
                     ,
-                    pglobal->in.in_formats[i].format.index,
-                    pglobal->in.in_formats[i].format.description,
+                    pglobal->in[plugin_number].in_formats[i].format.index,
+                    pglobal->in[plugin_number].in_formats[i].format.description,
 #ifdef V4L2_FMT_FLAG_COMPRESSED
-                    pglobal->in.in_formats[i].format.flags&V4L2_FMT_FLAG_COMPRESSED?"true":"false",
+                    pglobal->in[plugin_number].in_formats[i].format.flags&V4L2_FMT_FLAG_COMPRESSED?"true":"false",
 #endif
 #ifdef V4L2_FMT_FLAG_EMULATED
-                    pglobal->in.in_formats[i].format.flags&V4L2_FMT_FLAG_EMULATED?"true":"false",
+                    pglobal->in[plugin_number].in_formats[i].format.flags&V4L2_FMT_FLAG_EMULATED?"true":"false",
 #endif
-                    pglobal->in.in_formats[i].currentResolution!=-1?"true":"false",
+                    pglobal->in[plugin_number].in_formats[i].currentResolution!=-1?"true":"false",
                     resolutionsString
                     );
 
-            if (pglobal->in.in_formats[i].currentResolution!=-1) {
+            if (pglobal->in[plugin_number].in_formats[i].currentResolution!=-1) {
                 sprintf(buffer + strlen(buffer),
                     ",\n\t\t\t\"currentResolution\": \"%d\"\n",
-                    pglobal->in.in_formats[i].currentResolution
+                    pglobal->in[plugin_number].in_formats[i].currentResolution
                     );
             }
 
-            if (i != (pglobal->in.formatCount - 1)) {
+            if (i != (pglobal->in[plugin_number].formatCount - 1)) {
                 sprintf(buffer + strlen(buffer), "\t\t},\n");
             } else {
                 sprintf(buffer + strlen(buffer), "\t\t}\n");
@@ -1218,9 +1252,53 @@ void send_Info_JSON(int fd)
             "\n\t]\n"
             "}\n");
     i = strlen(buffer);
+
 	/* first transmit HTTP-header, afterwards transmit content of file */
 	if (write(fd, buffer, i) < 0 ) {
 		DBG("unable to serve the control JSON file\n");
 	}
 }
 
+
+void send_Program_JSON(int fd)
+{
+    char buffer[BUFFER_SIZE*16] = {0}; // FIXME do reallocation if the buffer size is small
+	int i, k;
+	sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
+                  "Content-type: %s\r\n" \
+                  STD_HEADER \
+                  "\r\n", "application/x-javascript");
+
+    DBG("Serving the program descriptor JSON file\n");
+
+
+    sprintf(buffer + strlen(buffer),
+            "{\n"
+            "\t\"program\": [\n"
+            "\t\t{\n"
+            "\t\t\t\"inputs\":[\n");
+            for (k = 0; k<pglobal->incnt; k++) {
+                sprintf(buffer + strlen(buffer),
+                    "\t\t\t\t{\n"
+                    "\t\t\t\t\t\"name\": \"%s\",\n"
+                    "\t\t\t\t\t\"args\": \"%s\"\n"
+                    "\t\t\t\t}",
+                    pglobal->in[k].plugin,
+                    pglobal->in[k].param.parameter_string);
+                    if (k != (pglobal->incnt -1))
+                        sprintf(buffer + strlen(buffer), ", \n");
+                    else
+                        sprintf(buffer + strlen(buffer), "\n");
+            }
+    sprintf(buffer + strlen(buffer),
+            "\t\t\t]\n"
+            "\t\t}\n"
+            "\t]\n"
+            "}\n");
+    i = strlen(buffer);
+
+	/* first transmit HTTP-header, afterwards transmit content of file */
+	if (write(fd, buffer, i) < 0 ) {
+		DBG("unable to serve the program JSON file\n");
+	}
+}

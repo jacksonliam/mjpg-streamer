@@ -41,7 +41,6 @@
 
 #define OUTPUT_PLUGIN_NAME "HTTP output plugin"
 #define MAX_ARGUMENTS 32
-
 /*
  * keep context for each server
  */
@@ -200,7 +199,6 @@ int output_init(output_parameter *param) {
   OPRINT("HTTP TCP port.....: %d\n", ntohs(port));
   OPRINT("username:password.: %s\n", (credentials==NULL)?"disabled":credentials);
   OPRINT("commands..........: %s\n", (nocommands)?"disabled":"enabled");
-
   return 0;
 }
 

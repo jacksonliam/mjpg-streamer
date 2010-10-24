@@ -93,6 +93,7 @@ static const struct {
 pthread_t cam;
 struct vdIn *videoIn;
 
+static int plugin_number;
 static globals *pglobal;
 
 void *cam_thread( void *);
@@ -109,7 +110,8 @@ Return Value: 0 if everything is fine
               1 if "--help" was triggered, in this case the calling programm
               should stop running and leave.
 ******************************************************************************/
-int input_init(input_parameter *param) {
+int input_init(input_parameter *param, int plugin_no) {
+    plugin_number = plugin_no;
   char *argv[MAX_ARGUMENTS]={NULL}, *dev = "/dev/video0", *s;
   int argc=1, width=640, height=480, format=VIDEO_PALETTE_JPEG, i;
 
@@ -257,7 +259,7 @@ Description.: Stops the execution of worker thread
 Input Value.: -
 Return Value: always 0
 ******************************************************************************/
-int input_stop(void) {
+int input_stop(int id) {
   DBG("will cancel input thread\n");
   pthread_cancel(cam);
 
@@ -269,9 +271,9 @@ Description.: spins of a worker thread
 Input Value.: -
 Return Value: always 0
 ******************************************************************************/
-int input_run(void) {
-  pglobal->buf = malloc(videoIn->framesizeIn);
-  if (pglobal->buf == NULL) {
+int input_run(int id) {
+  pglobal->in[id].buf = malloc(videoIn->framesizeIn);
+  if (pglobal->in[id].buf == NULL) {
     fprintf(stderr, "could not allocate memory\n");
     exit(EXIT_FAILURE);
   }
@@ -361,14 +363,14 @@ void *cam_thread( void *arg ) {
     videoIn->framelock[iframe]--;
 
     /* copy JPG picture to global buffer */
-    pthread_mutex_lock( &pglobal->db );
+    pthread_mutex_lock( &pglobal->in[plugin_number].db );
 
-    pglobal->size = get_jpegsize(pictureData, headerframe->size);
-    memcpy(pglobal->buf, pictureData, pglobal->size);
+    pglobal->in[plugin_number].size = get_jpegsize(pictureData, headerframe->size);
+    memcpy(pglobal->in[plugin_number].buf, pictureData, pglobal->in[plugin_number].size);
 
     /* signal fresh_frame */
-    pthread_cond_broadcast(&pglobal->db_update);
-    pthread_mutex_unlock( &pglobal->db );
+    pthread_cond_broadcast(&pglobal->in[plugin_number].db_update);
+    pthread_mutex_unlock( &pglobal->in[plugin_number].db );
   }
 
   DBG("leaving input thread, calling cleanup function now\n");
@@ -396,7 +398,7 @@ void cam_cleanup(void *arg) {
   close_v4l(videoIn);
   //if (videoIn->tmpbuffer != NULL) free(videoIn->tmpbuffer);
   if (videoIn != NULL) free(videoIn);
-  if (pglobal->buf != NULL) free(pglobal->buf);
+  if (pglobal->in[plugin_number].buf != NULL) free(pglobal->in[plugin_number].buf);
 }
 
 

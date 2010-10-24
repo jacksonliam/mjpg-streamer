@@ -51,6 +51,7 @@ static int fd, delay, ringbuffer_size = -1, ringbuffer_exceed = 0, max_frame_siz
 static char *folder = "/tmp";
 static unsigned char *frame=NULL;
 static char *command = NULL;
+static int input_number = 0;
 
 /******************************************************************************
 Description.: print a help message
@@ -68,6 +69,7 @@ void help(void) {
                   " [-s | --size ]..........: size of ring buffer (max number of pictures to hold)\n" \
                   " [-e | --exceed ]........: allow ringbuffer to exceed limit by this amount\n" \
                   " [-c | --command ].......: execute command after saving picture\n\n" \
+                  " [-i | --input ].......: read frames from the specified input plugin\n\n" \
                   " ---------------------------------------------------------------\n");
 }
 
@@ -199,12 +201,12 @@ void *worker_thread( void *arg ) {
   /* set cleanup handler to cleanup allocated ressources */
   pthread_cleanup_push(worker_cleanup, NULL);
 
-  while ( ok >= 0 && !pglobal->stop ) {
+  while ( ok >= 0 && !pglobal->in[input_number].stop ) {
     DBG("waiting for fresh frame\n");
-    pthread_cond_wait(&pglobal->db_update, &pglobal->db);
+    pthread_cond_wait(&pglobal->in[input_number].db_update, &pglobal->in[input_number].db);
 
     /* read buffer */
-    frame_size = pglobal->size;
+    frame_size = pglobal->in[input_number].size;
 
     /* check if buffer for frame is large enough, increase it if necessary */
     if ( frame_size > max_frame_size ) {
@@ -212,7 +214,7 @@ void *worker_thread( void *arg ) {
 
       max_frame_size = frame_size+(1<<16);
       if ( (tmp_framebuffer = realloc(frame, max_frame_size)) == NULL ) {
-        pthread_mutex_unlock( &pglobal->db );
+        pthread_mutex_unlock( &pglobal->in[input_number].db );
         LOG("not enough memory\n");
         return NULL;
       }
@@ -221,10 +223,10 @@ void *worker_thread( void *arg ) {
     }
 
     /* copy frame to our local buffer now */
-    memcpy(frame, pglobal->buf, frame_size);
+    memcpy(frame, pglobal->in[input_number].buf, frame_size);
 
     /* allow others to access the global buffer again */
-    pthread_mutex_unlock( &pglobal->db );
+    pthread_mutex_unlock( &pglobal->in[input_number].db );
 
     /* prepare filename */
     memset(buffer1, 0, sizeof(buffer1));
@@ -373,6 +375,8 @@ int output_init(output_parameter *param) {
       {"command", required_argument, 0, 0},
       {"m", required_argument, 0, 0},
       {"mjpeg", required_argument, 0, 0},
+      {"i", required_argument, 0, 0},
+      {"input", required_argument, 0, 0},
       {0, 0, 0, 0}
     };
 
@@ -433,12 +437,22 @@ int output_init(output_parameter *param) {
         DBG("case 10,11\n");
         command = strdup(optarg);
         break;
+      case 12:
+      case 13:
+        DBG("case 12,13\n");
+        input_number = atoi(optarg);
+        break;
     }
   }
 
   pglobal = param->global;
+  if (!(input_number < pglobal->incnt)) {
+      OPRINT("ERROR: the %d input_plugin number is too much only %d plugins loaded\n", input_number, pglobal->incnt);
+      return 1;
+  }
 
   OPRINT("output folder.....: %s\n", folder);
+  OPRINT("input plugin.....: %d: %s\n", input_number, pglobal->in[input_number].plugin);
   OPRINT("delay after save..: %d\n", delay);
   if (ringbuffer_size>0) {
     OPRINT("ringbuffer size...: %d to %d\n", ringbuffer_size, ringbuffer_size + ringbuffer_exceed);

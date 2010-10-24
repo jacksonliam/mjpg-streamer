@@ -33,7 +33,7 @@ static int debug = 0;
 static int init_v4l2(struct vdIn *vd);
 
 int init_videoIn(struct vdIn *vd, char *device, int width,
-                 int height, int fps, int format, int grabmethod, globals *pglobal)
+                 int height, int fps, int format, int grabmethod, globals *pglobal, int id)
 {
     if (vd == NULL || device == NULL)
         return -1;
@@ -72,40 +72,40 @@ int init_videoIn(struct vdIn *vd, char *device, int width,
         DBG("Current size: %dx%d\n", currentWidth, currentHeight);
     }
 
-    pglobal->in.in_formats = malloc(0 * sizeof(struct v4l2_fmtdesc));
-    for (pglobal->in.formatCount = 0; 1; pglobal->in.formatCount++) {
+    pglobal->in[id].in_formats = malloc(0 * sizeof(struct v4l2_fmtdesc));
+    for (pglobal->in[id].formatCount = 0; 1; pglobal->in[id].formatCount++) {
          struct v4l2_fmtdesc fmtdesc;
-         fmtdesc.index = pglobal->in.formatCount;
+         fmtdesc.index = pglobal->in[id].formatCount;
          fmtdesc.type  = V4L2_BUF_TYPE_VIDEO_CAPTURE;
          if (IOCTL_VIDEO(vd->fd, VIDIOC_ENUM_FMT, &fmtdesc) < 0) {
              break;
          }
-         pglobal->in.in_formats =
-            (input_format*)realloc(pglobal->in.in_formats, (pglobal->in.formatCount + 1) * sizeof(input_format));
-        memcpy(&pglobal->in.in_formats[pglobal->in.formatCount], &fmtdesc, sizeof(input_format));
+         pglobal->in[id].in_formats =
+            (input_format*)realloc(pglobal->in[id].in_formats, (pglobal->in[id].formatCount + 1) * sizeof(input_format));
+        memcpy(&pglobal->in[id].in_formats[pglobal->in[id].formatCount], &fmtdesc, sizeof(input_format));
 
         if (fmtdesc.pixelformat == format)
-            pglobal->in.currentFormat = pglobal->in.formatCount;
+            pglobal->in[id].currentFormat = pglobal->in[id].formatCount;
 
         DBG("Supported format: %s\n", fmtdesc.description);
         struct v4l2_frmsizeenum fsenum;
-        fsenum.index = pglobal->in.formatCount;
+        fsenum.index = pglobal->in[id].formatCount;
         fsenum.pixel_format = fmtdesc.pixelformat;
         int j = 0;
-        pglobal->in.in_formats[pglobal->in.formatCount].supportedResolutions = malloc(0);
-        pglobal->in.in_formats[pglobal->in.formatCount].resolutionCount = 0;
-        pglobal->in.in_formats[pglobal->in.formatCount].currentResolution = -1;
+        pglobal->in[id].in_formats[pglobal->in[id].formatCount].supportedResolutions = malloc(0);
+        pglobal->in[id].in_formats[pglobal->in[id].formatCount].resolutionCount = 0;
+        pglobal->in[id].in_formats[pglobal->in[id].formatCount].currentResolution = -1;
         while (1) {
             fsenum.index = j;
             j++;
             if(IOCTL_VIDEO(vd->fd, VIDIOC_ENUM_FRAMESIZES, &fsenum) == 0) {
-                pglobal->in.in_formats[pglobal->in.formatCount].resolutionCount++;
-                pglobal->in.in_formats[pglobal->in.formatCount].supportedResolutions = (input_resolution*)
-                realloc(pglobal->in.in_formats[pglobal->in.formatCount].supportedResolutions, j * sizeof(input_resolution));
-                pglobal->in.in_formats[pglobal->in.formatCount].supportedResolutions[j-1].width = fsenum.discrete.width;
-                pglobal->in.in_formats[pglobal->in.formatCount].supportedResolutions[j-1].height = fsenum.discrete.height;
+                pglobal->in[id].in_formats[pglobal->in[id].formatCount].resolutionCount++;
+                pglobal->in[id].in_formats[pglobal->in[id].formatCount].supportedResolutions = (input_resolution*)
+                realloc(pglobal->in[id].in_formats[pglobal->in[id].formatCount].supportedResolutions, j * sizeof(input_resolution));
+                pglobal->in[id].in_formats[pglobal->in[id].formatCount].supportedResolutions[j-1].width = fsenum.discrete.width;
+                pglobal->in[id].in_formats[pglobal->in[id].formatCount].supportedResolutions[j-1].height = fsenum.discrete.height;
                 if (format == fmtdesc.pixelformat) {
-                    pglobal->in.in_formats[pglobal->in.formatCount].currentResolution = (j-1);
+                    pglobal->in[id].in_formats[pglobal->in[id].formatCount].currentResolution = (j-1);
                     DBG("\tSupported size with the current format: %dx%d\n", fsenum.discrete.width, fsenum.discrete.height);
                 } else {
                     DBG("\tSupported size: %dx%d\n", fsenum.discrete.width, fsenum.discrete.height);
@@ -141,7 +141,7 @@ int init_videoIn(struct vdIn *vd, char *device, int width,
     goto error;
   return 0;
 error:
-  free(pglobal->in.in_parameters);
+  free(pglobal->in[id].in_parameters);
   free(vd->videodevice);
   free(vd->status);
   free(vd->pictName);
@@ -544,21 +544,21 @@ int v4l2ResetControl(struct vdIn *vd, int control) {
   return 0;
 };
 
-void control_readed(struct vdIn *vd,struct v4l2_queryctrl *ctrl, globals *pglobal)
+void control_readed(struct vdIn *vd,struct v4l2_queryctrl *ctrl, globals *pglobal, int id)
 {
     struct v4l2_control c;
     c.id = ctrl->id;
     int ret = IOCTL_VIDEO(vd->fd, VIDIOC_G_CTRL, &c);
     if(ret == 0) {
-        pglobal->in.in_parameters =
+        pglobal->in[id].in_parameters =
             (input_control*)realloc(
-                                           pglobal->in.in_parameters,
-                                           (pglobal->in.parametercount + 1) * sizeof(input_control));
-            memcpy(&pglobal->in.in_parameters[pglobal->in.parametercount].ctrl, ctrl, sizeof(struct v4l2_queryctrl));
-            pglobal->in.in_parameters[pglobal->in.parametercount].type = IN_CMD_V4L2;
-            pglobal->in.in_parameters[pglobal->in.parametercount].value = c.value;
+                                           pglobal->in[id].in_parameters,
+                                           (pglobal->in[id].parametercount + 1) * sizeof(input_control));
+            memcpy(&pglobal->in[id].in_parameters[pglobal->in[id].parametercount].ctrl, ctrl, sizeof(struct v4l2_queryctrl));
+            pglobal->in[id].in_parameters[pglobal->in[id].parametercount].type = IN_CMD_V4L2;
+            pglobal->in[id].in_parameters[pglobal->in[id].parametercount].value = c.value;
             if (ctrl->type == V4L2_CTRL_TYPE_MENU) {
-                pglobal->in.in_parameters[pglobal->in.parametercount].menuitems =
+                pglobal->in[id].in_parameters[pglobal->in[id].parametercount].menuitems =
                     (struct v4l2_querymenu*)malloc((ctrl->maximum+1) * sizeof(struct v4l2_querymenu));
                 int i;
                 for(i=ctrl->minimum; i<=ctrl->maximum; i++) {
@@ -566,17 +566,17 @@ void control_readed(struct vdIn *vd,struct v4l2_queryctrl *ctrl, globals *pgloba
                     qm.id = ctrl->id;
                     qm.index = i;
                     if(IOCTL_VIDEO(vd->fd, VIDIOC_QUERYMENU, &qm) == 0) {
-                        memcpy(&pglobal->in.in_parameters[pglobal->in.parametercount].menuitems[i], &qm, sizeof(struct v4l2_querymenu));
+                        memcpy(&pglobal->in[id].in_parameters[pglobal->in[id].parametercount].menuitems[i], &qm, sizeof(struct v4l2_querymenu));
                         DBG("Menu item %d: %s\n", qm.index, qm.name);
                     } else {
                         DBG("Unable to get menu item for %s, index=%d\n", ctrl->name, qm.index);
                     }
                 }
             } else {
-                pglobal->in.in_parameters[pglobal->in.parametercount].menuitems = NULL;
+                pglobal->in[id].in_parameters[pglobal->in[id].parametercount].menuitems = NULL;
             }
             DBG("V4L2 parameter found: %s value %d \n", ctrl->name, c.value);
-            pglobal->in.parametercount++;
+            pglobal->in[id].parametercount++;
     } else {
         DBG("Unable to get the value of %s retcode: %d  %s\n", ctrl->name, ret, strerror(errno));
     }
@@ -622,19 +622,19 @@ int setResolution(struct vdIn *vd, int width, int height)
     return ret;
 }
 
-void enumerateControls(struct vdIn *vd, globals *pglobal)
+void enumerateControls(struct vdIn *vd, globals *pglobal, int id)
 {
     // enumerating v4l2 controls
     struct v4l2_queryctrl ctrl;
-    pglobal->in.parametercount = 0;
-    pglobal->in.in_parameters = malloc(0 * sizeof(input_control));
+    pglobal->in[id].parametercount = 0;
+    pglobal->in[id].in_parameters = malloc(0 * sizeof(input_control));
     /* Enumerate the v4l2 controls
      Try the extended control API first */
     #ifdef V4L2_CTRL_FLAG_NEXT_CTRL
     ctrl.id = V4L2_CTRL_FLAG_NEXT_CTRL;
     if(0 == IOCTL_VIDEO(vd->fd, VIDIOC_QUERYCTRL, &ctrl)) {
         do {
-            control_readed(vd, &ctrl, pglobal);
+            control_readed(vd, &ctrl, pglobal, id);
             ctrl.id |= V4L2_CTRL_FLAG_NEXT_CTRL;
         } while(0 == ioctl (vd->fd, VIDIOC_QUERYCTRL, &ctrl));
     } else
@@ -646,7 +646,7 @@ void enumerateControls(struct vdIn *vd, globals *pglobal)
         for(i = V4L2_CID_BASE; i<V4L2_CID_LASTP1; i++) {
             ctrl.id = i;
             if(IOCTL_VIDEO(vd->fd, VIDIOC_QUERYCTRL, &ctrl) == 0) {
-                control_readed(vd, &ctrl, pglobal);
+                control_readed(vd, &ctrl, pglobal, id);
             }
         }
 
@@ -654,22 +654,22 @@ void enumerateControls(struct vdIn *vd, globals *pglobal)
         for(i=V4L2_CID_PRIVATE_BASE; ; i++) {
             ctrl.id = i;
             if(IOCTL_VIDEO(vd->fd, VIDIOC_QUERYCTRL, &ctrl) == 0) {
-                control_readed(vd, &ctrl, pglobal);
+                control_readed(vd, &ctrl, pglobal, id);
             } else {
                 break;
             }
         }
     }
 
-    memset(&pglobal->in.jpegcomp, 0, sizeof(struct v4l2_jpegcompression));
-  if (IOCTL_VIDEO(vd->fd, VIDIOC_G_JPEGCOMP, &pglobal->in.jpegcomp) != EINVAL) {
+    memset(&pglobal->in[id].jpegcomp, 0, sizeof(struct v4l2_jpegcompression));
+  if (IOCTL_VIDEO(vd->fd, VIDIOC_G_JPEGCOMP, &pglobal->in[id].jpegcomp) != EINVAL) {
       DBG("JPEG compression details:\n");
-      DBG("Quality: %d\n", pglobal->in.jpegcomp.quality);
-      DBG("APPn: %d\n", pglobal->in.jpegcomp.APPn);
-      DBG("APP length: %d\n", pglobal->in.jpegcomp.APP_len);
-      DBG("APP data: %s\n", pglobal->in.jpegcomp.APP_data);
-      DBG("COM length: %d\n", pglobal->in.jpegcomp.COM_len);
-      DBG("COM data: %s\n", pglobal->in.jpegcomp.COM_data);
+      DBG("Quality: %d\n", pglobal->in[id].jpegcomp.quality);
+      DBG("APPn: %d\n", pglobal->in[id].jpegcomp.APPn);
+      DBG("APP length: %d\n", pglobal->in[id].jpegcomp.APP_len);
+      DBG("APP data: %s\n", pglobal->in[id].jpegcomp.APP_data);
+      DBG("COM length: %d\n", pglobal->in[id].jpegcomp.COM_len);
+      DBG("COM data: %s\n", pglobal->in[id].jpegcomp.COM_data);
      struct v4l2_queryctrl ctrl_jpeg;
      ctrl_jpeg.id = 1;
      sprintf((char*)&ctrl_jpeg.name, "JPEG quality");
@@ -679,17 +679,17 @@ void enumerateControls(struct vdIn *vd, globals *pglobal)
      ctrl_jpeg.default_value = 50;
      ctrl_jpeg.flags = 0;
      ctrl_jpeg.type = V4L2_CTRL_TYPE_INTEGER;
-      pglobal->in.in_parameters =
+      pglobal->in[id].in_parameters =
             (input_control*)realloc(
-                                           pglobal->in.in_parameters,
-                                           (pglobal->in.parametercount + 1) * sizeof(input_control));
-            memcpy(&pglobal->in.in_parameters[pglobal->in.parametercount].ctrl, &ctrl_jpeg, sizeof(struct v4l2_queryctrl));
-            pglobal->in.in_parameters[pglobal->in.parametercount].type = IN_CMD_JPEG_QUALITY;
-            pglobal->in.in_parameters[pglobal->in.parametercount].value = pglobal->in.jpegcomp.quality;
-        pglobal->in.parametercount++;
+                                           pglobal->in[id].in_parameters,
+                                           (pglobal->in[id].parametercount + 1) * sizeof(input_control));
+            memcpy(&pglobal->in[id].in_parameters[pglobal->in[id].parametercount].ctrl, &ctrl_jpeg, sizeof(struct v4l2_queryctrl));
+            pglobal->in[id].in_parameters[pglobal->in[id].parametercount].type = IN_CMD_JPEG_QUALITY;
+            pglobal->in[id].in_parameters[pglobal->in[id].parametercount].value = pglobal->in[id].jpegcomp.quality;
+        pglobal->in[id].parametercount++;
   } else {
       DBG("Modifying the setting of the JPEG compression is not supported\n");
-      pglobal->in.jpegcomp.quality = -1;
+      pglobal->in[id].jpegcomp.quality = -1;
   }
 
 }

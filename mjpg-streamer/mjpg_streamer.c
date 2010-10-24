@@ -100,14 +100,22 @@ void signal_handler(int sig)
 
   /* clean up threads */
   LOG("force cancelation of threads and cleanup ressources\n");
-  global.in.stop();
+  for (i = 0;i<global.incnt;i++) {
+      global.in[i].stop(i);
+  }
+
   for(i=0; i<global.outcnt; i++) {
     global.out[i].stop(global.out[i].param.id);
+    pthread_cond_destroy(&global.in[i].db_update);
+    pthread_mutex_destroy(&global.in[i].db);
   }
   usleep(1000*1000);
 
   /* close handles of input plugins */
-  dlclose(&global.in.handle);
+  for (i=0; i<global.outcnt;i++) {
+      dlclose(global.in[i].handle);
+  }
+
   for(i=0; i<global.outcnt; i++) {
     /* skip = 0;
     DBG("about to decrement usage counter for handle of %s, id #%02d, handle: %p\n", \
@@ -128,9 +136,6 @@ void signal_handler(int sig)
   }
   DBG("all plugin handles closed\n");
 
-  pthread_cond_destroy(&global.db_update);
-  pthread_mutex_destroy(&global.db);
-
   LOG("done\n");
 
   closelog();
@@ -145,7 +150,8 @@ Return Value:
 ******************************************************************************/
 int main(int argc, char *argv[])
 {
-  char *input  = "input_uvc.so --resolution 640x480 --fps 5 --device /dev/video0";
+  //char *input  = "input_uvc.so --resolution 640x480 --fps 5 --device /dev/video0";
+  char *input[MAX_INPUT_PLUGINS];
   char *output[MAX_OUTPUT_PLUGINS];
   int daemon=0, i;
   size_t tmp=0;
@@ -191,7 +197,7 @@ int main(int argc, char *argv[])
       /* i, input */
       case 2:
       case 3:
-        input = strdup(optarg);
+        input[global.incnt++] = strdup(optarg);
         break;
 
       /* o, output */
@@ -205,7 +211,13 @@ int main(int argc, char *argv[])
       case 7:
         printf("MJPG Streamer Version: %s\n" \
                "Compilation Date.....: %s\n" \
-               "Compilation Time.....: %s\n", SOURCE_VERSION, __DATE__, __TIME__);
+               "Compilation Time.....: %s\n",
+               #ifdef SVN_REV
+               SVN_REV,
+               #else
+               SOURCE_VERSION,
+               #endif
+               __DATE__, __TIME__);
         return 0;
         break;
 
@@ -229,24 +241,6 @@ int main(int argc, char *argv[])
   if ( daemon ) {
     LOG("enabling daemon mode");
     daemon_mode();
-  }
-
-  /* initialise the global variables */
-  global.stop      = 0;
-  global.buf       = NULL;
-  global.size      = 0;
-  global.in.plugin = NULL;
-
-  /* this mutex and the conditional variable are used to synchronize access to the global picture buffer */
-  if( pthread_mutex_init(&global.db, NULL) != 0 ) {
-    LOG("could not initialize mutex variable\n");
-    closelog();
-    exit(EXIT_FAILURE);
-  }
-  if( pthread_cond_init(&global.db_update, NULL) != 0 ) {
-    LOG("could not initialize condition variable\n");
-    closelog();
-    exit(EXIT_FAILURE);
   }
 
   /* ignore SIGPIPE (send by OS if transmitting to closed TCP sockets) */
@@ -276,42 +270,59 @@ int main(int argc, char *argv[])
   }
 
   /* open input plugin */
-  tmp = (size_t)(strchr(input, ' ')-input);
-  global.in.plugin = (tmp > 0)?strndup(input, tmp):strdup(input);
-  global.in.handle = dlopen(global.in.plugin, RTLD_LAZY);
-  if ( !global.in.handle ) {
-    LOG("ERROR: could not find input plugin\n");
-    LOG("       Perhaps you want to adjust the search path with:\n");
-    LOG("       # export LD_LIBRARY_PATH=/path/to/plugin/folder\n");
-    LOG("       dlopen: %s\n", dlerror() );
-    closelog();
-    exit(EXIT_FAILURE);
-  }
-  global.in.init = dlsym(global.in.handle, "input_init");
-  if ( global.in.init == NULL ) {
-    LOG("%s\n", dlerror());
-    exit(EXIT_FAILURE);
-  }
-  global.in.stop = dlsym(global.in.handle, "input_stop");
-  if ( global.in.stop == NULL ) {
-    LOG("%s\n", dlerror());
-    exit(EXIT_FAILURE);
-  }
-  global.in.run = dlsym(global.in.handle, "input_run");
-  if ( global.in.run == NULL ) {
-    LOG("%s\n", dlerror());
-    exit(EXIT_FAILURE);
-  }
-  /* try to find optional command */
-  global.in.cmd_new = dlsym(global.in.handle, "input_cmd_new");
+  for(i=0;i<global.incnt; i++) {
+    /* this mutex and the conditional variable are used to synchronize access to the global picture buffer */
+      if( pthread_mutex_init(&global.in[i].db, NULL) != 0 ) {
+        LOG("could not initialize mutex variable\n");
+        closelog();
+        exit(EXIT_FAILURE);
+      }
+      if( pthread_cond_init(&global.in[i].db_update, NULL) != 0 ) {
+        LOG("could not initialize condition variable\n");
+        closelog();
+        exit(EXIT_FAILURE);
+      }
 
-  global.in.param.parameter_string = strchr(input, ' ');
-  global.in.param.global = &global;
+      tmp = (size_t)(strchr(input[i], ' ')-input[i]);
+      global.in[i].stop      = 0;
+      global.in[i].buf       = NULL;
+      global.in[i].size      = 0;
+      global.in[i].plugin = (tmp > 0)?strndup(input[i], tmp):strdup(input[i]);
+      global.in[i].handle = dlopen(global.in[i].plugin, RTLD_LAZY);
+      if ( !global.in[i].handle ) {
+        LOG("ERROR: could not find input plugin\n");
+        LOG("       Perhaps you want to adjust the search path with:\n");
+        LOG("       # export LD_LIBRARY_PATH=/path/to/plugin/folder\n");
+        LOG("       dlopen: %s\n", dlerror() );
+        closelog();
+        exit(EXIT_FAILURE);
+      }
+      global.in[i].init = dlsym(global.in[i].handle, "input_init");
+      if ( global.in[i].init == NULL ) {
+        LOG("%s\n", dlerror());
+        exit(EXIT_FAILURE);
+      }
+      global.in[i].stop = dlsym(global.in[i].handle, "input_stop");
+      if ( global.in[i].stop == NULL ) {
+        LOG("%s\n", dlerror());
+        exit(EXIT_FAILURE);
+      }
+      global.in[i].run = dlsym(global.in[i].handle, "input_run");
+      if ( global.in[i].run == NULL ) {
+        LOG("%s\n", dlerror());
+        exit(EXIT_FAILURE);
+      }
+      /* try to find optional command */
+      global.in[i].cmd = dlsym(global.in[i].handle, "input_cmd");
 
-  if ( global.in.init(&global.in.param) ) {
-    LOG("input_init() return value signals to exit");
-    closelog();
-    exit(0);
+      global.in[i].param.parameter_string = strchr(input[i], ' ');
+      global.in[i].param.global = &global;
+
+      if ( global.in[i].init(&global.in[i].param, i) ) {
+        LOG("input_init() return value signals to exit\n");
+        closelog();
+        exit(0);
+      }
   }
 
   /* open output plugin */
@@ -349,19 +360,21 @@ int main(int argc, char *argv[])
     global.out[i].param.global = &global;
     global.out[i].param.id = i;
     if ( global.out[i].init(&global.out[i].param) ) {
-      LOG("output_init() return value signals to exit");
+      LOG("output_init() return value signals to exit\n");
       closelog();
       exit(0);
     }
   }
 
   /* start to read the input, push pictures into global buffer */
-  DBG("starting input plugin\n");
-  syslog(LOG_INFO, "starting input plugin");
-  if ( global.in.run() ) {
-    LOG("can not run input plugin\n");
-    closelog();
-    return 1;
+  DBG("starting %d input plugin\n", global.incnt);
+  for (i = 0; i<global.incnt;i++){
+    syslog(LOG_INFO, "starting input plugin %s", global.in[i].plugin);
+    if ( global.in[i].run(i) ) {
+    LOG("can not run input plugin %d: %s\n", i, global.in[i].plugin);
+        closelog();
+        return 1;
+    }
   }
 
   DBG("starting %d output plugin(s)\n", global.outcnt);

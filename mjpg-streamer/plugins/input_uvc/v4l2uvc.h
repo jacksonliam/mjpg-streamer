@@ -46,6 +46,8 @@
 #define CLOSE_VIDEO(fd) close(fd)
 #endif
 
+
+
 typedef enum _streaming_state streaming_state;
 enum _streaming_state {
     STREAMING_OFF = 0,
@@ -91,9 +93,20 @@ struct vdIn {
     int recordtime;
 };
 
-int init_videoIn(struct vdIn *vd, char *device, int width, int height, int fps, int format, int grabmethod, globals *pglobal);
-void enumerateControls(struct vdIn *vd, globals *pglobal);
-void control_readed(struct vdIn *vd, struct v4l2_queryctrl *ctrl, globals *pglobal);
+/* context of each camera thread */
+typedef struct {
+  int id;
+  globals *pglobal;
+  pthread_t threadID;
+  pthread_mutex_t controls_mutex;
+  struct vdIn *videoIn;
+} context;
+
+context cams[MAX_INPUT_PLUGINS];
+
+int init_videoIn(struct vdIn *vd, char *device, int width, int height, int fps, int format, int grabmethod, globals *pglobal, int id);
+void enumerateControls(struct vdIn *vd, globals *pglobal, int id);
+void control_readed(struct vdIn *vd, struct v4l2_queryctrl *ctrl, globals *pglobal, int id);
 int setResolution(struct vdIn *vd, int width, int height);
 
 int memcpy_picture(unsigned char *out, unsigned char *buf, int size);
