@@ -573,16 +573,16 @@ int v4l2SetControl(struct vdIn *vd, int control_id, int value, int plugin_number
                 case V4L2_CTRL_TYPE_STRING:
                     //string gets set on VIDIOC_G_EXT_CTRLS
                     //add the maximum size to value
-                    ext_ctrl.size = pglobal->in[plugin_number].in_parameters[i].value;
+                    ext_ctrl.size = value;
                     DBG("STRING extended controls are currently broken\n");
                     //ext_ctrl.string = control->string; // FIXMEE
                     break;
 #endif
                 case V4L2_CTRL_TYPE_INTEGER64:
-                    ext_ctrl.value64 = pglobal->in[plugin_number].in_parameters[i].value;
+                    ext_ctrl.value64 = value;
                     break;
                 default:
-                    ext_ctrl.value = pglobal->in[plugin_number].in_parameters[i].value;
+                    ext_ctrl.value = value;
                     break;
             }
 
