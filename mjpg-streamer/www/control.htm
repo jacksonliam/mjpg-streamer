@@ -44,12 +44,12 @@
 		  	if (is_tilt) {
 		  		if (is_positive) {
 			  		if (tilt < maximum) {
-			  			tilt = Number(tilt)+1;
+			  			tilt = Number(tilt)+192;
 			  			setControl(dest, plugin, id, group, tilt);
 			  		}
 		  		} else {
 		  			if (tilt > minimum) {
-			  			tilt = Number(tilt)-1;
+			  			tilt = Number(tilt)-192;
 			  			setControl(dest, plugin, id, group, tilt);
 			  		} else {
 			  			alert("At max");
@@ -59,12 +59,12 @@
 		  	} else { 
 			  	if (is_positive) {
 			  		if (pan < maximum) {
-			  			pan = Number(pan)+1;
+			  			pan = Number(pan)+192;
 			  			setControl(dest, plugin, id, group, pan);
 			  		}
 		  		} else {
 		  			if (pan > minimum) {
-			  			pan = Number(pan)-1;
+			  			pan = Number(pan)-192;
 			  			setControl(dest, plugin, id, group, pan);
 			  		}
 		  		}
@@ -154,7 +154,7 @@
                   $("<button/>")
                   .attr("type", "button")
                   .attr("style", "width: 50%; height: 100%;")
-                  .text("")
+                  .text("ˇ")
                   .click(function(){panTilt(0, plugin_id, item.id, item.group, true, true, item.minimum, item.maximum);})
                   .appendTo("#td_ctrl_"+item.group+"-"+item.id);
                 } else { // another non spec control
