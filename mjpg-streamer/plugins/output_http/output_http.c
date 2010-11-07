@@ -51,17 +51,18 @@ Description.: print help for this plugin to stdout
 Input Value.: -
 Return Value: -
 ******************************************************************************/
-void help(void) {
-  fprintf(stderr, " ---------------------------------------------------------------\n" \
-                  " Help for output plugin..: "OUTPUT_PLUGIN_NAME"\n" \
-                  " ---------------------------------------------------------------\n" \
-                  " The following parameters can be passed to this plugin:\n\n" \
-                  " [-w | --www ]...........: folder that contains webpages in \n" \
-                  "                           flat hierarchy (no subfolders)\n" \
-                  " [-p | --port ]..........: TCP port for this HTTP server\n" \
-                  " [-c | --credentials ]...: ask for \"username:password\" on connect\n" \
-                  " [-n | --nocommands ]....: disable execution of commands\n"
-                  " ---------------------------------------------------------------\n");
+void help(void)
+{
+    fprintf(stderr, " ---------------------------------------------------------------\n" \
+            " Help for output plugin..: "OUTPUT_PLUGIN_NAME"\n" \
+            " ---------------------------------------------------------------\n" \
+            " The following parameters can be passed to this plugin:\n\n" \
+            " [-w | --www ]...........: folder that contains webpages in \n" \
+            "                           flat hierarchy (no subfolders)\n" \
+            " [-p | --port ]..........: TCP port for this HTTP server\n" \
+            " [-c | --credentials ]...: ask for \"username:password\" on connect\n" \
+            " [-n | --nocommands ]....: disable execution of commands\n"
+            " ---------------------------------------------------------------\n");
 }
 
 /*** plugin interface functions ***/
@@ -74,132 +75,159 @@ Input Value.: All parameters to work with.
               it is used to distinguish between several server instances
 Return Value: 0 if everything is OK, other values signal an error
 ******************************************************************************/
-int output_init(output_parameter *param) {
-  char *argv[MAX_ARGUMENTS]={NULL};
-  int  argc=1, i;
-  int  port;
-  char *credentials, *www_folder;
-  char nocommands;
+int output_init(output_parameter *param, int id)
+{
+    char *argv[MAX_ARGUMENTS] = {NULL};
+    int  argc = 1, i;
+    int  port;
+    char *credentials, *www_folder;
+    char nocommands;
 
-  DBG("output #%02d\n", param->id);
+    DBG("output #%02d\n", param->id);
 
-  port = htons(8080);
-  credentials = NULL;
-  www_folder = NULL;
-  nocommands = 0;
+    port = htons(8080);
+    credentials = NULL;
+    www_folder = NULL;
+    nocommands = 0;
 
-  /* convert the single parameter-string to an array of strings */
-  argv[0] = OUTPUT_PLUGIN_NAME;
-  if ( param->parameter_string != NULL && strlen(param->parameter_string) != 0 ) {
-    char *arg=NULL, *saveptr=NULL, *token=NULL;
+    /* convert the single parameter-string to an array of strings */
+    argv[0] = OUTPUT_PLUGIN_NAME;
+    if(param->parameter_string != NULL && strlen(param->parameter_string) != 0) {
+        char *arg = NULL, *saveptr = NULL, *token = NULL;
 
-    arg=(char *)strdup(param->parameter_string);
+        arg = (char *)strdup(param->parameter_string);
 
-    if ( strchr(arg, ' ') != NULL ) {
-      token=strtok_r(arg, " ", &saveptr);
-      if ( token != NULL ) {
-        argv[argc] = strdup(token);
-        argc++;
-        while ( (token=strtok_r(NULL, " ", &saveptr)) != NULL ) {
-          argv[argc] = strdup(token);
-          argc++;
-          if (argc >= MAX_ARGUMENTS) {
-            OPRINT("ERROR: too many arguments to output plugin\n");
-            return 1;
-          }
+        if(strchr(arg, ' ') != NULL) {
+            token = strtok_r(arg, " ", &saveptr);
+            if(token != NULL) {
+                argv[argc] = strdup(token);
+                argc++;
+                while((token = strtok_r(NULL, " ", &saveptr)) != NULL) {
+                    argv[argc] = strdup(token);
+                    argc++;
+                    if(argc >= MAX_ARGUMENTS) {
+                        OPRINT("ERROR: too many arguments to output plugin\n");
+                        return 1;
+                    }
+                }
+            }
         }
-      }
-    }
-  }
-
-  /* show all parameters for DBG purposes */
-  for (i=0; i<argc; i++) {
-    DBG("argv[%d]=%s\n", i, argv[i]);
-  }
-
-  reset_getopt();
-  while(1) {
-    int option_index = 0, c=0;
-    static struct option long_options[] = \
-    {
-      {"h", no_argument, 0, 0},
-      {"help", no_argument, 0, 0},
-      {"p", required_argument, 0, 0},
-      {"port", required_argument, 0, 0},
-      {"c", required_argument, 0, 0},
-      {"credentials", required_argument, 0, 0},
-      {"w", required_argument, 0, 0},
-      {"www", required_argument, 0, 0},
-      {"n", no_argument, 0, 0},
-      {"nocommands", no_argument, 0, 0},
-      {0, 0, 0, 0}
-    };
-
-    c = getopt_long_only(argc, argv, "", long_options, &option_index);
-
-    /* no more options to parse */
-    if (c == -1) break;
-
-    /* unrecognized option */
-    if (c == '?'){
-      help();
-      return 1;
     }
 
-    switch (option_index) {
-      /* h, help */
-      case 0:
-      case 1:
-        DBG("case 0,1\n");
-        help();
-        return 1;
-        break;
-
-      /* p, port */
-      case 2:
-      case 3:
-        DBG("case 2,3\n");
-        port = htons(atoi(optarg));
-        break;
-
-      /* c, credentials */
-      case 4:
-      case 5:
-        DBG("case 4,5\n");
-        credentials = strdup(optarg);
-        break;
-
-      /* w, www */
-      case 6:
-      case 7:
-        DBG("case 6,7\n");
-        www_folder = malloc(strlen(optarg)+2);
-        strcpy(www_folder, optarg);
-        if ( optarg[strlen(optarg)-1] != '/' )
-          strcat(www_folder, "/");
-        break;
-
-      /* n, nocommands */
-      case 8:
-      case 9:
-        DBG("case 8,9\n");
-        nocommands = 1;
-        break;
+    /* show all parameters for DBG purposes */
+    for(i = 0; i < argc; i++) {
+        DBG("argv[%d]=%s\n", i, argv[i]);
     }
-  }
 
-  servers[param->id].id = param->id;
-  servers[param->id].pglobal = param->global;
-  servers[param->id].conf.port = port;
-  servers[param->id].conf.credentials = credentials;
-  servers[param->id].conf.www_folder = www_folder;
-  servers[param->id].conf.nocommands = nocommands;
+    reset_getopt();
+    while(1) {
+        int option_index = 0, c = 0;
+        static struct option long_options[] = {
+            {"h", no_argument, 0, 0
+            },
+            {"help", no_argument, 0, 0},
+            {"p", required_argument, 0, 0},
+            {"port", required_argument, 0, 0},
+            {"c", required_argument, 0, 0},
+            {"credentials", required_argument, 0, 0},
+            {"w", required_argument, 0, 0},
+            {"www", required_argument, 0, 0},
+            {"n", no_argument, 0, 0},
+            {"nocommands", no_argument, 0, 0},
+            {0, 0, 0, 0}
+        };
 
-  OPRINT("www-folder-path...: %s\n", (www_folder==NULL)?"disabled":www_folder);
-  OPRINT("HTTP TCP port.....: %d\n", ntohs(port));
-  OPRINT("username:password.: %s\n", (credentials==NULL)?"disabled":credentials);
-  OPRINT("commands..........: %s\n", (nocommands)?"disabled":"enabled");
-  return 0;
+        c = getopt_long_only(argc, argv, "", long_options, &option_index);
+
+        /* no more options to parse */
+        if(c == -1) break;
+
+        /* unrecognized option */
+        if(c == '?') {
+            help();
+            return 1;
+        }
+
+        switch(option_index) {
+            /* h, help */
+        case 0:
+        case 1:
+            DBG("case 0,1\n");
+            help();
+            return 1;
+            break;
+
+            /* p, port */
+        case 2:
+        case 3:
+            DBG("case 2,3\n");
+            port = htons(atoi(optarg));
+            break;
+
+            /* c, credentials */
+        case 4:
+        case 5:
+            DBG("case 4,5\n");
+            credentials = strdup(optarg);
+            break;
+
+            /* w, www */
+        case 6:
+        case 7:
+            DBG("case 6,7\n");
+            www_folder = malloc(strlen(optarg) + 2);
+            strcpy(www_folder, optarg);
+            if(optarg[strlen(optarg)-1] != '/')
+                strcat(www_folder, "/");
+            break;
+
+            /* n, nocommands */
+        case 8:
+        case 9:
+            DBG("case 8,9\n");
+            nocommands = 1;
+            break;
+        }
+    }
+
+    servers[param->id].id = param->id;
+    servers[param->id].pglobal = param->global;
+    servers[param->id].conf.port = port;
+    servers[param->id].conf.credentials = credentials;
+    servers[param->id].conf.www_folder = www_folder;
+    servers[param->id].conf.nocommands = nocommands;
+
+    OPRINT("www-folder-path...: %s\n", (www_folder == NULL) ? "disabled" : www_folder);
+    OPRINT("HTTP TCP port.....: %d\n", ntohs(port));
+    OPRINT("username:password.: %s\n", (credentials == NULL) ? "disabled" : credentials);
+    OPRINT("commands..........: %s\n", (nocommands) ? "disabled" : "enabled");
+
+    param->global->out[id].parametercount = 0;
+    param->global->out[id].out_parameters = malloc(0 * sizeof(control));
+    control dummyCtrl;
+    dummyCtrl.group = IN_CMD_GENERIC; // if we use non V4L2 input we do not have to use groups.
+    dummyCtrl.menuitems = NULL;
+    dummyCtrl.value = 0; // or give it a readed value
+    dummyCtrl.class_id = 0; // non V4L2 ctrl so it is not acceptible.
+    static struct v4l2_queryctrl ctrl;
+    ctrl.id = 1; // or whatever but it has to be unique for the controls in the same group
+    ctrl.type = V4L2_CTRL_TYPE_INTEGER;
+    sprintf((char*)&ctrl.name, "Dummy parameter");
+    ctrl.minimum = 0;
+    ctrl.maximum = 100;
+    ctrl.step = 1;
+    ctrl.default_value = 0;
+    ctrl.flags =  V4L2_CTRL_FLAG_SLIDER;
+    dummyCtrl.ctrl = ctrl;
+
+    param->global->out[id].out_parameters =
+        (control*)realloc(
+            param->global->out[id].out_parameters,
+            (param->global->out[id].parametercount + 1) * sizeof(control));
+    param->global->out[id].out_parameters[param->global->out[id].parametercount] = dummyCtrl;
+    param->global->out[id].parametercount++;
+
+    return 0;
 }
 
 /******************************************************************************
@@ -210,12 +238,13 @@ Description.: this will stop the server thread, client threads
 Input Value.: id determines which server instance to send commands to
 Return Value: always 0
 ******************************************************************************/
-int output_stop(int id) {
+int output_stop(int id)
+{
 
-  DBG("will cancel server thread #%02d\n", id);
-  pthread_cancel(servers[id].threadID);
+    DBG("will cancel server thread #%02d\n", id);
+    pthread_cancel(servers[id].threadID);
 
-  return 0;
+    return 0;
 }
 
 /******************************************************************************
@@ -223,14 +252,15 @@ Description.: This creates and starts the server thread
 Input Value.: id determines which server instance to send commands to
 Return Value: always 0
 ******************************************************************************/
-int output_run(int id) {
-  DBG("launching server thread #%02d\n", id);
+int output_run(int id)
+{
+    DBG("launching server thread #%02d\n", id);
 
-  /* create thread and pass context to thread function */
-  pthread_create(&(servers[id].threadID), NULL, server_thread, &(servers[id]));
-  pthread_detach(servers[id].threadID);
+    /* create thread and pass context to thread function */
+    pthread_create(&(servers[id].threadID), NULL, server_thread, &(servers[id]));
+    pthread_detach(servers[id].threadID);
 
-  return 0;
+    return 0;
 }
 
 /******************************************************************************
@@ -242,7 +272,8 @@ Input Value.: cmd is the command type
               id determines which server instance to send commands to
 Return Value: 0 indicates success, other values indicate an error
 ******************************************************************************/
-int output_cmd(int id, out_cmd_type cmd, int value) {
-  fprintf(stderr, "command (%d, value: %d) triggered for plugin instance #%02d\n", cmd, value, id);
-  return 0;
+int output_cmd(int plugin, unsigned int control_id, unsigned int group, int value)
+{
+    DBG("command (%d, value: %d) for group %d triggered for plugin instance #%02d\n", control_id, value, group, plugin);
+    return 0;
 }

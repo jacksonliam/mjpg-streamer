@@ -20,39 +20,34 @@
 #                                                                              #
 *******************************************************************************/
 
+#include "../mjpg_streamer.h"
 #define OUTPUT_PLUGIN_PREFIX " o: "
 #define OPRINT(...) { char _bf[1024] = {0}; snprintf(_bf, sizeof(_bf)-1, __VA_ARGS__); fprintf(stderr, "%s", OUTPUT_PLUGIN_PREFIX); fprintf(stderr, "%s", _bf); syslog(LOG_INFO, "%s", _bf); }
 
 /* parameters for output plugin */
 typedef struct _output_parameter output_parameter;
 struct _output_parameter {
-  int id;
-  char *parameter_string;
-  struct _globals *global;
+    int id;
+    char *parameter_string;
+    struct _globals *global;
 };
 
-/* commands which can be send to the input plugin */
-typedef enum _out_cmd_type out_cmd_type;
-enum _out_cmd_type {
-  OUT_CMD_UNKNOWN = 0,
-  OUT_CMD_HELLO,
-  OUT_CMD_STORE
-};
+
 
 /* structure to store variables/functions for output plugin */
 typedef struct _output output;
 struct _output {
-  char *plugin;
-  void *handle;
-  output_parameter param;
+    char *plugin;
+    void *handle;
+    output_parameter param;
 
-  int (*init)(output_parameter *);
-  int (*stop)(int);
-  int (*run)(int);
-  int (*cmd)(int, out_cmd_type, int);
+    // input plugin parameters
+    struct _control *out_parameters;
+    int parametercount;
+
+    int (*init)(output_parameter *param, int id);
+    int (*stop)(int);
+    int (*run)(int);
+    int (*cmd)(int plugin, unsigned int control_id, unsigned int group, int value);
 };
 
-int output_init(output_parameter *);
-int output_stop(int id);
-int output_run(int id);
-int output_cmd(int id, out_cmd_type cmd, int value);

@@ -2,7 +2,7 @@
 # jpegenc: library to encode a jpeg frame from various input palette.       #
 # jpegenc works for embedded device without libjpeg                         #
 #.                                                                          #
-# 		Copyright (C) 2005 Michel Xhaard                            #
+#       Copyright (C) 2005 Michel Xhaard                            #
 #                                                                           #
 # This program is free software; you can redistribute it and/or modify      #
 # it under the terms of the GNU General Public License as published by      #
@@ -17,15 +17,15 @@
 # You should have received a copy of the GNU General Public License         #
 # along with this program; if not, write to the Free Software               #
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA #
-#  CREDIT:								    #
-# Original code from Nitin Gupta India (?)					    #
+#  CREDIT:                                  #
+# Original code from Nitin Gupta India (?)                      #
 #                                                                           #
-#***************************************************************************/ 
-  
-  
+#***************************************************************************/
+
+
 #ifndef MARKER_H
 #define MARKER_H
-  UINT8 * write_markers (UINT8 * output_ptr, UINT32 image_format,
-			 UINT32 image_width, UINT32 image_height);
+UINT8 * write_markers(UINT8 * output_ptr, UINT32 image_format,
+                      UINT32 image_width, UINT32 image_height);
 
-#endif	/*MARKER_H*/
+#endif  /*MARKER_H*/

@@ -1,9 +1,9 @@
 /****************************************************************************
-#	 	spcav4l v4l library. 				            #
+#       spcav4l v4l library.                            #
 #This package work with the spca5xx based webcam with the raw jpeg feature. #
 #All the decoding is in user space with the help of libjpeg.                #
 #.                                                                          #
-# 		Copyright (C) 2003 2004 2005 Michel Xhaard                  #
+#       Copyright (C) 2003 2004 2005 Michel Xhaard                  #
 #                                                                           #
 # This program is free software; you can redistribute it and/or modify      #
 # it under the terms of the GNU General Public License as published by      #
@@ -22,7 +22,7 @@
 ****************************************************************************/
 
 #ifndef SPCAV4L_H
-#define SPCAV4L_H 
+#define SPCAV4L_H
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -66,13 +66,13 @@
 #define RGB32 (MASQ << 4)
 /* our own ioctl */
 struct video_param {
-	int chg_para;
+    int chg_para;
 #define CHGABRIGHT 1
 #define CHGQUALITY 2
 #define CHGTINTER  4
-	__u8 autobright;
-	__u8 quality;
-	__u16 time_interval;
+    __u8 autobright;
+    __u8 quality;
+    __u16 time_interval;
 };
 /* Our private ioctl */
 #define SPCAGVIDIOPARAM _IOR('v',BASE_VIDIOCPRIVATE + 1,struct video_param)
@@ -81,108 +81,108 @@ struct video_param {
 
 /* specific for the spca5xx webcam */
 enum {
-	BRIDGE_SPCA505 = 0,
-        BRIDGE_SPCA506,
-	BRIDGE_SPCA501,
-	BRIDGE_SPCA508,
-	BRIDGE_SPCA504,
-	BRIDGE_SPCA500,
-	BRIDGE_SPCA504B,
-	BRIDGE_SPCA533,
-	BRIDGE_SPCA504C,
-	BRIDGE_SPCA561,
-	BRIDGE_SPCA536,
-	BRIDGE_SONIX,
-	BRIDGE_ZC3XX,
-	BRIDGE_CX11646,
-	BRIDGE_TV8532,
-	BRIDGE_ETOMS,
-	BRIDGE_SN9CXXX,
-	BRIDGE_MR97311,
-	BRIDGE_PAC207,
-	BRIDGE_VC0321,
-	BRIDGE_VC0323,
-	BRIDGE_PAC7311,
-	BRIDGE_UNKNOW,
-	MAX_BRIDGE,
+    BRIDGE_SPCA505 = 0,
+    BRIDGE_SPCA506,
+    BRIDGE_SPCA501,
+    BRIDGE_SPCA508,
+    BRIDGE_SPCA504,
+    BRIDGE_SPCA500,
+    BRIDGE_SPCA504B,
+    BRIDGE_SPCA533,
+    BRIDGE_SPCA504C,
+    BRIDGE_SPCA561,
+    BRIDGE_SPCA536,
+    BRIDGE_SONIX,
+    BRIDGE_ZC3XX,
+    BRIDGE_CX11646,
+    BRIDGE_TV8532,
+    BRIDGE_ETOMS,
+    BRIDGE_SN9CXXX,
+    BRIDGE_MR97311,
+    BRIDGE_PAC207,
+    BRIDGE_VC0321,
+    BRIDGE_VC0323,
+    BRIDGE_PAC7311,
+    BRIDGE_UNKNOW,
+    MAX_BRIDGE,
 };
 enum {
-	JPEG = 0,
-	YUVY,
-	YYUV,
-	YUYV,
-	GREY,
-	GBRG,
-	SN9C,
-	GBGR,
-	UNOW,
+    JPEG = 0,
+    YUVY,
+    YYUV,
+    YUYV,
+    GREY,
+    GBRG,
+    SN9C,
+    GBGR,
+    UNOW,
 };
 
 struct palette_list {
-	int num;
-	const char *name;
+    int num;
+    const char *name;
 };
 
 struct bridge_list {
-	int num;
-	const char *name;
+    int num;
+    const char *name;
 };
-	
+
 struct vdIn {
-	int fd;
-	char *videodevice ;
-	struct video_mmap vmmap;
-	struct video_capability videocap;
-	int mmapsize;
-	struct video_mbuf videombuf;
-	struct video_picture videopict;
-	struct video_window videowin;
-	struct video_channel videochan;
-	struct video_param videoparam;	
-	int cameratype ;
-	char *cameraname;
-	char bridge[9];
-	int sizenative; // available size in jpeg
-	int sizeothers;	// others palette 
-	int palette; // available palette
-	int norme ; // set spca506 usb video grabber
-	int channel ; // set spca506 usb video grabber
-	int grabMethod ;
-	unsigned char *pFramebuffer;
-	unsigned char *ptframe[4];
-	int framelock[4];
-	pthread_mutex_t grabmutex;
-	int framesizeIn ;
-	volatile int frame_cour;
-	int bppIn;
-	int  hdrwidth;
-	int  hdrheight;
-	int  formatIn;
-	int signalquit;	
-	};
-	
+    int fd;
+    char *videodevice ;
+    struct video_mmap vmmap;
+    struct video_capability videocap;
+    int mmapsize;
+    struct video_mbuf videombuf;
+    struct video_picture videopict;
+    struct video_window videowin;
+    struct video_channel videochan;
+    struct video_param videoparam;
+    int cameratype ;
+    char *cameraname;
+    char bridge[9];
+    int sizenative; // available size in jpeg
+    int sizeothers; // others palette
+    int palette; // available palette
+    int norme ; // set spca506 usb video grabber
+    int channel ; // set spca506 usb video grabber
+    int grabMethod ;
+    unsigned char *pFramebuffer;
+    unsigned char *ptframe[4];
+    int framelock[4];
+    pthread_mutex_t grabmutex;
+    int framesizeIn ;
+    volatile int frame_cour;
+    int bppIn;
+    int  hdrwidth;
+    int  hdrheight;
+    int  formatIn;
+    int signalquit;
+};
+
 int
-init_videoIn(struct vdIn *vd,char *device,int width,int height,int format,int grabmethod);
-int v4lGrab (struct vdIn *vd );
-int close_v4l (struct vdIn *vd);
-int setPalette (struct vdIn *vd);
-int changeSize (struct vdIn *vd);
+init_videoIn(struct vdIn *vd, char *device, int width, int height, int format, int grabmethod);
+int v4lGrab(struct vdIn *vd);
+int close_v4l(struct vdIn *vd);
+int setPalette(struct vdIn *vd);
+int changeSize(struct vdIn *vd);
 
-__u8 SpcaGetBrightness ( struct vdIn *vdin);
-void SpcaSetBrightness ( struct vdIn *vdin, __u8 bright);
-__u8 SpcaGetContrast ( struct vdIn *vdin);
-void SpcaSetContrast ( struct vdIn *vdin, __u8 contrast);
-__u8 SpcaGetColors ( struct vdIn *vdin);
-void SpcaSetColors ( struct vdIn *vdin, __u8 colors);
-__u8 SpcaGetNorme ( struct vdIn *vdin);
-void SpcaSetNorme (struct vdIn *vdin,__u8 norme);
-__u8 SpcaGetChannel (struct vdIn *vdin);
-void SpcaSetChannel( struct vdIn * vdin,__u8 channel);
+__u8 SpcaGetBrightness(struct vdIn *vdin);
+void SpcaSetBrightness(struct vdIn *vdin, __u8 bright);
+__u8 SpcaGetContrast(struct vdIn *vdin);
+void SpcaSetContrast(struct vdIn *vdin, __u8 contrast);
+__u8 SpcaGetColors(struct vdIn *vdin);
+void SpcaSetColors(struct vdIn *vdin, __u8 colors);
+__u8 SpcaGetNorme(struct vdIn *vdin);
+void SpcaSetNorme(struct vdIn *vdin, __u8 norme);
+__u8 SpcaGetChannel(struct vdIn *vdin);
+void SpcaSetChannel(struct vdIn * vdin, __u8 channel);
 
-unsigned short upbright( struct vdIn *vdin);
-unsigned short downbright( struct vdIn *vdin);
-unsigned short upcontrast( struct vdIn *vdin);
-unsigned short downcontrast( struct vdIn *vdin);
+unsigned short upbright(struct vdIn *vdin);
+unsigned short downbright(struct vdIn *vdin);
+unsigned short upcontrast(struct vdIn *vdin);
+unsigned short downcontrast(struct vdIn *vdin);
 void
 qualityUp(struct vdIn *vdin);
 void
@@ -193,11 +193,11 @@ void
 timeDown(struct vdIn *vdin);
 void
 spcaSetAutoExpo(struct vdIn *vdin);
-int probePalette ( struct vdIn *vd );
-int probeSize ( struct vdIn *vd );	
-int isSpcaChip ( const char * BridgeName );
+int probePalette(struct vdIn *vd);
+int probeSize(struct vdIn *vd);
+int isSpcaChip(const char * BridgeName);
 /* return Bridge otherwhise -1 */
-int GetStreamId ( const char * BridgeName );
+int GetStreamId(const char * BridgeName);
 /* return Stream_id otherwhise -1 */
-int GetDepth (int format);
+int GetDepth(int format);
 #endif /* SPCAV4L_H */

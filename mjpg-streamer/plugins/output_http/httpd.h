@@ -44,10 +44,10 @@
  * since i observed caching of files from time to time.
  */
 #define STD_HEADER "Connection: close\r\n" \
-                   "Server: MJPG-Streamer/0.2\r\n" \
-                   "Cache-Control: no-store, no-cache, must-revalidate, pre-check=0, post-check=0, max-age=0\r\n" \
-                   "Pragma: no-cache\r\n" \
-                   "Expires: Mon, 3 Jan 2000 12:34:56 GMT\r\n"
+    "Server: MJPG-Streamer/0.2\r\n" \
+    "Cache-Control: no-store, no-cache, must-revalidate, pre-check=0, post-check=0, max-age=0\r\n" \
+    "Pragma: no-cache\r\n" \
+    "Expires: Mon, 3 Jan 2000 12:34:56 GMT\r\n"
 
 /*
  * Maximum number of server sockets (i.e. protocol families) to listen.
@@ -61,32 +61,23 @@
  * This table is a 1:1 mapping of files extension to a certain mimetype.
  */
 static const struct {
-  const char *dot_extension;
-  const char *mimetype;
+    const char *dot_extension;
+    const char *mimetype;
 } mimetypes[] = {
-  { ".html", "text/html" },
-  { ".htm",  "text/html" },
-  { ".css",  "text/css" },
-  { ".js",   "text/javascript" },
-  { ".txt",  "text/plain" },
-  { ".jpg",  "image/jpeg" },
-  { ".jpeg", "image/jpeg" },
-  { ".png",  "image/png"},
-  { ".gif",  "image/gif" },
-  { ".ico",  "image/x-icon" },
-  { ".swf",  "application/x-shockwave-flash" },
-  { ".cab",  "application/x-shockwave-flash" },
-  { ".jar",  "application/java-archive" },
-  { ".json", "application/json" }
-};
-
-/* mapping between command string and command type */
-static const struct {
-  const char *string;
-  const out_cmd_type cmd;
-} out_cmd_mapping[] = {
-  { "hello_output", OUT_CMD_HELLO },
-  { "store", OUT_CMD_STORE }
+    { ".html", "text/html" },
+    { ".htm",  "text/html" },
+    { ".css",  "text/css" },
+    { ".js",   "text/javascript" },
+    { ".txt",  "text/plain" },
+    { ".jpg",  "image/jpeg" },
+    { ".jpeg", "image/jpeg" },
+    { ".png",  "image/png"},
+    { ".gif",  "image/gif" },
+    { ".ico",  "image/x-icon" },
+    { ".swf",  "application/x-shockwave-flash" },
+    { ".cab",  "application/x-shockwave-flash" },
+    { ".jar",  "application/java-archive" },
+    { ".json", "application/json" }
 };
 
 /* the webserver determines between these values for an answer */
@@ -97,6 +88,7 @@ typedef enum {
     A_COMMAND,
     A_FILE,
     A_INPUT_JSON,
+    A_OUTPUT_JSON,
     A_PROGRAM_JSON,
 } answer_t;
 
@@ -105,35 +97,35 @@ typedef enum {
  * this structure is used to store the important parts
  */
 typedef struct {
-  answer_t type;
-  char *parameter;
-  char *client;
-  char *credentials;
+    answer_t type;
+    char *parameter;
+    char *client;
+    char *credentials;
 } request;
 
 /* the iobuffer structure is used to read from the HTTP-client */
 typedef struct {
-  int level;              /* how full is the buffer */
-  char buffer[IO_BUFFER]; /* the data */
+    int level;              /* how full is the buffer */
+    char buffer[IO_BUFFER]; /* the data */
 } iobuffer;
 
 /* store configuration for each server instance */
 typedef struct {
-  int port;
-  char *credentials;
-  char *www_folder;
-  char nocommands;
+    int port;
+    char *credentials;
+    char *www_folder;
+    char nocommands;
 } config;
 
 /* context of each server thread */
 typedef struct {
-  int sd[MAX_SD_LEN];
-  int sd_len;
-  int id;
-  globals *pglobal;
-  pthread_t threadID;
+    int sd[MAX_SD_LEN];
+    int sd_len;
+    int id;
+    globals *pglobal;
+    pthread_t threadID;
 
-  config conf;
+    config conf;
 } context;
 
 /*
@@ -141,13 +133,14 @@ typedef struct {
  * "cfd" is for connected/accepted filedescriptor
  */
 typedef struct {
-  context *pc;
-  int fd;
+    context *pc;
+    int fd;
 } cfd;
 
 /* prototypes */
 void *server_thread(void *arg);
 void send_error(int fd, int which, char *message);
+void send_Output_JSON(int fd, int plugin_number);
 void send_Input_JSON(int fd, int plugin_number);
 void send_Program_JSON(int fd);
 

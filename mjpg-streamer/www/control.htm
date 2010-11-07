@@ -23,85 +23,170 @@
   </head>
   <body>
     <script type="text/javascript"> 
-		function setControl(controlId, value, dest, typecode) {
-          $.get('/?action=command&command='+ controlId + '&value=' + value  + '&dest='+ dest + '&typecode=' + typecode);
+		var pan = 0;
+		var tilt = 0;
+		function setControl(dest, plugin, id, group, value) {
+          $.get('/?action=command&dest=' +		dest +
+          						'&plugin=' +	plugin+
+          						'&id='+ 		id + 
+          						'&group='+ 		group + 
+          						'&value=' +		value );
         }
 
-        function setControl_bool(controlId, value, dest, typecode) {
+        function setControl_bool(dest, plugin, id, group, value) {
           if (value == false)
-            setControl(controlId, 0, dest, typecode);
+            setControl(dest, plugin, id, group, 0);
           else
-            setControl(controlId, 1, dest, typecode);
+            setControl(dest, plugin, id, group, 1);
+        }
+        
+        function panTilt(dest, plugin, id, group, is_tilt, is_positive, minimum, maximum) {
+		  	if (is_tilt) {
+		  		if (is_positive) {
+			  		if (tilt < maximum) {
+			  			tilt = Number(tilt)+1;
+			  			setControl(dest, plugin, id, group, tilt);
+			  		}
+		  		} else {
+		  			if (tilt > minimum) {
+			  			tilt = Number(tilt)-1;
+			  			setControl(dest, plugin, id, group, tilt);
+			  		} else {
+			  			alert("At max");
+			  		}
+		  		}
+		  		alert("new tilt="+tilt);
+		  	} else { 
+			  	if (is_positive) {
+			  		if (pan < maximum) {
+			  			pan = Number(pan)+1;
+			  			setControl(dest, plugin, id, group, pan);
+			  		}
+		  		} else {
+		  			if (pan > minimum) {
+			  			pan = Number(pan)-1;
+			  			setControl(dest, plugin, id, group, pan);
+			  		}
+		  		}
+
+		  	}
         }
 
-        function setControl_string(controlId, string, minlength, dest, typecode) {
-          if (string.length < minlength) {
-            alert("The input string has to be least"+minlength+" caracters!");
+        function setControl_string(dest, plugin, id, group, value) {
+          if (value.length < minlength) {
+            alert("The input string has to be least"+minlength+" characters!");
             return;
           }
-          $.get('/?action=command&command='+ controlId + '&value=' + value + '&dest=' + dest + '&typecode=' + typecode, function(data){
+          $.get('/?action=command&dest=' +		dest +
+          						'&plugin=' +	plugin+
+          						'&id='+ 		id + 
+          						'&group='+ 		group + 
+          						'&value=' +		value , 
+			function(data){
              alert("Data Loaded: " + data);
            });
         }
-        
-        function setResolution(id, dest) {
-        	$("#statustd").text("");
-			$.get('/?action=command&command=0&value=' + id + '&type=1&dest=' + dest, function(data){
-             if (data == 0) {
-             	$("#statustd").text("Success");
-             } else {
-             	$("#statustd").text("Error: " + data);
-             }
-           });
+                        
+        function setResolution(plugin, controlId, group, value) {
+	        $.get('/?action=command&dest=0'	+		// resolution command always goes to the input plugin
+					'&plugin=' +	plugin+
+					'&id'+ 			controlId + 
+					'&group=1'	+					// IN_CMD_RESOLUTION == 1,		
+					'&value=' +		value, 
+				function(data){
+				     if (data == 0) {
+				     	$("#statustd").text("Success");
+				     } else {
+				     	$("#statustd").text("Error: " + data);
+				     }
+		        }
+	        );
         }
-
-
-        $.getJSON("input.json",
+                
+        function addInput(plugin_id) {
+		$("<li/>").attr("id", "li_in-"+plugin_id).appendTo("#ul_tabs");
+		$("<a/>").attr("href", "#controldiv_in-"+plugin_id)
+			.text("Input control: "+plugin_id).appendTo("#li_in-"+plugin_id);
+        $("<div/>").attr("id", "controldiv_in-"+plugin_id).appendTo("#tabs");
+        $("<table/>").attr("id", "controltable_in-"+plugin_id).appendTo("#controldiv_in-"+plugin_id);
+        $.getJSON("input_"+plugin_id+".json",
           function(data) {
             $.each(data.controls, function(i,item){
-              $("<tr/>").attr("id", "tr-"+item.id).appendTo("#control");
+              $('<tr/>').attr("id", "tr_"+item.group+"-"+item.id).appendTo("#controltable_in-"+plugin_id);
               // BUTTON type controls does not have a label 
               if (item.type == 4) {
                 $("<td/>").appendTo("#tr-"+item.id);
               } else {
                 if (item.type == 6) { // Class type controls
-                  $("<td/>").text(item.name).attr("style", "font-weight:bold;").appendTo("#tr-"+item.id);
+                  $("<td/>").text(item.name).attr("style", "font-weight:bold;").appendTo("#tr_"+item.group+"-"+item.id);
                   return;
                 } else {
-                  $("<td/>").text(item.name).appendTo("#tr-"+item.id);
+                  $("<td/>").text(item.name).appendTo("#tr_"+item.group+"-"+item.id);
                 }
               }
 
-              $("<td/>").attr("id", "td-ctrl-"+item.id).appendTo("#tr-"+item.id);
+              $("<td/>").attr("id", "td_ctrl_"+item.group+"-"+item.id).appendTo("#tr_"+item.group+"-"+item.id);
               if((item.type == 1) || (item.type == 5)) { // integer type controls
-                var options = {min: item.min, max: item.max, step: item.step,}
-                $("<input/>")
-                  .attr("value", item.value)
-                  .attr("id", "spinbox-"+item.id)
-                  .SpinButton(options)
-                  .bind("valueChanged", function() {setControl(item.id, $(this).val(), item.dest, item.typecode);})
-                  .appendTo("#td-ctrl-"+item.id); 
+                if ((item.id == 10094852) && (item.group == 1) && (item.dest == 0)) { //V4L2_CID_PAN_RELATIVE
+                  pan = item.value;
+				  $("<button/>")
+                  .attr("type", "button")
+                  .attr("style", "width: 50%; height: 100%;")
+                  .text("<")
+                  .click(function(){panTilt(0, plugin_id, item.id, item.group, false, false, item.min, item.max);})
+                  .appendTo("#td_ctrl_"+item.group+"-"+item.id);
+                  $("<button/>")
+                  .attr("type", "button")
+                  .attr("style", "width: 50%; height: 100%;")
+                  .text(">")
+                  .click(function(){panTilt(0, plugin_id, item.id, item.group, false, true, item.min, item.max);})
+                  .appendTo("#td_ctrl_"+item.group+"-"+item.id);
+                } else if ((item.id == 10094853) && 
+                		   (item.group == 1) && 
+                		   (item.dest == 0)){ // V4L2_CID_TILT_RELATIVE
+        		   tilt = item.value;
+        		   $("<button/>")
+                  .attr("type", "button")
+                  .attr("style", "width: 50%; height: 100%;")
+                  .text("^")
+                  .click(function(){panTilt(0, plugin_id, item.id, item.group, true, false, item.min, item.max);})
+                  .appendTo("#td_ctrl_"+item.group+"-"+item.id);
+                  $("<button/>")
+                  .attr("type", "button")
+                  .attr("style", "width: 50%; height: 100%;")
+                  .text("")
+                  .click(function(){panTilt(0, plugin_id, item.id, item.group, true, true, item.minimum, item.maximum);})
+                  .appendTo("#td_ctrl_"+item.group+"-"+item.id);
+                } else { // another non spec control
+                    var options = {min: item.min, max: item.max, step: item.step,}
+		            $("<input/>")
+		              .attr("value", item.value)
+		              .attr("id", "spinbox-"+item.id)
+		              .SpinButton(options)
+		              .bind("valueChanged", function() {setControl(0, plugin_id, item.id, item.group, $(this).val());})
+		              .appendTo("#td_ctrl_"+item.group+"-"+item.id);
+                } 
               } else if (item.type == 2) { // boolean type controls
                 if (item.value == "1")
                   $("<input/>")
                     .attr("type", "checkbox")
                     .attr("checked", "checked")
-                    .change(function(){setControl(item.id, ($(this).attr("checked")?1:0));})
-                    .appendTo("#td-ctrl-"+item.id);
+                    .change(function(){setControl_bool(0, plugin_id, item.id, item.group ($(this).attr("checked")?1:0));})
+		            .appendTo("#td_ctrl_"+item.group+"-"+item.id);
                 else
                   $("<input/>")
                     .attr("type", "checkbox")
-                    .change(function(){setControl(item.id, ($(this).attr("checked")?1:0), item.dest, item.typecode);})
-                    .appendTo("#td-ctrl-"+item.id);
+                    .change(function(){setControl_bool(0, plugin_id, item.id, item.group ($(this).attr("checked")?1:0));})
+                    .appendTo("#td_ctrl_"+item.group+"-"+item.id);
               } else if (item.type == 7) { // string type controls
-                  $("<input/>").attr("value", item.value).appendTo("#td-ctrl-"+item.id);
+                  $("<input/>").attr("value", item.value).appendTo("#td_ctrl_"+item.group+"-"+item.id);
               } else if (item.type == 3) { // menu
                 $("<select/>")
                   .attr("name", "select-"+item.id)
                   .attr("id", "menu-"+item.id)
                   .attr("style", "width: 100%;")
-                  .change(function(){setControl(item.id, $(this).val(), item.dest, item.typecode);})
-                  .appendTo("#td-ctrl-"+item.id);
+                  .change(function(){setControl(0, plugin_id, item.id, item.group, $(this).val());})
+                  .appendTo("#td_ctrl_"+item.group+"-"+item.id);
                 $.each(item.menu, function(val, text) {
                     if (item.value == val) {
                       $("#menu-"+item.id).append($('<option></option>').attr("selected", "selected").val(val).html(text));
@@ -114,14 +199,14 @@
                   .attr("type", "button")
                   .attr("style", "width: 100%; height: 100%;")
                   .text(item.name)
-                  .click(function(){setControl(item.id, 0, item.dest, item.typecode);})
-                  .appendTo("#td-ctrl-"+item.id);
+                  .click(function(){setControl(0, plugin_id, item.id, item.group, 0);})
+                  .appendTo("#td_ctrl_"+item.group+"-"+item.id);
               } else if (item.type == 7) { // string  type
                 $("<input/>")
                     .attr("type", "text")
                     .attr("maxlength", item.max)
-                    .change(function(){setControl_string(item.id, $(this).text(), item.min, item.dest, item.typecode);})
-                    .appendTo("#td-ctrl-"+item.id);
+                    .change(function(){setControl_string(0, plugin_id, item.id, item.group, $(this).text());})
+                    .appendTo("#td_ctrl_"+item.group+"-"+item.id);
               } else {
                  alert("Unknown control type: "+item.type);
               }
@@ -131,8 +216,111 @@
             $("<td/>").attr("id", "td-status").appendTo("#tr-status");
           }
         );
+        }
         
-        $.getJSON("input.json",
+                
+        function addOutput(plugin_id) {
+		$("<li/>").attr("id", "li_out-"+plugin_id).appendTo("#ul_tabs");
+		$("<a/>").attr("href", "#controldiv_out-"+plugin_id)
+			.text("Output control: "+plugin_id).appendTo("#li_out-"+plugin_id);
+        $("<div/>").attr("id", "controldiv_out-"+plugin_id).appendTo("#tabs");
+        $("<table/>").attr("id", "controltable_out-"+plugin_id).appendTo("#controldiv_out-"+plugin_id);        
+        $.getJSON("output_"+plugin_id+".json",
+          function(data) {
+            $.each(data.controls, function(i,item){
+				              $('<tr/>').attr("id", "tr_"+item.group+"-"+item.id).appendTo("#controltable_out-"+plugin_id);
+              // BUTTON type controls does not have a label 
+              if (item.type == 4) {
+                $("<td/>").appendTo("#tr-"+item.id);
+              } else {
+                if (item.type == 6) { // Class type controls
+                  $("<td/>").text(item.name).attr("style", "font-weight:bold;").appendTo("#tr_"+item.group+"-"+item.id);
+                  return;
+                } else {
+                  $("<td/>").text(item.name).appendTo("#tr_"+item.group+"-"+item.id);
+                }
+              }
+
+              $("<td/>").attr("id", "td_ctrl_"+item.group+"-"+item.id).appendTo("#tr_"+item.group+"-"+item.id);
+              if((item.type == 1) || (item.type == 5)) { // integer type controls
+                    var options = {min: item.min, max: item.max, step: item.step,}
+		            $("<input/>")
+		              .attr("value", item.value)
+		              .attr("id", "spinbox-"+item.id)
+		              .SpinButton(options)
+		              .bind("valueChanged", function() {setControl(1, plugin_id, item.id, item.group, $(this).val());})
+		              .appendTo("#td_ctrl_"+item.group+"-"+item.id);
+              } else if (item.type == 2) { // boolean type controls
+                if (item.value == "1")
+                  $("<input/>")
+                    .attr("type", "checkbox")
+                    .attr("checked", "checked")
+                    .change(function(){setControl_bool(item.group, plugin_id, item.id, ($(this).attr("checked")?1:0));})
+		            .appendTo("#td_ctrl_"+item.group+"-"+item.id);
+                else
+                  $("<input/>")
+                    .attr("type", "checkbox")
+                    .change(function(){setControl_bool(1, plugin_id, item.id, item.group ($(this).attr("checked")?1:0));})
+                    .appendTo("#td_ctrl_"+item.group+"-"+item.id);
+              } else if (item.type == 7) { // string type controls
+                  $("<input/>").attr("value", item.value).appendTo("#td_ctrl_"+item.group+"-"+item.id);
+              } else if (item.type == 3) { // menu
+                $("<select/>")
+                  .attr("name", "select-"+item.id)
+                  .attr("id", "menu-"+item.id)
+                  .attr("style", "width: 100%;")
+                  .change(function(){setControl(1, plugin_id, item.id, item.group, $(this).val());})
+                  .appendTo("#td_ctrl_"+item.group+"-"+item.id);
+                $.each(item.menu, function(val, text) {
+                    if (item.value == val) {
+                      $("#menu-"+item.id).append($('<option></option>').attr("selected", "selected").val(val).html(text));
+                    } else {
+                      $("#menu-"+item.id).append($('<option></option>').val(val).html(text));
+                    }
+                });
+              } else if (item.type == 4) { // button type
+                $("<button/>")
+                  .attr("type", "button")
+                  .attr("style", "width: 100%; height: 100%;")
+                  .text(item.name)
+                  .click(function(){setControl(1, plugin_id, item.id, item.group, 0);})
+                  .appendTo("#td_ctrl_"+item.group+"-"+item.id);
+              } else if (item.type == 7) { // string  type
+                $("<input/>")
+                    .attr("type", "text")
+                    .attr("maxlength", item.max)
+                    .change(function(){setControl_string(1, plugin_id, item.id, item.group, $(this).text());})
+                    .appendTo("#td_ctrl_"+item.group+"-"+item.id);
+              } else {
+                 alert("Unknown control type: "+item.type);
+              }
+            });
+            $("<tr/>").attr("id", "tr-status").appendTo("#control");
+            $("<td/>").appendTo("#tr-status");
+            $("<td/>").attr("id", "td-status").appendTo("#tr-status");
+          }
+        );
+        }
+    
+        
+	    $.getJSON("program.json", 
+	    	function(data) {
+	    		$.each(data.inputs, 
+	    			function(i,input){
+	    				addInput(input.id);
+		    		}
+	    		)
+	    		
+	    		$.each(data.outputs, 
+	    			function(i,output){
+	    				addOutput(output.id);
+		    		}
+	    		)
+	    	}
+	    );
+
+       
+        /*$.getJSON("input.json",
           function(data) {
           	$.each(data.formats, function(i,item){
           	  if (item.current == "true") {
@@ -150,31 +338,13 @@
            	    });
           	  }
           	});
-          });
+          });*/
     </script>
+    
     <div id="all">
     <div id="tabs">
-	<ul>
-		<li><a href="#tabs-controls">Controls</a></li>
-		<li><a href="#tabs-resolution">Resolution</a></li>
-		<!---<li><a href="#tabs-extended">Resolution</a></li>--->
-	</ul>
-	<div id="tabs-controls">
-		<table id="control"></table>
-	</div>
-	<div id="tabs-resolution">
-		<table id="resolution">
-			<tr>
-				<td>Resolution</td>
-				<td id="resolutions"></td>
-			</tr>			
-			<tr>
-				<td>Status:</td>
-				<td id="statustd"></td>
-			</tr>						
-		</table>
-	</div>
-  </div>
+		<ul id="ul_tabs"></ul>
+  	</div>
   </div>
   </body>
 </html>

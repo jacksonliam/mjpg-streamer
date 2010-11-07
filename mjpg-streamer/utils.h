@@ -38,13 +38,13 @@ static inline void reset_getopt(void)
 {
     /* optind=1; opterr=1; optopt=63; */
 #ifdef __GLIBC__
-  optind = 0;
+    optind = 0;
 #else
-  optind = 1;
+    optind = 1;
 #endif
 
 #ifdef HAVE_OPTRESET
-  optreset = 1;
+    optreset = 1;
 #endif
 }
 

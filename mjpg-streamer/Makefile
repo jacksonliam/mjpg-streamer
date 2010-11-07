@@ -40,9 +40,12 @@ PLUGINS += input_testpicture.so
 PLUGINS += output_autofocus.so
 PLUGINS += input_gspcav1.so
 PLUGINS += input_file.so
-# PLUGINS += input_control.so
-# PLUGINS += input_http.so
-# PLUGINS += output_viewer.so
+PLUGINS += output_rtsp.so
+PLUGINS += output_rtsp.so
+PLUGINS += output_ptp2.so # commented out because it depends on libgphoto
+# PLUGINS += input_control.so # commented out because the output_http does it's job
+# PLUGINS += input_http.so 
+# PLUGINS += output_viewer.so # commented out because it depends on SDL
 
 # define the names of object files
 OBJECTS=mjpg_streamer.o utils.o
@@ -109,6 +112,14 @@ input_file.so: mjpg_streamer.h utils.h
 	make -C plugins/input_file all
 	cp plugins/input_file/input_file.so .
 
+output_rtsp.so: mjpg_streamer.h utils.h
+	make -C plugins/output_rtsp all
+	cp plugins/output_rtsp/output_rtsp.so .
+	
+output_ptp2.so: mjpg_streamer.h utils.h
+	make -C plugins/input_ptp2 all
+	cp plugins/input_ptp2/input_ptp2.so .	
+
 #input_http.so: mjpg_streamer.h utils.h
 #	make -C plugins/input_http all
 #	cp plugins/input_http/input_http.so .
@@ -133,6 +144,7 @@ clean:
 	make -C plugins/input_gspcav1 $@
 	make -C plugins/output_viewer $@
 	make -C plugins/input_control $@
+	make -C plugins/output_rtsp $@
 #	make -C plugins/input_http $@
 	rm -f *.a *.o $(APP_BINARY) core *~ *.so *.lo
 

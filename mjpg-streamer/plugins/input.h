@@ -20,34 +20,16 @@
 #                                                                              #
 *******************************************************************************/
 
-#include <linux/types.h>          /* for videodev2.h */
-#include <linux/videodev2.h>
+#include "../mjpg_streamer.h"
 #define INPUT_PLUGIN_PREFIX " i: "
 #define IPRINT(...) { char _bf[1024] = {0}; snprintf(_bf, sizeof(_bf)-1, __VA_ARGS__); fprintf(stderr, "%s", INPUT_PLUGIN_PREFIX); fprintf(stderr, "%s", _bf); syslog(LOG_INFO, "%s", _bf); }
 
 /* parameters for input plugin */
 typedef struct _input_parameter input_parameter;
 struct _input_parameter {
-  int id;
-  char *parameter_string;
-  struct _globals *global;
-};
-
-
-/* commands which can be send to the input plugin */
-typedef enum _in_cmd_type in_cmd_type;
-enum _in_cmd_type {
-    IN_CMD_V4L2 = 0,
-    IN_CMD_RESOLUTION = 1,
-    IN_CMD_JPEG_QUALITY = 2,
-};
-
-typedef struct _input_control input_control;
-struct _input_control {
-    struct v4l2_queryctrl ctrl;
-    int value;
-    struct v4l2_querymenu *menuitems;
-    in_cmd_type type;
+    int id;
+    char *parameter_string;
+    struct _globals *global;
 };
 
 typedef struct _input_resolution input_resolution;
@@ -67,35 +49,35 @@ struct _input_format {
 /* structure to store variables/functions for input plugin */
 typedef struct _input input;
 struct _input {
-  char *plugin;
-  void *handle;
+    char *plugin;
+    void *handle;
 
-  input_parameter param; // this holds the command line arguments
+    input_parameter param; // this holds the command line arguments
 
-  // input plugin parameters
-  input_control *in_parameters;
-  int parametercount;
+    // input plugin parameters
+    struct _control *in_parameters;
+    int parametercount;
 
 
-  struct v4l2_jpegcompression jpegcomp;
+    struct v4l2_jpegcompression jpegcomp;
 
-  /* signal fresh frames */
-  pthread_mutex_t db;
-  pthread_cond_t  db_update;
+    /* signal fresh frames */
+    pthread_mutex_t db;
+    pthread_cond_t  db_update;
 
-  /* global JPG frame, this is more or less the "database" */
-  unsigned char *buf;
-  int size;
+    /* global JPG frame, this is more or less the "database" */
+    unsigned char *buf;
+    int size;
 
-  /* v4l2_buffer timestamp */
-  struct timeval timestamp;
+    /* v4l2_buffer timestamp */
+    struct timeval timestamp;
 
-  input_format *in_formats;
-  int formatCount;
-  int currentFormat; // holds the current format number
+    input_format *in_formats;
+    int formatCount;
+    int currentFormat; // holds the current format number
 
     int (*init)(input_parameter *, int id);
     int (*stop)(int);
     int (*run)(int);
-    int (*cmd)(int plugin, unsigned int control_id, unsigned int type, int value);
+    int (*cmd)(int plugin, unsigned int control_id, unsigned int group, int value);
 };

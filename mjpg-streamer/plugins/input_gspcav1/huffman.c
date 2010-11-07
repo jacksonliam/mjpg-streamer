@@ -2,7 +2,7 @@
 # jpegenc: library to encode a jpeg frame from various input palette.       #
 # jpegenc works for embedded device without libjpeg                         #
 #.                                                                          #
-# 		Copyright (C) 2005 Michel Xhaard                            #
+#       Copyright (C) 2005 Michel Xhaard                            #
 #                                                                           #
 # This program is free software; you can redistribute it and/or modify      #
 # it under the terms of the GNU General Public License as published by      #
@@ -17,32 +17,32 @@
 # You should have received a copy of the GNU General Public License         #
 # along with this program; if not, write to the Free Software               #
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA #
-#  CREDIT:								    #
-# Original code from Nitin Gupta India (?)					    #
+#  CREDIT:                                  #
+# Original code from Nitin Gupta India (?)                      #
 #                                                                           #
-#***************************************************************************/ 
-  
-  
+#***************************************************************************/
+
+
 #include "jdatatype.h"
-  
+
 #include "encoder.h"
 #include "huffman.h"
 
 UINT16 luminance_dc_code_table[] = {
-	0x0000, 0x0002, 0x0003, 0x0004, 0x0005, 0x0006, 0x000E, 0x001E, 0x003E,
-   	0x007E, 0x00FE, 0x01FE
+    0x0000, 0x0002, 0x0003, 0x0004, 0x0005, 0x0006, 0x000E, 0x001E, 0x003E,
+    0x007E, 0x00FE, 0x01FE
 };
 UINT16 luminance_dc_size_table[] = {
-	0x0002, 0x0003, 0x0003, 0x0003, 0x0003, 0x0003, 0x0004, 0x0005, 0x0006,
-	0x0007, 0x0008, 0x0009
+    0x0002, 0x0003, 0x0003, 0x0003, 0x0003, 0x0003, 0x0004, 0x0005, 0x0006,
+    0x0007, 0x0008, 0x0009
 };
 UINT16 chrominance_dc_code_table[] = {
-	0x0000, 0x0001, 0x0002, 0x0006, 0x000E, 0x001E, 0x003E, 0x007E, 0x00FE,
-	0x01FE, 0x03FE, 0x07FE
+    0x0000, 0x0001, 0x0002, 0x0006, 0x000E, 0x001E, 0x003E, 0x007E, 0x00FE,
+    0x01FE, 0x03FE, 0x07FE
 };
 UINT16 chrominance_dc_size_table[] = {
-	0x0002, 0x0002, 0x0002, 0x0003, 0x0004, 0x0005, 0x0006, 0x0007, 0x0008,
-	0x0009, 0x000A, 0x000B 
+    0x0002, 0x0002, 0x0002, 0x0003, 0x0004, 0x0005, 0x0006, 0x0007, 0x0008,
+    0x0009, 0x000A, 0x000B
 };
 
 UINT16 luminance_ac_code_table[] = {
@@ -127,7 +127,7 @@ UINT16 chrominance_ac_size_table[] = {
     0x0010, 0x0010, 0x0010, 0x0010, 0x0010, 0x0010, 0x000E, 0x0010, 0x0010,
     0x0010, 0x0010, 0x0010, 0x0010, 0x0010, 0x0010, 0x0010, 0x000F, 0x0010,
     0x0010, 0x0010, 0x0010, 0x0010, 0x0010, 0x0010, 0x0010, 0x0010,
-    0x000A 
+    0x000A
 };
 UINT8 bitsize[] = {
     0, 1, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5,
@@ -144,242 +144,230 @@ UINT8 bitsize[] = {
     8, 8
 };
 #if 0
-#define PUTBITS	{ \
-  bits_in_next_word = (INT16) (bitindex + numbits - 32); \
-  if (bits_in_next_word < 0) \
-    { \
-    lcode = (lcode << numbits) | data; \
-    bitindex += numbits; \
-    } \
-  else \
-    { \
-    lcode = (lcode << (32 - bitindex)) | (data >> bits_in_next_word); \
-    if ((*output_ptr++ = (UINT8) (lcode >> 24)) == 0xff) \
-    *output_ptr++ = 0; \
-    if ((*output_ptr++ = (UINT8) (lcode >> 16)) == 0xff) \
-    *output_ptr++ = 0; \
-    if ((*output_ptr++ = (UINT8) (lcode >> 8)) == 0xff) \
-    *output_ptr++ = 0; \
-    if ((*output_ptr++ = (UINT8) lcode) == 0xff) \
-    *output_ptr++ = 0; \
-    lcode = data; \
-    bitindex = bits_in_next_word; \
-    } \
+#define PUTBITS { \
+        bits_in_next_word = (INT16) (bitindex + numbits - 32); \
+        if (bits_in_next_word < 0) \
+        { \
+            lcode = (lcode << numbits) | data; \
+            bitindex += numbits; \
+        } \
+        else \
+        { \
+            lcode = (lcode << (32 - bitindex)) | (data >> bits_in_next_word); \
+            if ((*output_ptr++ = (UINT8) (lcode >> 24)) == 0xff) \
+                *output_ptr++ = 0; \
+            if ((*output_ptr++ = (UINT8) (lcode >> 16)) == 0xff) \
+                *output_ptr++ = 0; \
+            if ((*output_ptr++ = (UINT8) (lcode >> 8)) == 0xff) \
+                *output_ptr++ = 0; \
+            if ((*output_ptr++ = (UINT8) lcode) == 0xff) \
+                *output_ptr++ = 0; \
+            lcode = data; \
+            bitindex = bits_in_next_word; \
+        } \
     }
 #endif
-UINT8 * huffman (JPEG_ENCODER_STRUCTURE * jpeg_encoder_structure,
-		   UINT16 component, UINT8 * output_ptr) 
+UINT8 * huffman(JPEG_ENCODER_STRUCTURE * jpeg_encoder_structure,
+                UINT16 component, UINT8 * output_ptr)
 {
-  UINT16 i;
-  UINT16 * DcCodeTable, *DcSizeTable, *AcCodeTable, *AcSizeTable;
-  INT16 * Temp_Ptr, Coeff, LastDc;
-  UINT16 AbsCoeff, HuffCode, HuffSize, RunLength = 0, DataSize = 0, index;
-  INT16 bits_in_next_word;
-  UINT16 numbits;
-  UINT32 data;
-  Temp_Ptr = Temp;
-  Coeff = *Temp_Ptr++;
-  if (component == 1)
-    
+    UINT16 i;
+    UINT16 * DcCodeTable, *DcSizeTable, *AcCodeTable, *AcSizeTable;
+    INT16 * Temp_Ptr, Coeff, LastDc;
+    UINT16 AbsCoeff, HuffCode, HuffSize, RunLength = 0, DataSize = 0, index;
+    INT16 bits_in_next_word;
+    UINT16 numbits;
+    UINT32 data;
+    Temp_Ptr = Temp;
+    Coeff = *Temp_Ptr++;
+    if(component == 1)
+
     {
-      DcCodeTable = luminance_dc_code_table;
-      DcSizeTable = luminance_dc_size_table;
-      AcCodeTable = luminance_ac_code_table;
-      AcSizeTable = luminance_ac_size_table;
-      LastDc = jpeg_encoder_structure->ldc1;
-      jpeg_encoder_structure->ldc1 = Coeff;
+        DcCodeTable = luminance_dc_code_table;
+        DcSizeTable = luminance_dc_size_table;
+        AcCodeTable = luminance_ac_code_table;
+        AcSizeTable = luminance_ac_size_table;
+        LastDc = jpeg_encoder_structure->ldc1;
+        jpeg_encoder_structure->ldc1 = Coeff;
     }
-  
-  else
-    
+
+    else
+
     {
-      DcCodeTable = chrominance_dc_code_table;
-      DcSizeTable = chrominance_dc_size_table;
-      AcCodeTable = chrominance_ac_code_table;
-      AcSizeTable = chrominance_ac_size_table;
-      if (component == 2)
-	
-	{
-	  LastDc = jpeg_encoder_structure->ldc2;
-	  jpeg_encoder_structure->ldc2 = Coeff;
-	}
-      
-      else
-	
-	{
-	  LastDc = jpeg_encoder_structure->ldc3;
-	  jpeg_encoder_structure->ldc3 = Coeff;
-	}
+        DcCodeTable = chrominance_dc_code_table;
+        DcSizeTable = chrominance_dc_size_table;
+        AcCodeTable = chrominance_ac_code_table;
+        AcSizeTable = chrominance_ac_size_table;
+        if(component == 2)
+
+        {
+            LastDc = jpeg_encoder_structure->ldc2;
+            jpeg_encoder_structure->ldc2 = Coeff;
+        }
+
+        else
+
+        {
+            LastDc = jpeg_encoder_structure->ldc3;
+            jpeg_encoder_structure->ldc3 = Coeff;
+        }
     }
-  Coeff -= LastDc;
-  AbsCoeff = (Coeff < 0) ? -Coeff-- : Coeff;
-  while (AbsCoeff != 0)
-    
+    Coeff -= LastDc;
+    AbsCoeff = (Coeff < 0) ? -Coeff-- : Coeff;
+    while(AbsCoeff != 0)
+
     {
-      AbsCoeff >>= 1;
-      DataSize++;
+        AbsCoeff >>= 1;
+        DataSize++;
     }
-  HuffCode = DcCodeTable[DataSize];
-  HuffSize = DcSizeTable[DataSize];
-  Coeff &= (1 << DataSize) - 1;
-  data = (HuffCode << DataSize) | Coeff;
-  numbits = HuffSize + DataSize;
-  //PUTBITS
-  { 
-  bits_in_next_word = (INT16) (bitindex + numbits - 32); 
-  if (bits_in_next_word < 0) 
-    { 
-    lcode = (lcode << numbits) | data; 
-    bitindex += numbits; 
-    } 
-  else 
-    { 
-    lcode = (lcode << (32 - bitindex)) | (data >> bits_in_next_word); 
-    if ((*output_ptr++ = (UINT8) (lcode >> 24)) == 0xff) 
-    *output_ptr++ = 0; 
-    if ((*output_ptr++ = (UINT8) (lcode >> 16)) == 0xff) 
-    *output_ptr++ = 0; 
-    if ((*output_ptr++ = (UINT8) (lcode >> 8)) == 0xff) 
-    *output_ptr++ = 0; 
-    if ((*output_ptr++ = (UINT8) lcode) == 0xff) 
-    *output_ptr++ = 0; 
-    lcode = data; 
-    bitindex = bits_in_next_word; 
-    } 
-    }  
-  for (i = 63; i > 0; i--)
-    
+    HuffCode = DcCodeTable[DataSize];
+    HuffSize = DcSizeTable[DataSize];
+    Coeff &= (1 << DataSize) - 1;
+    data = (HuffCode << DataSize) | Coeff;
+    numbits = HuffSize + DataSize;
+    //PUTBITS
     {
-      if ((Coeff = *Temp_Ptr++) != 0)
-	
-	{
-	  while (RunLength > 15)
-	    
-	    {
-	      RunLength -= 16;
-	      data = AcCodeTable[161];
-	      numbits = AcSizeTable[161];
-	    //PUTBITS
-	    { 
-  bits_in_next_word = (INT16) (bitindex + numbits - 32); 
-  if (bits_in_next_word < 0) 
-    { 
-    lcode = (lcode << numbits) | data; 
-    bitindex += numbits; 
-    } 
-  else 
-    { 
-    lcode = (lcode << (32 - bitindex)) | (data >> bits_in_next_word); 
-    if ((*output_ptr++ = (UINT8) (lcode >> 24)) == 0xff) 
-    *output_ptr++ = 0; 
-    if ((*output_ptr++ = (UINT8) (lcode >> 16)) == 0xff) 
-    *output_ptr++ = 0; 
-    if ((*output_ptr++ = (UINT8) (lcode >> 8)) == 0xff) 
-    *output_ptr++ = 0; 
-    if ((*output_ptr++ = (UINT8) lcode) == 0xff) 
-    *output_ptr++ = 0; 
-    lcode = data; 
-    bitindex = bits_in_next_word; 
-    } 
-    }    
-	     }
-	  AbsCoeff = (Coeff < 0) ? -Coeff-- : Coeff;
-	  if (AbsCoeff >> 8 == 0)
-	    DataSize = bitsize[AbsCoeff];
-	  
-	  else
-	  DataSize = bitsize[AbsCoeff >> 8] + 8;
-	  index = RunLength * 10 + DataSize;
-	  HuffCode = AcCodeTable[index];
-	  HuffSize = AcSizeTable[index];
-	  Coeff &= (1 << DataSize) - 1;
-	  data = (HuffCode << DataSize) | Coeff;
-	  numbits = HuffSize + DataSize;
-	 // PUTBITS
-	   { 
-  bits_in_next_word = (INT16) (bitindex + numbits - 32); 
-  if (bits_in_next_word < 0) 
-    { 
-    lcode = (lcode << numbits) | data; 
-    bitindex += numbits; 
-    } 
-  else 
-    { 
-    lcode = (lcode << (32 - bitindex)) | (data >> bits_in_next_word); 
-    if ((*output_ptr++ = (UINT8) (lcode >> 24)) == 0xff) 
-    *output_ptr++ = 0; 
-    if ((*output_ptr++ = (UINT8) (lcode >> 16)) == 0xff) 
-    *output_ptr++ = 0; 
-    if ((*output_ptr++ = (UINT8) (lcode >> 8)) == 0xff) 
-    *output_ptr++ = 0; 
-    if ((*output_ptr++ = (UINT8) lcode) == 0xff) 
-    *output_ptr++ = 0; 
-    lcode = data; 
-    bitindex = bits_in_next_word; 
-    } 
-    }    
-	  RunLength = 0;
-	}
-      
-      else
-	RunLength++;
+        bits_in_next_word = (INT16)(bitindex + numbits - 32);
+        if(bits_in_next_word < 0) {
+            lcode = (lcode << numbits) | data;
+            bitindex += numbits;
+        } else {
+            lcode = (lcode << (32 - bitindex)) | (data >> bits_in_next_word);
+            if((*output_ptr++ = (UINT8)(lcode >> 24)) == 0xff)
+                * output_ptr++ = 0;
+            if((*output_ptr++ = (UINT8)(lcode >> 16)) == 0xff)
+                * output_ptr++ = 0;
+            if((*output_ptr++ = (UINT8)(lcode >> 8)) == 0xff)
+                * output_ptr++ = 0;
+            if((*output_ptr++ = (UINT8) lcode) == 0xff)
+                * output_ptr++ = 0;
+            lcode = data;
+            bitindex = bits_in_next_word;
+        }
     }
-  if (RunLength != 0)
-    
+    for(i = 63; i > 0; i--)
+
     {
-      data = AcCodeTable[0];
-      numbits = AcSizeTable[0];
-    // PUTBITS 
-     { 
-  bits_in_next_word = (INT16) (bitindex + numbits - 32); 
-  if (bits_in_next_word < 0) 
-    { 
-    lcode = (lcode << numbits) | data; 
-    bitindex += numbits; 
-    } 
-  else 
-    { 
-    lcode = (lcode << (32 - bitindex)) | (data >> bits_in_next_word); 
-    if ((*output_ptr++ = (UINT8) (lcode >> 24)) == 0xff) 
-    *output_ptr++ = 0; 
-    if ((*output_ptr++ = (UINT8) (lcode >> 16)) == 0xff) 
-    *output_ptr++ = 0; 
-    if ((*output_ptr++ = (UINT8) (lcode >> 8)) == 0xff) 
-    *output_ptr++ = 0; 
-    if ((*output_ptr++ = (UINT8) lcode) == 0xff) 
-    *output_ptr++ = 0; 
-    lcode = data; 
-    bitindex = bits_in_next_word; 
-    } 
-    }  
+        if((Coeff = *Temp_Ptr++) != 0)
+
+        {
+            while(RunLength > 15)
+
+            {
+                RunLength -= 16;
+                data = AcCodeTable[161];
+                numbits = AcSizeTable[161];
+                //PUTBITS
+                {
+                    bits_in_next_word = (INT16)(bitindex + numbits - 32);
+                    if(bits_in_next_word < 0) {
+                        lcode = (lcode << numbits) | data;
+                        bitindex += numbits;
+                    } else {
+                        lcode = (lcode << (32 - bitindex)) | (data >> bits_in_next_word);
+                        if((*output_ptr++ = (UINT8)(lcode >> 24)) == 0xff)
+                            * output_ptr++ = 0;
+                        if((*output_ptr++ = (UINT8)(lcode >> 16)) == 0xff)
+                            * output_ptr++ = 0;
+                        if((*output_ptr++ = (UINT8)(lcode >> 8)) == 0xff)
+                            * output_ptr++ = 0;
+                        if((*output_ptr++ = (UINT8) lcode) == 0xff)
+                            * output_ptr++ = 0;
+                        lcode = data;
+                        bitindex = bits_in_next_word;
+                    }
+                }
+            }
+            AbsCoeff = (Coeff < 0) ? -Coeff-- : Coeff;
+            if(AbsCoeff >> 8 == 0)
+                DataSize = bitsize[AbsCoeff];
+
+            else
+                DataSize = bitsize[AbsCoeff >> 8] + 8;
+            index = RunLength * 10 + DataSize;
+            HuffCode = AcCodeTable[index];
+            HuffSize = AcSizeTable[index];
+            Coeff &= (1 << DataSize) - 1;
+            data = (HuffCode << DataSize) | Coeff;
+            numbits = HuffSize + DataSize;
+            // PUTBITS
+            {
+                bits_in_next_word = (INT16)(bitindex + numbits - 32);
+                if(bits_in_next_word < 0) {
+                    lcode = (lcode << numbits) | data;
+                    bitindex += numbits;
+                } else {
+                    lcode = (lcode << (32 - bitindex)) | (data >> bits_in_next_word);
+                    if((*output_ptr++ = (UINT8)(lcode >> 24)) == 0xff)
+                        * output_ptr++ = 0;
+                    if((*output_ptr++ = (UINT8)(lcode >> 16)) == 0xff)
+                        * output_ptr++ = 0;
+                    if((*output_ptr++ = (UINT8)(lcode >> 8)) == 0xff)
+                        * output_ptr++ = 0;
+                    if((*output_ptr++ = (UINT8) lcode) == 0xff)
+                        * output_ptr++ = 0;
+                    lcode = data;
+                    bitindex = bits_in_next_word;
+                }
+            }
+            RunLength = 0;
+        }
+
+        else
+            RunLength++;
     }
-  return output_ptr;
+    if(RunLength != 0)
+
+    {
+        data = AcCodeTable[0];
+        numbits = AcSizeTable[0];
+        // PUTBITS
+        {
+            bits_in_next_word = (INT16)(bitindex + numbits - 32);
+            if(bits_in_next_word < 0) {
+                lcode = (lcode << numbits) | data;
+                bitindex += numbits;
+            } else {
+                lcode = (lcode << (32 - bitindex)) | (data >> bits_in_next_word);
+                if((*output_ptr++ = (UINT8)(lcode >> 24)) == 0xff)
+                    * output_ptr++ = 0;
+                if((*output_ptr++ = (UINT8)(lcode >> 16)) == 0xff)
+                    * output_ptr++ = 0;
+                if((*output_ptr++ = (UINT8)(lcode >> 8)) == 0xff)
+                    * output_ptr++ = 0;
+                if((*output_ptr++ = (UINT8) lcode) == 0xff)
+                    * output_ptr++ = 0;
+                lcode = data;
+                bitindex = bits_in_next_word;
+            }
+        }
+    }
+    return output_ptr;
 }
 
 
-/* For bit Stuffing and EOI marker */ 
-  UINT8 * close_bitstream (UINT8 * output_ptr) 
+/* For bit Stuffing and EOI marker */
+UINT8 * close_bitstream(UINT8 * output_ptr)
 {
-  UINT16 i, count;
-  UINT8 * ptr;
-  if (bitindex > 0)
-    
+    UINT16 i, count;
+    UINT8 * ptr;
+    if(bitindex > 0)
+
     {
-      lcode <<= (32 - bitindex);
-      count = (bitindex + 7) >> 3;
-      ptr = (UINT8 *) & lcode + 3;
-      for (i = count; i > 0; i--)
-	
-	{
-	  if ((*output_ptr++ = *ptr--) == 0xff)
-	    *output_ptr++ = 0;
-	}
+        lcode <<= (32 - bitindex);
+        count = (bitindex + 7) >> 3;
+        ptr = (UINT8 *) & lcode + 3;
+        for(i = count; i > 0; i--)
+
+        {
+            if((*output_ptr++ = *ptr--) == 0xff)
+                * output_ptr++ = 0;
+        }
     }
-  
+
     // End of image marker
     *output_ptr++ = 0xFF;
-  *output_ptr++ = 0xD9;
-  return output_ptr;
+    *output_ptr++ = 0xD9;
+    return output_ptr;
 }
 
 

@@ -23,6 +23,10 @@
 #                                                                              #
 *******************************************************************************/
 
+#ifndef V4L2_UVC_H
+#define V4L2_UVC_H
+
+
 #include <stdio.h>
 #include <string.h>
 #include <fcntl.h>
@@ -35,6 +39,18 @@
 #include "../../mjpg_streamer.h"
 #define NB_BUFFER 4
 
+
+#define IOCTL_RETRY 4
+
+/* ioctl with a number of retries in the case of I/O failure
+* args:
+* fd - device descriptor
+* IOCTL_X - ioctl reference
+* arg - pointer to ioctl data
+* returns - ioctl result
+*/
+int xioctl(int fd, int IOCTL_X, void *arg);
+
 #ifdef USE_LIBV4L2
 #include <libv4l2.h>
 #define IOCTL_VIDEO(fd, req, value) v4l2_ioctl(fd, req, value)
@@ -45,8 +61,6 @@
 #define OPEN_VIDEO(fd, flags) open(fd, flags)
 #define CLOSE_VIDEO(fd) close(fd)
 #endif
-
-
 
 typedef enum _streaming_state streaming_state;
 enum _streaming_state {
@@ -95,11 +109,11 @@ struct vdIn {
 
 /* context of each camera thread */
 typedef struct {
-  int id;
-  globals *pglobal;
-  pthread_t threadID;
-  pthread_mutex_t controls_mutex;
-  struct vdIn *videoIn;
+    int id;
+    globals *pglobal;
+    pthread_t threadID;
+    pthread_mutex_t controls_mutex;
+    struct vdIn *videoIn;
 } context;
 
 context cams[MAX_INPUT_PLUGINS];
@@ -114,8 +128,10 @@ int uvcGrab(struct vdIn *vd);
 int close_v4l2(struct vdIn *vd);
 
 int v4l2GetControl(struct vdIn *vd, int control);
-int v4l2SetControl(struct vdIn *vd, int control, int value);
+int v4l2SetControl(struct vdIn *vd, int control, int value, int plugin_number, globals *pglobal);
 int v4l2UpControl(struct vdIn *vd, int control);
 int v4l2DownControl(struct vdIn *vd, int control);
 int v4l2ToggleControl(struct vdIn *vd, int control);
 int v4l2ResetControl(struct vdIn *vd, int control);
+
+#endif

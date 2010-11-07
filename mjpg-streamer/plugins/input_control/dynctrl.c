@@ -36,128 +36,129 @@
 
 /* some Logitech webcams have pan/tilt/focus controls */
 static struct uvc_xu_control_info xu_ctrls[] = {
-  {
-    .entity   = UVC_GUID_LOGITECH_MOTOR_CONTROL,
-    .selector = XU_MOTORCONTROL_PANTILT_RELATIVE,
-    .index    = 0,
-    .size     = 4,
-    .flags    = UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_DEF
-  },
-  {
-    .entity   = UVC_GUID_LOGITECH_MOTOR_CONTROL,
-    .selector = XU_MOTORCONTROL_PANTILT_RESET,
-    .index    = 1,
-    .size     = 1,
-    .flags    = UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_RES | UVC_CONTROL_GET_DEF
-  },
-  {
-    .entity   = UVC_GUID_LOGITECH_MOTOR_CONTROL,
-    .selector = XU_MOTORCONTROL_FOCUS,
-    .index    = 2,
-    .size     = 6,
-    .flags    = UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_DEF
-  },
-  {
-    .entity   = UVC_GUID_LOGITECH_USER_HW_CONTROL,
-    .selector = XU_HW_CONTROL_LED1,
-    .index    = 0,
-    .size     = 3,
-    .flags    = UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_CUR | UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_RES | UVC_CONTROL_GET_DEF
-  }
+    {
+        .entity   = UVC_GUID_LOGITECH_MOTOR_CONTROL,
+        .selector = XU_MOTORCONTROL_PANTILT_RELATIVE,
+        .index    = 0,
+        .size     = 4,
+        .flags    = UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_DEF
+    },
+    {
+        .entity   = UVC_GUID_LOGITECH_MOTOR_CONTROL,
+        .selector = XU_MOTORCONTROL_PANTILT_RESET,
+        .index    = 1,
+        .size     = 1,
+        .flags    = UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_RES | UVC_CONTROL_GET_DEF
+    },
+    {
+        .entity   = UVC_GUID_LOGITECH_MOTOR_CONTROL,
+        .selector = XU_MOTORCONTROL_FOCUS,
+        .index    = 2,
+        .size     = 6,
+        .flags    = UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_DEF
+    },
+    {
+        .entity   = UVC_GUID_LOGITECH_USER_HW_CONTROL,
+        .selector = XU_HW_CONTROL_LED1,
+        .index    = 0,
+        .size     = 3,
+        .flags    = UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_CUR | UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_RES | UVC_CONTROL_GET_DEF
+    }
 };
 
 /* mapping for Pan/Tilt/Focus */
 static struct uvc_xu_control_mapping xu_mappings[] = {
-  {
-    .id        = V4L2_CID_PAN_RELATIVE_LOGITECH,
-    .name      = "Pan (relative)",
-    .entity    = UVC_GUID_LOGITECH_MOTOR_CONTROL,
-    .selector  = XU_MOTORCONTROL_PANTILT_RELATIVE,
-    .size      = 16,
-    .offset    = 0,
-    .v4l2_type = V4L2_CTRL_TYPE_INTEGER,
-    .data_type = UVC_CTRL_DATA_TYPE_SIGNED
-  },
-  {
-    .id        = V4L2_CID_TILT_RELATIVE_LOGITECH,
-    .name      = "Tilt (relative)",
-    .entity    = UVC_GUID_LOGITECH_MOTOR_CONTROL,
-    .selector  = XU_MOTORCONTROL_PANTILT_RELATIVE,
-    .size      = 16,
-    .offset    = 16,
-    .v4l2_type = V4L2_CTRL_TYPE_INTEGER,
-    .data_type = UVC_CTRL_DATA_TYPE_SIGNED
-  },
-  {
-    .id        = V4L2_CID_PANTILT_RESET_LOGITECH,
-    .name      = "Pan/Tilt (reset)",
-    .entity    = UVC_GUID_LOGITECH_MOTOR_CONTROL,
-    .selector  = XU_MOTORCONTROL_PANTILT_RESET,
-    .size      = 2,
-    .offset    = 0,
-    .v4l2_type = V4L2_CTRL_TYPE_INTEGER,
-    .data_type = UVC_CTRL_DATA_TYPE_ENUM
-  },
-  {
-    .id        = V4L2_CID_FOCUS_LOGITECH,
-    .name      = "Focus (absolute)",
-    .entity    = UVC_GUID_LOGITECH_MOTOR_CONTROL,
-    .selector  = XU_MOTORCONTROL_FOCUS,
-    .size      = 8,
-    .offset    = 0,
-    .v4l2_type = V4L2_CTRL_TYPE_INTEGER,
-    .data_type = UVC_CTRL_DATA_TYPE_UNSIGNED
-  },
-  {
-    .id        = V4L2_CID_LED1_MODE_LOGITECH,
-    .name      = "LED1 Mode",
-    .entity    = UVC_GUID_LOGITECH_USER_HW_CONTROL,
-    .selector  = XU_HW_CONTROL_LED1,
-    .size      = 8,
-    .offset    = 0,
-    .v4l2_type = V4L2_CTRL_TYPE_INTEGER,
-    .data_type = UVC_CTRL_DATA_TYPE_UNSIGNED
-  },
-  {
-    .id        = V4L2_CID_LED1_FREQUENCY_LOGITECH,
-    .name      = "LED1 Frequency",
-    .entity    = UVC_GUID_LOGITECH_USER_HW_CONTROL,
-    .selector  = XU_HW_CONTROL_LED1,
-    .size      = 8,
-    .offset    = 16,
-    .v4l2_type = V4L2_CTRL_TYPE_INTEGER,
-    .data_type = UVC_CTRL_DATA_TYPE_UNSIGNED
-  }
+    {
+        .id        = V4L2_CID_PAN_RELATIVE_LOGITECH,
+        .name      = "Pan (relative)",
+        .entity    = UVC_GUID_LOGITECH_MOTOR_CONTROL,
+        .selector  = XU_MOTORCONTROL_PANTILT_RELATIVE,
+        .size      = 16,
+        .offset    = 0,
+        .v4l2_type = V4L2_CTRL_TYPE_INTEGER,
+        .data_type = UVC_CTRL_DATA_TYPE_SIGNED
+    },
+    {
+        .id        = V4L2_CID_TILT_RELATIVE_LOGITECH,
+        .name      = "Tilt (relative)",
+        .entity    = UVC_GUID_LOGITECH_MOTOR_CONTROL,
+        .selector  = XU_MOTORCONTROL_PANTILT_RELATIVE,
+        .size      = 16,
+        .offset    = 16,
+        .v4l2_type = V4L2_CTRL_TYPE_INTEGER,
+        .data_type = UVC_CTRL_DATA_TYPE_SIGNED
+    },
+    {
+        .id        = V4L2_CID_PANTILT_RESET_LOGITECH,
+        .name      = "Pan/Tilt (reset)",
+        .entity    = UVC_GUID_LOGITECH_MOTOR_CONTROL,
+        .selector  = XU_MOTORCONTROL_PANTILT_RESET,
+        .size      = 2,
+        .offset    = 0,
+        .v4l2_type = V4L2_CTRL_TYPE_INTEGER,
+        .data_type = UVC_CTRL_DATA_TYPE_ENUM
+    },
+    {
+        .id        = V4L2_CID_FOCUS_LOGITECH,
+        .name      = "Focus (absolute)",
+        .entity    = UVC_GUID_LOGITECH_MOTOR_CONTROL,
+        .selector  = XU_MOTORCONTROL_FOCUS,
+        .size      = 8,
+        .offset    = 0,
+        .v4l2_type = V4L2_CTRL_TYPE_INTEGER,
+        .data_type = UVC_CTRL_DATA_TYPE_UNSIGNED
+    },
+    {
+        .id        = V4L2_CID_LED1_MODE_LOGITECH,
+        .name      = "LED1 Mode",
+        .entity    = UVC_GUID_LOGITECH_USER_HW_CONTROL,
+        .selector  = XU_HW_CONTROL_LED1,
+        .size      = 8,
+        .offset    = 0,
+        .v4l2_type = V4L2_CTRL_TYPE_INTEGER,
+        .data_type = UVC_CTRL_DATA_TYPE_UNSIGNED
+    },
+    {
+        .id        = V4L2_CID_LED1_FREQUENCY_LOGITECH,
+        .name      = "LED1 Frequency",
+        .entity    = UVC_GUID_LOGITECH_USER_HW_CONTROL,
+        .selector  = XU_HW_CONTROL_LED1,
+        .size      = 8,
+        .offset    = 16,
+        .v4l2_type = V4L2_CTRL_TYPE_INTEGER,
+        .data_type = UVC_CTRL_DATA_TYPE_UNSIGNED
+    }
 };
 
-void initDynCtrls(int dev) {
-  int i, err;
+void initDynCtrls(int dev)
+{
+    int i, err;
 
-  /* try to add all controls listed above */
-  for ( i=0; i<LENGTH_OF(xu_ctrls); i++ ) {
-    DBG("adding control for %d\n", i);
-    errno=0;
-    if ( (err=ioctl(dev, UVCIOC_CTRL_ADD, &xu_ctrls[i])) < 0 ) {
-      if ( errno != EEXIST ) {
-        DBG("uvcioc ctrl add error: errno=%d (retval=%d)\n", errno, err);
-      } else {
-        DBG("control %d already exists\n", i);
-      }
+    /* try to add all controls listed above */
+    for(i = 0; i < LENGTH_OF(xu_ctrls); i++) {
+        DBG("adding control for %d\n", i);
+        errno = 0;
+        if((err = ioctl(dev, UVCIOC_CTRL_ADD, &xu_ctrls[i])) < 0) {
+            if(errno != EEXIST) {
+                DBG("uvcioc ctrl add error: errno=%d (retval=%d)\n", errno, err);
+            } else {
+                DBG("control %d already exists\n", i);
+            }
+        }
     }
-  }
 
-  /* after adding the controls, add the mapping now */
-  for ( i=0; i<LENGTH_OF(xu_mappings); i++ ) {
-    DBG("mapping controls for %s\n", xu_mappings[i].name);
-    errno=0;
-    if ((err=ioctl(dev, UVCIOC_CTRL_MAP, &xu_mappings[i])) < 0) {
-      if (errno != EEXIST) {
-        DBG("uvcioc ctrl map error: errno=%d (retval=%d)\n", errno, err);
-      } else {
-        DBG("mapping %d already exists\n", i);
-      }
+    /* after adding the controls, add the mapping now */
+    for(i = 0; i < LENGTH_OF(xu_mappings); i++) {
+        DBG("mapping controls for %s\n", xu_mappings[i].name);
+        errno = 0;
+        if((err = ioctl(dev, UVCIOC_CTRL_MAP, &xu_mappings[i])) < 0) {
+            if(errno != EEXIST) {
+                DBG("uvcioc ctrl map error: errno=%d (retval=%d)\n", errno, err);
+            } else {
+                DBG("mapping %d already exists\n", i);
+            }
+        }
     }
-  }
 }
 
 /*
@@ -168,30 +169,31 @@ SRC: https://lists.berlios.de/pipermail/linux-uvc-devel/2007-July/001888.html
 - tilt: tilt angle in 1/64th of degree
 - reset: set to 1 to reset pan/tilt to the device origin, set to 0 otherwise
 */
-int uvcPanTilt(int dev, int pan, int tilt, int reset) {
-  struct v4l2_ext_control xctrls[2];
-  struct v4l2_ext_controls ctrls;
+int uvcPanTilt(int dev, int pan, int tilt, int reset)
+{
+    struct v4l2_ext_control xctrls[2];
+    struct v4l2_ext_controls ctrls;
 
-  if (reset) {
-    xctrls[0].id = V4L2_CID_PANTILT_RESET_LOGITECH;
-    xctrls[0].value = 3;
+    if(reset) {
+        xctrls[0].id = V4L2_CID_PANTILT_RESET_LOGITECH;
+        xctrls[0].value = 3;
 
-    ctrls.count = 1;
-    ctrls.controls = xctrls;
-  } else {
-    xctrls[0].id = V4L2_CID_PAN_RELATIVE_LOGITECH;
-    xctrls[0].value = pan;
-    xctrls[1].id = V4L2_CID_TILT_RELATIVE_LOGITECH;
-    xctrls[1].value = -tilt;
+        ctrls.count = 1;
+        ctrls.controls = xctrls;
+    } else {
+        xctrls[0].id = V4L2_CID_PAN_RELATIVE_LOGITECH;
+        xctrls[0].value = pan;
+        xctrls[1].id = V4L2_CID_TILT_RELATIVE_LOGITECH;
+        xctrls[1].value = -tilt;
 
-    ctrls.count = 2;
-    ctrls.controls = xctrls;
-  }
+        ctrls.count = 2;
+        ctrls.controls = xctrls;
+    }
 
-  if ( ioctl(dev, VIDIOC_S_EXT_CTRLS, &ctrls) < 0 ) {
-    DBG("Error in uvcPanTilt");
-    return -1;
-  }
+    if(ioctl(dev, VIDIOC_S_EXT_CTRLS, &ctrls) < 0) {
+        DBG("Error in uvcPanTilt");
+        return -1;
+    }
 
-  return 0;
+    return 0;
 }
