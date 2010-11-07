@@ -544,6 +544,8 @@ int input_cmd(int plugin_number, unsigned int control_id, unsigned int group, in
             ret = v4l2SetControl(cams[plugin_number].videoIn, control_id, value, plugin_number, pglobal);
             if(ret == 0) {
                 pglobal->in[plugin_number].in_parameters[i].value = value;
+            } else {
+                DBG("v4l2SetControl failed: %d\n", ret);
             }
             return ret;
         } break;

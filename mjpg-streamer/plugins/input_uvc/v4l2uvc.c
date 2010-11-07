@@ -544,6 +544,7 @@ int v4l2SetControl(struct vdIn *vd, int control_id, int value, int plugin_number
     if (got == 0) { // we have found the control with the specified id
         DBG("V4L2 ctrl %d found\n", control_id);
         if (pglobal->in[plugin_number].in_parameters[i].class_id == V4L2_CTRL_CLASS_USER) {
+            DBG("Control type: USER\n");
             min = pglobal->in[plugin_number].in_parameters[i].ctrl.minimum;
             max = pglobal->in[plugin_number].in_parameters[i].ctrl.maximum;
 
@@ -562,6 +563,7 @@ int v4l2SetControl(struct vdIn *vd, int control_id, int value, int plugin_number
             }
             return 0;
         } else { // not user class controls
+            DBG("Control type: EXTENDED\n");
             struct v4l2_ext_controls ext_ctrls = {0};
             struct v4l2_ext_control ext_ctrl = {0};
             ext_ctrl.id = pglobal->in[plugin_number].in_parameters[i].ctrl.id;
@@ -590,6 +592,8 @@ int v4l2SetControl(struct vdIn *vd, int control_id, int value, int plugin_number
             if(ret) {
                 DBG("control id: 0x%08x failed to set value (error %i)\n", ext_ctrl.id, ret);
                 return -1;
+            } else {
+                DBG("control id: %d new value: %d\n", ext_ctrl.id, ext_ctrl.value);
             }
             return 0;
         }
