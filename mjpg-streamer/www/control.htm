@@ -39,38 +39,6 @@
           else
             setControl(dest, plugin, id, group, 1);
         }
-        
-        function panTilt(dest, plugin, id, group, is_tilt, is_positive, minimum, maximum) {
-		  	if (is_tilt) {
-		  		if (is_positive) {
-			  		if (tilt < maximum) {
-			  			tilt = Number(tilt)+192;
-			  			setControl(dest, plugin, id, group, tilt);
-			  		}
-		  		} else {
-		  			if (tilt > minimum) {
-			  			tilt = Number(tilt)-192;
-			  			setControl(dest, plugin, id, group, tilt);
-			  		} else {
-			  			alert("At max");
-			  		}
-		  		}
-		  		alert("new tilt="+tilt);
-		  	} else { 
-			  	if (is_positive) {
-			  		if (pan < maximum) {
-			  			pan = Number(pan)+192;
-			  			setControl(dest, plugin, id, group, pan);
-			  		}
-		  		} else {
-		  			if (pan > minimum) {
-			  			pan = Number(pan)-192;
-			  			setControl(dest, plugin, id, group, pan);
-			  		}
-		  		}
-
-		  	}
-        }
 
         function setControl_string(dest, plugin, id, group, value) {
           if (value.length < minlength) {
@@ -133,13 +101,13 @@
                   .attr("type", "button")
                   .attr("style", "width: 50%; height: 100%;")
                   .text("<")
-                  .click(function(){panTilt(0, plugin_id, item.id, item.group, false, false, item.min, item.max);})
+                  .click(function(){setControl(0, plugin_id, item.id, item.group, 200);})
                   .appendTo("#td_ctrl_"+item.group+"-"+item.id);
                   $("<button/>")
                   .attr("type", "button")
                   .attr("style", "width: 50%; height: 100%;")
                   .text(">")
-                  .click(function(){panTilt(0, plugin_id, item.id, item.group, false, true, item.min, item.max);})
+                  .click(function(){setControl(0, plugin_id, item.id, item.group, -200);})
                   .appendTo("#td_ctrl_"+item.group+"-"+item.id);
                 } else if ((item.id == 10094853) && 
                 		   (item.group == 1) && 
@@ -149,13 +117,13 @@
                   .attr("type", "button")
                   .attr("style", "width: 50%; height: 100%;")
                   .text("^")
-                  .click(function(){panTilt(0, plugin_id, item.id, item.group, true, false, item.min, item.max);})
+                  .click(function(){setControl(0, plugin_id, item.id, item.group, 200);})
                   .appendTo("#td_ctrl_"+item.group+"-"+item.id);
                   $("<button/>")
                   .attr("type", "button")
                   .attr("style", "width: 50%; height: 100%;")
                   .text("ˇ")
-                  .click(function(){panTilt(0, plugin_id, item.id, item.group, true, true, item.minimum, item.maximum);})
+                  .click(function(){setControl(0, plugin_id, item.id, item.group, -200);})
                   .appendTo("#td_ctrl_"+item.group+"-"+item.id);
                 } else { // another non spec control
                     var options = {min: item.min, max: item.max, step: item.step,}
