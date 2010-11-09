@@ -1,0 +1,11 @@
+TODO list:
+
+Core:
+Add support for runtime resolution change (WIP but broken)
+Put capture timestamp to the EXIF data
+Save and load the configuration from a file. 
+
+Plugins:
+Create some kind of UDP/RTP based streaming plugin
+Make the output_file plugin to be able to record mjpg video.
+

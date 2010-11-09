@@ -1,0 +1,69 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+  <head>
+    <title>MJPG-streamer</title>
+    <meta http-equiv="content-type" content="text/html; charset=iso-8859-1" />
+    <link rel="stylesheet" href="style.css" type="text/css" />
+    <!--[if IE 6]>
+    <link rel="stylesheet" href="fix.css" type="text/css" />
+    <![endif]-->
+  </head>
+
+  <script type="text/javascript">
+    function playlist(link, hint) {
+      var res = true;
+
+      if (hint)
+        res = confirm("Please open the following playlist directly with the VideoLAN Player");
+
+      if ( !res ) {
+        link.href = "#";
+        return false;
+      }
+
+      var m3u = "data:playlist/mjpgstreamer,#EXTM3U%0A%0A#EXTINF:-1,Webcam%20MJPG-Stream%0Ahttp://"+ window.location.host +"/?action=stream";
+      link.href = m3u;
+      return true;
+    }
+    
+    function run() {
+      document.getElementById("stream").firstChild.nodeValue = "http://"+ window.location.host +"/?action=stream";
+    }
+  </script>
+
+  <body onload="run();">
+    <div id="sidebar">
+      <h1>MJPG-Streamer Demo Pages</h1>
+      <h2>a ressource friendly streaming application</h2>
+
+      <div id="menu">
+        <a href="index.html">Home</a>
+        <a href="static.html">Static</a>
+        <a href="stream.html">Stream</a>
+        <a href="java.html">Java</a>
+        <a href="javascript.html">Javascript</a>
+        <a class="active" href="videolan.html">VideoLAN</a>
+        <a target="_blank" onClick="window.open(this.href, '_blank','width=400,height=400'); return false;" href="control.htm">Control</a>
+      </div>
+
+      <h3>Version info:</h3>
+      <p>v0.1 (Okt 22, 2007)</p>
+    </div>
+
+    <div id="content">
+      <h1>VideoLAN</h1>
+      <h2>Show the stream in VideoLAN Player</h2>
+
+      <h3>Javascript generated M3U-Playlist</h3>
+      <p>Click this link and a <a onclick="return playlist(this, true);" href="#">M3U-Playlist</a> will be created in Javascript. However, this example requires Javascript and it was just tested with Firefox 3.0. It should work with Opera and Chrome, as well as with IE8.</p>
+      
+      <h3>Enter the stream manually</h3>
+      <p>You can open VLC and enter the network stream:<br /><pre id="stream">http://&lt;IP&gt;:&lt;port&gt;/?action=stream</pre></p>
+
+      <p>&nbsp;</p>
+
+      <p>&copy; The <a href="http://mjpg-streamer.sf.net">MJPG-streamer team</a> | Design by <a href="http://andreasviklund.com">Andreas Viklund</a></p>
+    </div>
+  </body>
+</html>

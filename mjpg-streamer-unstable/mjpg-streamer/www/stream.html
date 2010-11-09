@@ -1,0 +1,88 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+  <head>
+    <title>MJPG-streamer</title>
+    <meta http-equiv="content-type" content="text/html; charset=iso-8859-1" />
+    <link rel="stylesheet" href="style.css" type="text/css" />
+    <script type="text/javascript" src="jquery.js"></script>    
+    <script type="text/javascript" src="jquery.rotate.js"></script>
+    <!--[if IE 6]>
+    <link rel="stylesheet" href="fix.css" type="text/css" />
+    <![endif]-->
+    <script type="text/javascript">
+    
+    var phi = 0, flipped = 0, mirrored = 0;
+
+	function setXformClass () {
+		$('.xform').each(function(idx,el) {
+			el.className = "xform x" +(flipped ? "-flipped":"") + (mirrored ? "-mirrored" : "") + "-rotated-" + phi;
+		});
+	}
+    $(document).ready(function() {
+		// set rotation angle phi and toggle rotate class
+		$('#rotate').click(function() {
+			phi = (phi + 90) % 360;
+			setXformClass();
+			if (phi % 180) {
+				$('.xform-p').addClass('rotated');
+			} else {
+				$('.xform-p').removeClass('rotated');
+			}
+		});
+		// toggle mirror class component
+		$('#mirror').click(function() {
+			mirrored = ! mirrored;
+			setXformClass();
+		});
+		// toggle flip class component
+		$('#flip').click(function() {
+			flipped = ! flipped;
+			setXformClass();
+		});
+	});
+	</script>
+  </head>
+
+  <body>
+    <div id="sidebar">
+      <h1>MJPG-Streamer Demo Pages</h1>
+      <h2>a ressource friendly streaming application</h2>
+
+      <div id="menu">
+        <a href="index.html">Home</a>
+        <a href="static.html">Static</a> 
+        <a class="active" href="stream.html">Stream</a> 
+        <a href="java.html">Java</a> 
+        <a href="javascript.html">Javascript</a>
+        <a href="videolan.html">VideoLAN</a>
+        <a target="_blank" onClick="window.open(this.href, '_blank','width=400,height=400'); return false;" href="control.htm">Control</a>
+      </div>
+
+      <h3>Version info:</h3>
+      <p>v0.1 (Okt 22, 2007)</p>
+    </div>
+
+    <div id="content">
+      <h1>Stream</h1>
+      <h2>Display the stream</h2>
+
+      <h3>Hints</h3>
+      <p>This example shows a stream. It works with a few browsers like Firefox for example. To see a simple example click <a href="stream_simple.html">here</a>. You may have to reload this page by pressing F5 one or more times.</p>
+
+      <h3>Source snippet</h3>
+      <p><pre>&lt;img src="/?action=stream" /&gt;</pre></p>
+
+	<p id="xform">
+		<button id="rotate"><div class="btnface"></div></button>
+		<button id="mirror"><div class="btnface"></div></button>
+		<button id="flip"><div class="btnface"></div></button>
+	</p>
+	<p class="xform-p"></p>
+	<p id="streamwrap" class="xform-p">
+		<img id="streamimage" class="xform" src="/?action=stream" />
+	</p>
+
+	<p>&copy; The <a href="http://mjpg-streamer.sf.net">MJPG-streamer team</a> | Design by <a href="http://andreasviklund.com">Andreas Viklund</a></p>
+  </body>
+</html>
