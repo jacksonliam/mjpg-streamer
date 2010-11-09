@@ -40,7 +40,6 @@
 #include "httpd.h"
 
 #define OUTPUT_PLUGIN_NAME "HTTP output plugin"
-#define MAX_ARGUMENTS 32
 /*
  * keep context for each server
  */
@@ -77,8 +76,7 @@ Return Value: 0 if everything is OK, other values signal an error
 ******************************************************************************/
 int output_init(output_parameter *param, int id)
 {
-    char *argv[MAX_ARGUMENTS] = {NULL};
-    int  argc = 1, i;
+    int i;
     int  port;
     char *credentials, *www_folder;
     char nocommands;
@@ -90,33 +88,11 @@ int output_init(output_parameter *param, int id)
     www_folder = NULL;
     nocommands = 0;
 
-    /* convert the single parameter-string to an array of strings */
-    argv[0] = OUTPUT_PLUGIN_NAME;
-    if(param->parameter_string != NULL && strlen(param->parameter_string) != 0) {
-        char *arg = NULL, *saveptr = NULL, *token = NULL;
-
-        arg = (char *)strdup(param->parameter_string);
-
-        if(strchr(arg, ' ') != NULL) {
-            token = strtok_r(arg, " ", &saveptr);
-            if(token != NULL) {
-                argv[argc] = strdup(token);
-                argc++;
-                while((token = strtok_r(NULL, " ", &saveptr)) != NULL) {
-                    argv[argc] = strdup(token);
-                    argc++;
-                    if(argc >= MAX_ARGUMENTS) {
-                        OPRINT("ERROR: too many arguments to output plugin\n");
-                        return 1;
-                    }
-                }
-            }
-        }
-    }
+    param->argv[0] = OUTPUT_PLUGIN_NAME;
 
     /* show all parameters for DBG purposes */
-    for(i = 0; i < argc; i++) {
-        DBG("argv[%d]=%s\n", i, argv[i]);
+    for(i = 0; i < param->argc; i++) {
+        DBG("argv[%d]=%s\n", i, param->argv[i]);
     }
 
     reset_getopt();
@@ -137,7 +113,7 @@ int output_init(output_parameter *param, int id)
             {0, 0, 0, 0}
         };
 
-        c = getopt_long_only(argc, argv, "", long_options, &option_index);
+        c = getopt_long_only(param->argc, param->argv, "", long_options, &option_index);
 
         /* no more options to parse */
         if(c == -1) break;

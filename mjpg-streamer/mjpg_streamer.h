@@ -27,6 +27,7 @@
 /* FIXME take a look to the output_http clients thread marked with fixme if you want to set more then 10 plugins */
 #define MAX_INPUT_PLUGINS 10
 #define MAX_OUTPUT_PLUGINS 10
+#define MAX_PLUGIN_ARGUMENTS 32
 #include <linux/types.h>          /* for videodev2.h */
 #include <linux/videodev2.h>
 
@@ -67,7 +68,7 @@ struct _control {
     struct v4l2_querymenu *menuitems;
     /*  In the case the control a V4L2 ctrl this variable will specify
         that the control is a V4L2_CTRL_CLASS_USER control or not.
-        For non V4L2 control it is not acceptible, leave it 0.
+        For non V4L2 control it is not acceptable, leave it 0.
     */
     int class_id;
     int group;

@@ -38,11 +38,9 @@ PLUGINS += output_udp.so
 PLUGINS += output_http.so
 PLUGINS += input_testpicture.so
 PLUGINS += output_autofocus.so
-PLUGINS += input_gspcav1.so
 PLUGINS += input_file.so
 # PLUGINS += output_rtsp.so
 # PLUGINS += output_ptp2.so # commented out because it depends on libgphoto
-# PLUGINS += input_control.so # commented out because the output_http does it's job
 # PLUGINS += input_http.so 
 # PLUGINS += output_viewer.so # commented out because it depends on SDL
 
@@ -81,10 +79,6 @@ input_uvc.so: mjpg_streamer.h utils.h
 	cp plugins/input_uvc/input_uvc.so .
 endif
 
-input_control.so: mjpg_streamer.h utils.h
-	make -C plugins/input_control all
-	cp plugins/input_control/input_control.so .
-
 output_file.so: mjpg_streamer.h utils.h
 	make -C plugins/output_file all
 	cp plugins/output_file/output_file.so .
@@ -102,10 +96,6 @@ endif
 output_udp.so: mjpg_streamer.h utils.h
 	make -C plugins/output_udp all
 	cp plugins/output_udp/output_udp.so .
-
-input_gspcav1.so: mjpg_streamer.h utils.h
-	make -C plugins/input_gspcav1 all
-	cp plugins/input_gspcav1/input_gspcav1.so .
 
 input_file.so: mjpg_streamer.h utils.h
 	make -C plugins/input_file all
@@ -140,9 +130,7 @@ clean:
 	make -C plugins/output_http $@
 	make -C plugins/output_udp $@
 	make -C plugins/output_autofocus $@
-	make -C plugins/input_gspcav1 $@
 	make -C plugins/output_viewer $@
-	make -C plugins/input_control $@
 	make -C plugins/output_rtsp $@
 #	make -C plugins/input_http $@
 	rm -f *.a *.o $(APP_BINARY) core *~ *.so *.lo

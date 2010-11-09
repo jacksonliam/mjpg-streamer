@@ -469,7 +469,7 @@ int output_run(int id)
     return 0;
 }
 
-int output_cmd(int plugin, unsigned int control_id, unsigned int group, int value)
+int output_cmd(int plugin, unsigned int control_id, unsigned int group, int value, char *value_string)
 {
     DBG("command (%d, value: %d) for group %d triggered for plugin instance #%02d\n", control_id, value, group, plugin);
     return 0;

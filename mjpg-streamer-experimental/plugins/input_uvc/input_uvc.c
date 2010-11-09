@@ -77,7 +77,7 @@ static int dynctrls = 1;
 void *cam_thread(void *);
 void cam_cleanup(void *);
 void help(void);
-int input_cmd(int plugin, unsigned int control, unsigned int group, int value);
+int input_cmd(int plugin, unsigned int control, unsigned int group, int value, char *value_string);
 
 
 /*** plugin interface functions ***/
@@ -496,7 +496,7 @@ Input Value.: * control specifies the selected v4l2 control's id
 Return Value: depends in the command, for most cases 0 means no errors and
               -1 signals an error. This is just rule of thumb, not more!
 ******************************************************************************/
-int input_cmd(int plugin_number, unsigned int control_id, unsigned int group, int value)
+int input_cmd(int plugin_number, unsigned int control_id, unsigned int group, int value, char *value_string)
 {
     int ret = -1;
     int i = 0;

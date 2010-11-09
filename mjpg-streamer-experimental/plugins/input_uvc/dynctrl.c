@@ -111,7 +111,7 @@ static struct uvc_xu_control_mapping xu_mappings[] = {
         .selector  = XU_MOTORCONTROL_PANTILT_RESET,
         .size      = 1,
         .offset    = 0,
-        .v4l2_type = V4L2_CTRL_TYPE_INTEGER,
+        .v4l2_type = V4L2_CTRL_TYPE_BUTTON,
         .data_type = UVC_CTRL_DATA_TYPE_UNSIGNED
     },
     {
@@ -121,7 +121,7 @@ static struct uvc_xu_control_mapping xu_mappings[] = {
         .selector  = XU_MOTORCONTROL_PANTILT_RESET,
         .size      = 1,
         .offset    = 1,
-        .v4l2_type = V4L2_CTRL_TYPE_INTEGER,
+        .v4l2_type = V4L2_CTRL_TYPE_BUTTON,
         .data_type = UVC_CTRL_DATA_TYPE_UNSIGNED
     },
     {
@@ -131,7 +131,7 @@ static struct uvc_xu_control_mapping xu_mappings[] = {
         .selector  = XU_MOTORCONTROL_PANTILT_RESET,
         .size      = 8,
         .offset    = 0,
-        .v4l2_type = V4L2_CTRL_TYPE_INTEGER,
+        .v4l2_type = V4L2_CTRL_TYPE_BUTTON,
         .data_type = UVC_CTRL_DATA_TYPE_UNSIGNED
     },
     {

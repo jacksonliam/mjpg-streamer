@@ -83,5 +83,5 @@ struct _input {
     int (*init)(input_parameter *, int id);
     int (*stop)(int);
     int (*run)(int);
-    int (*cmd)(int plugin, unsigned int control_id, unsigned int group, int value);
+    int (*cmd)(int plugin, unsigned int control_id, unsigned int group, int value, char *value_str);
 };

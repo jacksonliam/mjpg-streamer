@@ -37,7 +37,6 @@
 #include "../../mjpg_streamer.h"
 
 #define INPUT_PLUGIN_NAME "GSPCAV1 webcam grabber"
-#define MAX_ARGUMENTS 32
 
 static const struct {
     const char *string;
@@ -113,36 +112,14 @@ Return Value: 0 if everything is fine
 int input_init(input_parameter *param, int plugin_no)
 {
     plugin_number = plugin_no;
-    char *argv[MAX_ARGUMENTS] = {NULL}, *dev = "/dev/video0", *s;
-    int argc = 1, width = 640, height = 480, format = VIDEO_PALETTE_JPEG, i;
+    char *dev = "/dev/video0", *s;
+    int width = 640, height = 480, format = VIDEO_PALETTE_JPEG, i;
 
-    /* convert the single parameter-string to an array of strings */
-    argv[0] = INPUT_PLUGIN_NAME;
-    if(param->parameter_string != NULL && strlen(param->parameter_string) != 0) {
-        char *arg = NULL, *saveptr = NULL, *token = NULL;
-
-        arg = (char *)strdup(param->parameter_string);
-
-        if(strchr(arg, ' ') != NULL) {
-            token = strtok_r(arg, " ", &saveptr);
-            if(token != NULL) {
-                argv[argc] = strdup(token);
-                argc++;
-                while((token = strtok_r(NULL, " ", &saveptr)) != NULL) {
-                    argv[argc] = strdup(token);
-                    argc++;
-                    if(argc >= MAX_ARGUMENTS) {
-                        IPRINT("ERROR: too many arguments to input plugin\n");
-                        return 1;
-                    }
-                }
-            }
-        }
-    }
+    param->argv[0] = INPUT_PLUGIN_NAME;
 
     /* show all parameters for DBG purposes */
-    for(i = 0; i < argc; i++) {
-        DBG("argv[%d]=%s\n", i, argv[i]);
+    for(i = 0; i < param->argc; i++) {
+        DBG("argv[%d]=%s\n", i, param->argv[i]);
     }
 
     reset_getopt();
@@ -161,7 +138,7 @@ int input_init(input_parameter *param, int plugin_no)
             {0, 0, 0, 0}
         };
 
-        c = getopt_long_only(argc, argv, "", long_options, &option_index);
+        c = getopt_long_only(param->argc, param->argv, "", long_options, &option_index);
 
         /* no more options to parse */
         if(c == -1) break;

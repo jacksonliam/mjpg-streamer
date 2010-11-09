@@ -175,8 +175,6 @@ static int init_v4l2(struct vdIn *vd)
 {
     int i;
     int ret = 0;
-    DBG("V4L2_CID_PAN_RELATIVE %d\n", V4L2_CID_PAN_RELATIVE);
-    DBG("V4L2_CID_TILT_RELATIVE %d\n", V4L2_CID_TILT_RELATIVE);
     if((vd->fd = OPEN_VIDEO(vd->videodevice, O_RDWR)) == -1) {
         perror("ERROR opening V4L interface");
         DBG("errno: %d", errno);

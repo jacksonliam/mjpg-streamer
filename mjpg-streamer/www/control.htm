@@ -16,15 +16,13 @@
 	});
 	
 	$(document).ready(function() {
-		top.resizeTo($(window).width(), $(document).height() + (top.outerHeight - $(window).height()));
+		//top.resizeTo($(window).width(), $(document).height() + (top.outerHeight - $(window).height()));
 	});
 	</script>
 
   </head>
   <body>
     <script type="text/javascript"> 
-		var pan = 0;
-		var tilt = 0;
 		function setControl(dest, plugin, id, group, value) {
           $.get('/?action=command&dest=' +		dest +
           						'&plugin=' +	plugin+
@@ -72,11 +70,6 @@
         }
                 
         function addInput(plugin_id) {
-		$("<li/>").attr("id", "li_in-"+plugin_id).appendTo("#ul_tabs");
-		$("<a/>").attr("href", "#controldiv_in-"+plugin_id)
-			.text("Input control: "+plugin_id).appendTo("#li_in-"+plugin_id);
-        $("<div/>").attr("id", "controldiv_in-"+plugin_id).appendTo("#tabs");
-        $("<table/>").attr("id", "controltable_in-"+plugin_id).appendTo("#controldiv_in-"+plugin_id);
         $.getJSON("input_"+plugin_id+".json",
           function(data) {
             $.each(data.controls, function(i,item){
@@ -96,7 +89,6 @@
               $("<td/>").attr("id", "td_ctrl_"+item.group+"-"+item.id).appendTo("#tr_"+item.group+"-"+item.id);
               if((item.type == 1) || (item.type == 5)) { // integer type controls
                 if ((item.id == 10094852) && (item.group == 1) && (item.dest == 0)) { //V4L2_CID_PAN_RELATIVE
-                  pan = item.value;
 				  $("<button/>")
                   .attr("type", "button")
                   .attr("style", "width: 50%; height: 100%;")
@@ -112,18 +104,17 @@
                 } else if ((item.id == 10094853) && 
                 		   (item.group == 1) && 
                 		   (item.dest == 0)){ // V4L2_CID_TILT_RELATIVE
-        		   tilt = item.value;
         		   $("<button/>")
                   .attr("type", "button")
                   .attr("style", "width: 50%; height: 100%;")
                   .text("^")
-                  .click(function(){setControl(0, plugin_id, item.id, item.group, 200);})
+                  .click(function(){setControl(0, plugin_id, item.id, item.group, -200);})
                   .appendTo("#td_ctrl_"+item.group+"-"+item.id);
                   $("<button/>")
                   .attr("type", "button")
                   .attr("style", "width: 50%; height: 100%;")
                   .text("ˇ")
-                  .click(function(){setControl(0, plugin_id, item.id, item.group, -200);})
+                  .click(function(){setControl(0, plugin_id, item.id, item.group, 200);})
                   .appendTo("#td_ctrl_"+item.group+"-"+item.id);
                 } else { // another non spec control
                     var options = {min: item.min, max: item.max, step: item.step,}
@@ -187,12 +178,7 @@
         }
         
                 
-        function addOutput(plugin_id) {
-		$("<li/>").attr("id", "li_out-"+plugin_id).appendTo("#ul_tabs");
-		$("<a/>").attr("href", "#controldiv_out-"+plugin_id)
-			.text("Output control: "+plugin_id).appendTo("#li_out-"+plugin_id);
-        $("<div/>").attr("id", "controldiv_out-"+plugin_id).appendTo("#tabs");
-        $("<table/>").attr("id", "controltable_out-"+plugin_id).appendTo("#controldiv_out-"+plugin_id);        
+        function addOutput(plugin_id) { 
         $.getJSON("output_"+plugin_id+".json",
           function(data) {
             $.each(data.controls, function(i,item){
@@ -273,6 +259,26 @@
         
 	    $.getJSON("program.json", 
 	    	function(data) {
+	    		$.each(data.inputs, 
+	    			function(i,input){
+		        		$("<li/>").attr("id", "li_in-"+input.id).appendTo("#ul_tabs");
+						$("<a/>").attr("href", "#controldiv_in-"+input.id)
+							.text("Input control: "+input.id).appendTo("#li_in-"+input.id);
+						$("<div/>").attr("id", "controldiv_in-"+input.id).appendTo("#tabs");
+						$("<table/>").attr("id", "controltable_in-"+input.id).appendTo("#controldiv_in-"+input.id);
+		    		}
+	    		)
+	    		
+	    		$.each(data.outputs, 
+	    			function(i,output){
+		        		$("<li/>").attr("id", "li_out-"+output.id).appendTo("#ul_tabs");
+						$("<a/>").attr("href", "#controldiv_out-"+output.id)
+							.text("Output control: "+output.id).appendTo("#li_out-"+output.id);
+						$("<div/>").attr("id", "controldiv_out-"+output.id).appendTo("#tabs");
+						$("<table/>").attr("id", "controltable_out-"+output.id).appendTo("#controldiv_out-"+output.id);
+		    		}
+	    		)
+	    	
 	    		$.each(data.inputs, 
 	    			function(i,input){
 	    				addInput(input.id);

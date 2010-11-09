@@ -84,7 +84,7 @@ void help(char *progname)
 /******************************************************************************
 Description.: pressing CTRL+C sends signals to this process instead of just
               killing it plugins can tidily shutdown and free allocated
-              ressources. The function prototype is defined by the system,
+              resources. The function prototype is defined by the system,
               because it is a callback function.
 Input Value.: sig tells us which signal was received
 Return Value: -
@@ -99,7 +99,7 @@ void signal_handler(int sig)
     usleep(1000 * 1000);
 
     /* clean up threads */
-    LOG("force cancelation of threads and cleanup ressources\n");
+    LOG("force cancellation of threads and cleanup resources\n");
     for(i = 0; i < global.incnt; i++) {
         global.in[i].stop(i);
     }
@@ -141,6 +141,35 @@ void signal_handler(int sig)
     closelog();
     exit(0);
     return;
+}
+
+int split_parameters(char *parameter_string, int *argc, char **argv)
+{
+    int count = 1;
+    argv[0] = NULL; // the plugin may set it to 'INPUT_PLUGIN_NAME'
+    if(parameter_string != NULL && strlen(parameter_string) != 0) {
+        char *arg = NULL, *saveptr = NULL, *token = NULL;
+
+        arg = strdup(parameter_string);
+
+        if(strchr(arg, ' ') != NULL) {
+            token = strtok_r(arg, " ", &saveptr);
+            if(token != NULL) {
+                argv[count] = strdup(token);
+                count++;
+                while((token = strtok_r(NULL, " ", &saveptr)) != NULL) {
+                    argv[count] = strdup(token);
+                    count++;
+                    if(count >= MAX_PLUGIN_ARGUMENTS) {
+                        IPRINT("ERROR: too many arguments to input plugin\n");
+                        return 0;
+                    }
+                }
+            }
+        }
+    }
+    *argc = count;
+    return 1;
 }
 
 /******************************************************************************
@@ -318,7 +347,8 @@ int main(int argc, char *argv[])
         /* try to find optional command */
         global.in[i].cmd = dlsym(global.in[i].handle, "input_cmd");
 
-        global.in[i].param.parameter_string = strchr(input[i], ' ');
+        global.in[i].param.parameters = strchr(input[i], ' ');
+        split_parameters(global.in[i].param.parameters, &global.in[i].param.argc, global.in[i].param.argv);
         global.in[i].param.global = &global;
         global.in[i].param.id = i;
 
@@ -361,7 +391,9 @@ int main(int argc, char *argv[])
         /* try to find optional command */
         global.out[i].cmd = dlsym(global.out[i].handle, "output_cmd");
 
-        global.out[i].param.parameter_string = strchr(output[i], ' ');
+        global.out[i].param.parameters = strchr(output[i], ' ');
+        split_parameters(global.out[i].param.parameters, &global.out[i].param.argc, global.out[i].param.argv);
+
         global.out[i].param.global = &global;
         global.out[i].param.id = i;
         if(global.out[i].init(&global.out[i].param, i)) {

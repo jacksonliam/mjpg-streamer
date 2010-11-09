@@ -1335,7 +1335,7 @@ void send_Program_JSON(int fd)
                 "}",
                 pglobal->in[k].param.id,
                 pglobal->in[k].plugin,
-                pglobal->in[k].param.parameter_string);
+                pglobal->in[k].param.parameters);
         if(k != (pglobal->incnt - 1))
             sprintf(buffer + strlen(buffer), ", \n");
         else
@@ -1357,7 +1357,7 @@ void send_Program_JSON(int fd)
                 "}",
                 pglobal->out[k].param.id,
                 pglobal->out[k].plugin,
-                pglobal->out[k].param.parameter_string);
+                pglobal->out[k].param.parameters);
         if(k != (pglobal->outcnt - 1))
             sprintf(buffer + strlen(buffer), ", \n");
         else

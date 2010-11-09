@@ -45,7 +45,6 @@
 #include "dynctrl.h"
 
 #define INPUT_PLUGIN_NAME "UVC webcam control"
-#define MAX_ARGUMENTS 8
 
 typedef struct input_uvc {
     int fd;
@@ -74,10 +73,10 @@ Return Value: 0 if everything is fine
               1 if "--help" was triggered, in this case the calling programm
               should stop running and leave.
 ******************************************************************************/
-int input_init(input_parameter *param)
+int input_init(input_parameter *param, int id)
 {
-    char *argv[MAX_ARGUMENTS] = {NULL}, *dev = "/dev/video0";
-    int argc = 1;
+    int i;
+    char *dev = "/dev/video0";
 
     /* initialize the mutes variable */
     if(pthread_mutex_init(&controls_mutex, NULL) != 0) {
@@ -100,34 +99,11 @@ int input_init(input_parameter *param)
     /* display the parsed values */
     IPRINT("Using V4L2 device.: %s\n", dev);
 
-    /* convert the single parameter-string to an array of strings */
-    argv[0] = INPUT_PLUGIN_NAME;
-    if(param->parameter_string != NULL && strlen(param->parameter_string) != 0) {
-        char *arg = NULL, *saveptr = NULL, *token = NULL;
-
-        arg = (char *)strdup(param->parameter_string);
-
-        if(strchr(arg, ' ') != NULL) {
-            token = strtok_r(arg, " ", &saveptr);
-            if(token != NULL) {
-                argv[argc] = strdup(token);
-                argc++;
-                while((token = strtok_r(NULL, " ", &saveptr)) != NULL) {
-                    argv[argc] = strdup(token);
-                    argc++;
-                    if(argc >= MAX_ARGUMENTS) {
-                        IPRINT("ERROR: too many arguments to input plugin\n");
-                        return 1;
-                    }
-                }
-            }
-        }
-    }
+    param->argv[0] = INPUT_PLUGIN_NAME;
 
     /* show all parameters for DBG purposes */
-    int i;
-    for(i = 0; i < argc; i++) {
-        DBG("argv[%d]=%s\n", i, argv[i]);
+    for(i = 0; i < param->argc; i++) {
+        DBG("argv[%d]=%s\n", i, param->argv[i]);
     }
 
     /* parse the parameters */
@@ -146,7 +122,7 @@ int input_init(input_parameter *param)
         };
 
         /* parsing all parameters according to the list above is sufficent */
-        c = getopt_long_only(argc, argv, "", long_options, &option_index);
+        c = getopt_long_only(param->argc, param->argv, "", long_options, &option_index);
 
         /* no more options to parse */
         if(c == -1) break;

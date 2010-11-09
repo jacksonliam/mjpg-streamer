@@ -28,7 +28,9 @@
 typedef struct _output_parameter output_parameter;
 struct _output_parameter {
     int id;
-    char *parameter_string;
+    char *parameters;
+    int argc;
+    char *argv[MAX_PLUGIN_ARGUMENTS];
     struct _globals *global;
 };
 
