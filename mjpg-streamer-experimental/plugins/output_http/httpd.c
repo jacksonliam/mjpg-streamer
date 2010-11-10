@@ -700,14 +700,14 @@ void command(int id, int fd, char *parameter)
     switch(dest) {
     case Dest_Input:
         if(plugin_no < pglobal->incnt) {
-            res = pglobal->in[plugin_no].cmd(plugin_no, command_id, group, ivalue);
+            res = pglobal->in[plugin_no].cmd(plugin_no, command_id, group, ivalue, value);
         } else {
             DBG("Invalid plugin number: %d because only %d input plugins loaded", plugin_no,  pglobal->incnt-1);
         }
         break;
     case Dest_Output:
         if(plugin_no < pglobal->outcnt) {
-            res = pglobal->out[plugin_no].cmd(plugin_no, command_id, group, ivalue);
+            res = pglobal->out[plugin_no].cmd(plugin_no, command_id, group, ivalue, value);
         } else {
             DBG("Invalid plugin number: %d because only %d output plugins loaded", plugin_no,  pglobal->incnt-1);
         }
@@ -959,14 +959,14 @@ void *client_thread(void *arg)
         If it not loaded, or the file could not be saved we wont transmit the frame.
     */
     case A_TAKE: {
-        int i, ret, found = 0;
+        int i, ret = 0, found = 0;
         for (i = 0; i<pglobal->outcnt; i++) {
             if (pglobal->out[i].name != NULL) {
                 if (strstr(pglobal->out[i].name, "FILE output plugin")) {
                     found = 255;
                     DBG("output_file found: %d\n", i);
                     //int (*cmd)(int plugin, unsigned int control_id, unsigned int group, int value);
-                    ret = pglobal->out[i].cmd(input_number, 0, 0, 0);
+                    //ret = pglobal->out[i].cmd(input_number, 0, 0, 0, );
                     break;
                 }
             }
