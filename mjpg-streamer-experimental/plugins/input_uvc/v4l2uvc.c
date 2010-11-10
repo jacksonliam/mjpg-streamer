@@ -702,7 +702,7 @@ void control_readed(struct vdIn *vd, struct v4l2_queryctrl *ctrl, globals *pglob
                     DBG("Setting PAN reset value to 1\n");
                     break;
                 case V4L2_CID_TILT_RESET:
-                    pglobal->in[id].in_parameters[pglobal->in[id].parametercount].value = 2;
+                    pglobal->in[id].in_parameters[pglobal->in[id].parametercount].value = 1;
                     DBG("Setting the Tilt reset value to 2\n");
                     break;
                 case V4L2_CID_PANTILT_RESET_LOGITECH:
