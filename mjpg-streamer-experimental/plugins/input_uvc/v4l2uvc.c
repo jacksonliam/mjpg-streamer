@@ -696,7 +696,22 @@ void control_readed(struct vdIn *vd, struct v4l2_queryctrl *ctrl, globals *pglob
         ext_ctrls.controls = &ext_ctrl;
         ret = xioctl(vd->fd, VIDIOC_G_EXT_CTRLS, &ext_ctrls);
         if(ret) {
-            DBG("control id: 0x%08x failed to get value (error %i)\n", ext_ctrl.id, ret);
+            switch (ext_ctrl.id) {
+                case V4L2_CID_PAN_RESET:
+                    pglobal->in[id].in_parameters[pglobal->in[id].parametercount].value = 1;
+                    DBG("Setting PAN reset value to 1\n");
+                    break;
+                case V4L2_CID_TILT_RESET:
+                    pglobal->in[id].in_parameters[pglobal->in[id].parametercount].value = 2;
+                    DBG("Setting the Tilt reset value to 2\n");
+                    break;
+                case V4L2_CID_PANTILT_RESET_LOGITECH:
+                    pglobal->in[id].in_parameters[pglobal->in[id].parametercount].value = 3;
+                    DBG("Setting the PAN/TILT reset value to 3\n");
+                    break;
+                default:
+                    DBG("control id: 0x%08x failed to get value (error %i)\n", ext_ctrl.id, ret);
+            }
         } else {
             switch(ctrl->type)
             {

@@ -158,7 +158,7 @@
                   .attr("type", "button")
                   .attr("style", "width: 100%; height: 100%;")
                   .text(item.name)
-                  .click(function(){setControl(0, plugin_id, item.id, item.group, 0);})
+                  .click(function(){setControl(0, plugin_id, item.id, item.group, item.value);})
                   .appendTo("#td_ctrl_"+item.group+"-"+item.id);
               } else if (item.type == 7) { // string  type
                 $("<input/>")
