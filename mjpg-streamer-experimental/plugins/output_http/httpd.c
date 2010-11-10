@@ -700,14 +700,14 @@ void command(int id, int fd, char *parameter)
     switch(dest) {
     case Dest_Input:
         if(plugin_no < pglobal->incnt) {
-            res = pglobal->in[plugin_no].cmd(plugin_no, command_id, group, ivalue, value);
+            res = pglobal->in[plugin_no].cmd(plugin_no, command_id, group, ivalue);
         } else {
             DBG("Invalid plugin number: %d because only %d input plugins loaded", plugin_no,  pglobal->incnt-1);
         }
         break;
     case Dest_Output:
         if(plugin_no < pglobal->outcnt) {
-            res = pglobal->out[plugin_no].cmd(plugin_no, command_id, group, ivalue, value);
+            res = pglobal->out[plugin_no].cmd(plugin_no, command_id, group, ivalue);
         } else {
             DBG("Invalid plugin number: %d because only %d output plugins loaded", plugin_no,  pglobal->incnt-1);
         }
@@ -748,7 +748,7 @@ void *client_thread(void *arg)
 {
     int cnt;
     char input_suffixed = 0;
-    int suffix_number = 0;
+    int input_number = 0;
     char buffer[BUFFER_SIZE] = {0}, *pb = buffer;
     iobuffer iobuf;
     request req;
@@ -869,9 +869,9 @@ void *client_thread(void *arg)
             DBG("sch %s\n", sch + 1); // FIXME if more than 10 input plugin is added
             char numStr[2];
             strncpy(numStr, sch + 1, 1);
-            suffix_number = atoi(numStr);
+            input_number = atoi(numStr);
         }
-        DBG("suffix plugin_no: %d\n", suffix_number);
+        DBG("plugin_no: %d\n", input_number);
     }
 
     /*
@@ -911,30 +911,22 @@ void *client_thread(void *arg)
         DBG("access granted\n");
     }
 
+    /* now it's time to answer */
 
-    if (req.type == A_OUTPUT_JSON) {  // the suffix number specifies the output number
-        if(!(suffix_number < pglobal->outcnt)) {
-            DBG("Output number: %d out of range (valid: 0..%d)\n", suffix_number, pglobal->incnt-1);
-            send_error(lcfd.fd, 404, "Invalid input plugin number");
-            req.type = A_UNKNOWN;
-        }
-    } else {
-        if(!(suffix_number < pglobal->incnt)) {
-            DBG("Input number: %d out of range (valid: 0..%d)\n", suffix_number, pglobal->incnt-1);
-            send_error(lcfd.fd, 404, "Invalid input plugin number");
-            req.type = A_UNKNOWN;
-        }
+    if(!(input_number < pglobal->incnt)) {
+        DBG("Input number: %d out of range (valid: 0..%d)\n", input_number, pglobal->incnt-1);
+        send_error(lcfd.fd, 404, "Invalid input plugin number");
+        req.type = A_UNKNOWN;
     }
 
-    /* now it's time to answer */
     switch(req.type) {
     case A_SNAPSHOT:
-        DBG("Request for snapshot from input: %d\n", suffix_number);
-        send_snapshot(lcfd.fd, suffix_number);
+        DBG("Request for snapshot from input: %d\n", input_number);
+        send_snapshot(lcfd.fd, input_number);
         break;
     case A_STREAM:
-        DBG("Request for stream from input: %d\n", suffix_number);
-        send_stream(lcfd.fd, suffix_number);
+        DBG("Request for stream from input: %d\n", input_number);
+        send_stream(lcfd.fd, input_number);
         break;
     case A_COMMAND:
         if(lcfd.pc->conf.nocommands) {
@@ -945,11 +937,11 @@ void *client_thread(void *arg)
         break;
     case A_INPUT_JSON:
         DBG("Request for the Input plugin descriptor JSON file\n");
-        send_Input_JSON(lcfd.fd, suffix_number);
+        send_Input_JSON(lcfd.fd, input_number);
         break;
     case A_OUTPUT_JSON:
         DBG("Request for the Output plugin descriptor JSON file\n");
-        send_Output_JSON(lcfd.fd, suffix_number);
+        send_Output_JSON(lcfd.fd, input_number);
         break;
     case A_PROGRAM_JSON:
         DBG("Request for the program descriptor JSON file\n");
@@ -974,7 +966,7 @@ void *client_thread(void *arg)
                     found = 255;
                     DBG("output_file found: %d\n", i);
                     //int (*cmd)(int plugin, unsigned int control_id, unsigned int group, int value);
-                    //ret = pglobal->out[i].cmd(suffix_number, 0, 0, 0);
+                    ret = pglobal->out[i].cmd(input_number, 0, 0, 0);
                     break;
                 }
             }
@@ -985,7 +977,7 @@ void *client_thread(void *arg)
             send_error(lcfd.fd, 404, "FILE output plugin not loaded, taking snapshot not possible");
         } else {
             if (ret == 0) {
-                send_snapshot(lcfd.fd, suffix_number);
+                send_snapshot(lcfd.fd, input_number);
             } else {
                 send_error(lcfd.fd, 404, "Taking snapshot failed!");
             }

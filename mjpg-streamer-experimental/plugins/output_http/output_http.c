@@ -248,7 +248,7 @@ Input Value.: cmd is the command type
               id determines which server instance to send commands to
 Return Value: 0 indicates success, other values indicate an error
 ******************************************************************************/
-int output_cmd(int plugin, unsigned int control_id, unsigned int group, int value, char *value_string)
+int output_cmd(int plugin, unsigned int control_id, unsigned int group, int value)
 {
     DBG("command (%d, value: %d) for group %d triggered for plugin instance #%02d\n", control_id, value, group, plugin);
     return 0;

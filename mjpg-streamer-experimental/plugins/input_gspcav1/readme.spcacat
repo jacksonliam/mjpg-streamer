@@ -1,0 +1,152 @@
+This plugin is based on the work of Michel Xhaard
+
+
+/***************************************************************************/
+#	 	spcaview: Sdl video recorder and viewer with sound.         #
+#		spcaserv Streaming TCP server				    #
+#		spcacat Picture grabber					    #
+#This package work with the spca5xx based webcam with the raw jpeg feature. #
+#All the decoding is in user space with the embedded jpeg decoder/encoder   #
+#.                                                                          #
+# 		Copyright (C) 2003 2004 2005 Michel Xhaard                  #
+#                                                                           #
+# This program is free software; you can redistribute it and/or modify      #
+# it under the terms of the GNU General Public License as published by      #
+# the Free Software Foundation; either version 2 of the License, or         #
+# (at your option) any later version.                                       #
+#                                                                           #
+# This program is distributed in the hope that it will be useful,           #
+# but WITHOUT ANY WARRANTY; without even the implied warranty of            #
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the             #
+# GNU General Public License for more details.                              #
+#                                                                           #
+# You should have received a copy of the GNU General Public License         #
+# along with this program; if not, write to the Free Software               #
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA #
+#                                                                           #
+/***************************************************************************/
+
+CREDITS:
+--------
+Original code
+	from sview the testing tool for the spca50x v4l drivers. Made and copyrighted
+	by Till Adam, Miah Gregory, and Francois Beerten in 2003.
+	All rights reserved.
+SDL_audioin A smart library to get sound input writted by:
+ *   Tyler Montbriand 
+ *   tsm@accesscomm.ca 
+ *   The library are linked internally in spcaview
+Avilib  Some utilities for writing and reading AVI files.
+ *  These are not intended to serve for a full blown
+ *  AVI handling software (this would be much too complex)
+ *  The only intention is to write out MJPEG encoded
+ *  AVIs with sound and to be able to read them back again.
+ *  These utilities should work with other types of codecs too, however.
+ *
+ *  Copyright (C) 1999 Rainer Johanni <Rainer@Johanni.de>
+
+SDL Simple DirectMedia Layer http://www.libsdl.org
+ *	Everybody at Loki Software, Inc. for their great contributions!
+ 
+SHLIB Static Huffman encoder from Alexander Simakov <xander@entropyware.info>
+
+JWebcamPlayer a java applet you can use to get the server stream trought an http
+*	browser Copyrigth (C) 2005 Alvaro Salmador (nx5) (naplam33 at msn.com)
+
+WHO CAN I BLAME?
+================
+Current maintainer and project lead: Michel Xhaard <mxhaard@free.fr>
+
+
+DISCLAIMER:
+-----------
+Use this program as you see fit. We are not liable for damages or illegal use
+of it whatsoever. You are on your own.
+Use of this code is at your own risks. There is absolutely no waranty.
+Have fun with it!
+
+BASIC INSTALLATION:
+-------------------
+These are generic installation instructions.
+You need sdl installed with the headers http://www.libsdl.org for spcaview
+to compile all type:
+make
+to install in /usr/local/bin as root:
+make install 
+to clean the last compile work:
+make clean
+to compile and install as root only spcaserv (No dependance) 
+make install_spcaserv
+to compile and install only spcacat  (No dependance)
+make install_spcacat
+
+the package only need libsdl the jpeg encoder and decoder is now part of the package and allow to work with small footprint
+for embedded device. libsdl provide the necessarry layer to use the package without a running Xserver and use the Linux framebuffer
+instead :)
+ 
+USAGE:
+------
+spcaview [-h -d -v -j -l -s -m -g -a -f -c -n -b -t -p -N -z] [-w IP:Port] [-i inputfile | -o outputfile]
+spcaserv [-h -d -g -f -s] [-w Port]
+spcacat [-h -d -g -f -s -p -N -P -o]
+	Player mode 
+	    -i inputfile   causes the program to read the avi image data from the specified file, rather than the video device. 
+	    -w 	Address:Port read from Address xxx.xxx.xxx.xxx:Port
+	    -w	Port server mode: write to the port
+	    -m	widthxheight      use specified ouput size 
+	Grabber Recorder mode
+	    -h	show this usage message.
+	    -d  device ask the driver to use specified video output device (/dev/video1)
+	    
+	    -o outputfile  causes the program to output avi  with image data received from the video device to the specified file.
+	    -a	0 nosound
+	    	1 input from default mixer input
+	    -v grab in raw mode no output on the video screen fourcc RAWD
+	    -j grab without display and decoding Ctrl C stop the stream
+	    -z grab and compress videoyuv420p using DPSH encoder
+	    -g grab with READ method instead of default MMAP
+	    -f video format 	nothing YUV420P		fourcc I420
+	    			jpg JPEG        	fourcc MJPG
+	    			yuv YUV420P 		fourcc I420
+				r16 RGB565 16bits	fourcc RGB2
+				r24 RGB 24bits		fourcc RGB3
+				r32 RGB 32bits		fourcc RGB4
+				-v RAW data		fourcc RAWD
+	    
+	    -l	size [640x480] default is [320x240]
+	    -s	widthxheight ask the driver for input size
+	    -m	widthxheight      use specified ouput size 
+	    -c  set the channel 0..3 video composite 6..9 Svideo
+	    -n  select norme 0->pal, 1-> ntsc, 2-> secam
+	    -b  select software autobrightness feature
+	    -p X take a picture every X seconds
+	    -p X && -o getPicture every X seconds and record in outputfile avi (spcaview)
+	    -p X && -o getPicture every X seconds and record in SpcaPict.jpg (spcacat)
+	    -N take N pictures and stop 
+	    -P parport device (spcacat, spcaserv)
+	    -t  display statistics 
+	    
+In Grabber mode the following keys are active
+	key n	  brightness up
+	key b     brightness down
+	key v     color up
+	key c     color down
+	key x     contrast up
+	key w	  contrast down
+	key s	  screenshoot
+	key j     autoexposure ON/OFF (with some webcams)
+	key l	  Flicker filter 50/60/No
+	key h     frame rate down
+	key g     frame rate up
+	key d     quality up (with some webcams)
+	key f     quality down (with some webcams) 
+In Grabber and Server mode without SDL Display
+	CTRL C stop the stream and close the recorded file 
+
+In Player Client mode the following keys are active
+	key up    restart the video stream
+	key down  stop the video stream
+	key right display next frame
+	key left  display last frame
+	key space toggle Fullscreen and normal video mode
+	key s     take a screen shoot in jpg or pnm.
