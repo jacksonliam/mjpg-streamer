@@ -203,6 +203,9 @@ int output_init(output_parameter *param, int id)
     param->global->out[id].out_parameters[param->global->out[id].parametercount] = dummyCtrl;
     param->global->out[id].parametercount++;
 
+    param->global->out[id].name = malloc(strlen(OUTPUT_PLUGIN_NAME) * sizeof(char));
+    sprintf(param->global->out[id].name, OUTPUT_PLUGIN_NAME);
+
     return 0;
 }
 

@@ -21,7 +21,7 @@
 	</script>
 
   </head>
-  <body>
+  <body style="overflow-y: auto;">
     <script type="text/javascript"> 
 		function setControl(dest, plugin, id, group, value) {
           $.get('/?action=command&dest=' +		dest +
@@ -263,7 +263,7 @@
 	    			function(i,input){
 		        		$("<li/>").attr("id", "li_in-"+input.id).appendTo("#ul_tabs");
 						$("<a/>").attr("href", "#controldiv_in-"+input.id)
-							.text("Input control: "+input.id).appendTo("#li_in-"+input.id);
+							.text(input.name).appendTo("#li_in-"+input.id);
 						$("<div/>").attr("id", "controldiv_in-"+input.id).appendTo("#tabs");
 						$("<table/>").attr("id", "controltable_in-"+input.id).appendTo("#controldiv_in-"+input.id);
 		    		}
@@ -273,7 +273,7 @@
 	    			function(i,output){
 		        		$("<li/>").attr("id", "li_out-"+output.id).appendTo("#ul_tabs");
 						$("<a/>").attr("href", "#controldiv_out-"+output.id)
-							.text("Output control: "+output.id).appendTo("#li_out-"+output.id);
+							.text(output.name).appendTo("#li_out-"+output.id);
 						$("<div/>").attr("id", "controldiv_out-"+output.id).appendTo("#tabs");
 						$("<table/>").attr("id", "controltable_out-"+output.id).appendTo("#controldiv_out-"+output.id);
 		    		}

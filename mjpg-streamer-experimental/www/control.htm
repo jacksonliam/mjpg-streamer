@@ -21,7 +21,7 @@
 	</script>
 
   </head>
-  <body>
+  <body style="overflow-y: auto;">
     <script type="text/javascript"> 
 		function setControl(dest, plugin, id, group, value) {
           $.get('/?action=command&dest=' +		dest +
@@ -130,12 +130,12 @@
                   $("<input/>")
                     .attr("type", "checkbox")
                     .attr("checked", "checked")
-                    .change(function(){setControl_bool(0, plugin_id, item.id, item.group, ($(this).attr("checked")?1:0));})
+                    .change(function(){setControl_bool(0, plugin_id, item.id, item.group ($(this).attr("checked")?1:0));})
 		            .appendTo("#td_ctrl_"+item.group+"-"+item.id);
                 else
                   $("<input/>")
                     .attr("type", "checkbox")
-                    .change(function(){setControl_bool(0, plugin_id, item.id, item.group, ($(this).attr("checked")?1:0));})
+                    .change(function(){setControl_bool(0, plugin_id, item.id, item.group ($(this).attr("checked")?1:0));})
                     .appendTo("#td_ctrl_"+item.group+"-"+item.id);
               } else if (item.type == 7) { // string type controls
                   $("<input/>").attr("value", item.value).appendTo("#td_ctrl_"+item.group+"-"+item.id);
@@ -158,7 +158,7 @@
                   .attr("type", "button")
                   .attr("style", "width: 100%; height: 100%;")
                   .text(item.name)
-                  .click(function(){setControl(0, plugin_id, item.id, item.group, item.value);})
+                  .click(function(){setControl(0, plugin_id, item.id, item.group, 0);})
                   .appendTo("#td_ctrl_"+item.group+"-"+item.id);
               } else if (item.type == 7) { // string  type
                 $("<input/>")
@@ -182,10 +182,10 @@
         $.getJSON("output_"+plugin_id+".json",
           function(data) {
             $.each(data.controls, function(i,item){
-				              $('<tr/>').attr("id", "tr_"+item.group+"-"+item.id).appendTo("#controltable_out-"+plugin_id);
+              $('<tr/>').attr("id", "tr_"+plugin_id+'_'+item.group+"-"+item.id).appendTo("#controltable_out-"+plugin_id);
               // BUTTON type controls does not have a label 
               if (item.type == 4) {
-                $("<td/>").appendTo("#tr-"+item.id);
+                $("<td/>").appendTo("#tr_"+item.id);
               } else {
                 if (item.type == 6) { // Class type controls
                   $("<td/>").text(item.name).attr("style", "font-weight:bold;").appendTo("#tr_"+item.group+"-"+item.id);
@@ -237,7 +237,7 @@
                   .attr("type", "button")
                   .attr("style", "width: 100%; height: 100%;")
                   .text(item.name)
-                  .click(function(){setControl(1, plugin_id, item.id, item.group, item.value);})
+                  .click(function(){setControl(1, plugin_id, item.id, item.group, 0);})
                   .appendTo("#td_ctrl_"+item.group+"-"+item.id);
               } else if (item.type == 7) { // string  type
                 $("<input/>")
@@ -263,7 +263,7 @@
 	    			function(i,input){
 		        		$("<li/>").attr("id", "li_in-"+input.id).appendTo("#ul_tabs");
 						$("<a/>").attr("href", "#controldiv_in-"+input.id)
-							.text("Input control: "+input.id).appendTo("#li_in-"+input.id);
+							.text(input.name).appendTo("#li_in-"+input.id);
 						$("<div/>").attr("id", "controldiv_in-"+input.id).appendTo("#tabs");
 						$("<table/>").attr("id", "controltable_in-"+input.id).appendTo("#controldiv_in-"+input.id);
 		    		}
@@ -273,7 +273,7 @@
 	    			function(i,output){
 		        		$("<li/>").attr("id", "li_out-"+output.id).appendTo("#ul_tabs");
 						$("<a/>").attr("href", "#controldiv_out-"+output.id)
-							.text("Output control: "+output.id).appendTo("#li_out-"+output.id);
+							.text(output.name).appendTo("#li_out-"+output.id);
 						$("<div/>").attr("id", "controldiv_out-"+output.id).appendTo("#tabs");
 						$("<table/>").attr("id", "controltable_out-"+output.id).appendTo("#controldiv_out-"+output.id);
 		    		}

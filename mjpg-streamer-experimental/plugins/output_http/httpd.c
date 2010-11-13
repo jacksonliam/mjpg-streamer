@@ -747,8 +747,8 @@ Return Value: always NULL
 void *client_thread(void *arg)
 {
     int cnt;
-    char input_suffixed = 0;
-    int input_number = 0;
+    char query_suffixed = 0;
+    int plugin_number = 0;
     char buffer[BUFFER_SIZE] = {0}, *pb = buffer;
     iobuffer iobuf;
     request req;
@@ -779,27 +779,27 @@ void *client_thread(void *arg)
     } else if((strstr(buffer, "GET /cam") != NULL) && (strstr(buffer, ".jpg") != NULL)) {
         req.type = A_SNAPSHOT;
 #endif
-        input_suffixed = 255;
+        query_suffixed = 255;
     } else if(strstr(buffer, "GET /?action=stream") != NULL) {
-        input_suffixed = 255;
+        query_suffixed = 255;
         req.type = A_STREAM;
 #ifdef WXP_COMPAT
     } else if((strstr(buffer, "GET /cam") != NULL) && (strstr(buffer, ".mjpg") != NULL)) {
         req.type = A_STREAM;
 #endif
-        input_suffixed = 255;
+        query_suffixed = 255;
     } else if(strstr(buffer, "GET /?action=take") != NULL) {
         req.type = A_TAKE;
-        input_suffixed = 255;
+        query_suffixed = 255;
     } else if((strstr(buffer, "GET /input") != NULL) && (strstr(buffer, ".json") != NULL)) {
         req.type = A_INPUT_JSON;
-        input_suffixed = 255;
+        query_suffixed = 255;
     } else if((strstr(buffer, "GET /output") != NULL) && (strstr(buffer, ".json") != NULL)) {
         req.type = A_OUTPUT_JSON;
-        input_suffixed = 255;
+        query_suffixed = 255;
     } else if(strstr(buffer, "GET /program.json") != NULL) {
         req.type = A_PROGRAM_JSON;
-        input_suffixed = 255;
+        query_suffixed = 255;
     } else if(strstr(buffer, "GET /?action=command") != NULL) {
         int len;
         req.type = A_COMMAND;
@@ -863,15 +863,15 @@ void *client_thread(void *arg)
      * For compatibility reasons it could be left in that case the output will be
      * generated from the 0. input plugin
      */
-    if(input_suffixed) {
+    if(query_suffixed) {
         char *sch = strchr(buffer, '_');
         if(sch != NULL) {  // there is an _ in the url so the input number should be present
-            DBG("sch %s\n", sch + 1); // FIXME if more than 10 input plugin is added
+            DBG("Suffix character: %s\n", sch + 1); // FIXME if more than 10 input plugin is added
             char numStr[2];
             strncpy(numStr, sch + 1, 1);
-            input_number = atoi(numStr);
+            plugin_number = atoi(numStr);
         }
-        DBG("plugin_no: %d\n", input_number);
+        DBG("plugin_no: %d\n", plugin_number);
     }
 
     /*
@@ -912,21 +912,29 @@ void *client_thread(void *arg)
     }
 
     /* now it's time to answer */
-
-    if(!(input_number < pglobal->incnt)) {
-        DBG("Input number: %d out of range (valid: 0..%d)\n", input_number, pglobal->incnt-1);
-        send_error(lcfd.fd, 404, "Invalid input plugin number");
-        req.type = A_UNKNOWN;
+    if (query_suffixed) {
+        if (req.type == A_OUTPUT_JSON) {
+            if(!(plugin_number < pglobal->outcnt)) {
+                DBG("Output number: %d out of range (valid: 0..%d)\n", plugin_number, pglobal->outcnt-1);
+                send_error(lcfd.fd, 404, "Invalid output plugin number");
+                req.type = A_UNKNOWN;
+            }
+        } else {
+            if(!(plugin_number < pglobal->incnt)) {
+                DBG("Input number: %d out of range (valid: 0..%d)\n", plugin_number, pglobal->incnt-1);
+                send_error(lcfd.fd, 404, "Invalid input plugin number");
+                req.type = A_UNKNOWN;
+            }
+        }
     }
-
     switch(req.type) {
     case A_SNAPSHOT:
-        DBG("Request for snapshot from input: %d\n", input_number);
-        send_snapshot(lcfd.fd, input_number);
+        DBG("Request for snapshot from input: %d\n", plugin_number);
+        send_snapshot(lcfd.fd, plugin_number);
         break;
     case A_STREAM:
-        DBG("Request for stream from input: %d\n", input_number);
-        send_stream(lcfd.fd, input_number);
+        DBG("Request for stream from input: %d\n", plugin_number);
+        send_stream(lcfd.fd, plugin_number);
         break;
     case A_COMMAND:
         if(lcfd.pc->conf.nocommands) {
@@ -937,11 +945,11 @@ void *client_thread(void *arg)
         break;
     case A_INPUT_JSON:
         DBG("Request for the Input plugin descriptor JSON file\n");
-        send_Input_JSON(lcfd.fd, input_number);
+        send_Input_JSON(lcfd.fd, plugin_number);
         break;
     case A_OUTPUT_JSON:
         DBG("Request for the Output plugin descriptor JSON file\n");
-        send_Output_JSON(lcfd.fd, input_number);
+        send_Output_JSON(lcfd.fd, plugin_number);
         break;
     case A_PROGRAM_JSON:
         DBG("Request for the program descriptor JSON file\n");
@@ -966,7 +974,7 @@ void *client_thread(void *arg)
                     found = 255;
                     DBG("output_file found: %d\n", i);
                     //int (*cmd)(int plugin, unsigned int control_id, unsigned int group, int value);
-                    //ret = pglobal->out[i].cmd(input_number, 0, 0, 0, );
+                    //ret = pglobal->out[i].cmd(plugin_number, 0, 0, 0, );
                     break;
                 }
             }
@@ -977,7 +985,7 @@ void *client_thread(void *arg)
             send_error(lcfd.fd, 404, "FILE output plugin not loaded, taking snapshot not possible");
         } else {
             if (ret == 0) {
-                send_snapshot(lcfd.fd, input_number);
+                send_snapshot(lcfd.fd, plugin_number);
             } else {
                 send_error(lcfd.fd, 404, "Taking snapshot failed!");
             }
@@ -1271,9 +1279,9 @@ void send_Input_JSON(int fd, int plugin_number)
                 resolutionsStringLength += strlen(buffer_num);
                 sprintf(buffer_num, "%d", pglobal->in[plugin_number].in_formats[i].supportedResolutions[j].height);
                 resolutionsStringLength += strlen(buffer_num);
-                resolutionsString = realloc(resolutionsString, resolutionsStringLength * sizeof(char*));
                 if(j != (pglobal->in[plugin_number].in_formats[i].resolutionCount - 1)) {
                     resolutionsStringLength += strlen("\"\": \"x\", ");
+                    resolutionsString = realloc(resolutionsString, resolutionsStringLength * sizeof(char*));
                     sprintf(resolutionsString + strlen(resolutionsString),
                             "\"%d\": \"%dx%d\", ",
                             j,
@@ -1281,6 +1289,7 @@ void send_Input_JSON(int fd, int plugin_number)
                             pglobal->in[plugin_number].in_formats[i].supportedResolutions[j].height);
                 } else {
                     resolutionsStringLength += strlen("\"\": \"x\"");
+                    resolutionsString = realloc(resolutionsString, resolutionsStringLength * sizeof(char*));
                     sprintf(resolutionsString + strlen(resolutionsString),
                             "\"%d\": \"%dx%d\"",
                             j,
@@ -1364,9 +1373,11 @@ void send_Program_JSON(int fd)
                 "{\n"
                 "\"id\": \"%d\",\n"
                 "\"name\": \"%s\",\n"
+                "\"plugin\": \"%s\",\n"
                 "\"args\": \"%s\"\n"
                 "}",
                 pglobal->in[k].param.id,
+                pglobal->in[k].name,
                 pglobal->in[k].plugin,
                 pglobal->in[k].param.parameters);
         if(k != (pglobal->incnt - 1))
@@ -1386,9 +1397,11 @@ void send_Program_JSON(int fd)
                 "{\n"
                 "\"id\": \"%d\",\n"
                 "\"name\": \"%s\",\n"
+                "\"plugin\": \"%s\",\n"
                 "\"args\": \"%s\"\n"
                 "}",
                 pglobal->out[k].param.id,
+                pglobal->out[k].name,
                 pglobal->out[k].plugin,
                 pglobal->out[k].param.parameters);
         if(k != (pglobal->outcnt - 1))

@@ -1238,9 +1238,9 @@ void send_Input_JSON(int fd, int plugin_number)
                 resolutionsStringLength += strlen(buffer_num);
                 sprintf(buffer_num, "%d", pglobal->in[plugin_number].in_formats[i].supportedResolutions[j].height);
                 resolutionsStringLength += strlen(buffer_num);
-                resolutionsString = realloc(resolutionsString, resolutionsStringLength * sizeof(char*));
                 if(j != (pglobal->in[plugin_number].in_formats[i].resolutionCount - 1)) {
                     resolutionsStringLength += strlen("\"\": \"x\", ");
+                    resolutionsString = realloc(resolutionsString, resolutionsStringLength * sizeof(char*));
                     sprintf(resolutionsString + strlen(resolutionsString),
                             "\"%d\": \"%dx%d\", ",
                             j,
@@ -1248,6 +1248,7 @@ void send_Input_JSON(int fd, int plugin_number)
                             pglobal->in[plugin_number].in_formats[i].supportedResolutions[j].height);
                 } else {
                     resolutionsStringLength += strlen("\"\": \"x\"");
+                    resolutionsString = realloc(resolutionsString, resolutionsStringLength * sizeof(char*));
                     sprintf(resolutionsString + strlen(resolutionsString),
                             "\"%d\": \"%dx%d\"",
                             j,

@@ -39,6 +39,7 @@ PLUGINS += output_http.so
 PLUGINS += input_testpicture.so
 PLUGINS += output_autofocus.so
 PLUGINS += input_file.so
+# PLUGINS += output_mars2020.so
 # PLUGINS += output_rtsp.so
 # PLUGINS += output_ptp2.so # commented out because it depends on libgphoto
 # PLUGINS += input_http.so 
@@ -96,6 +97,10 @@ endif
 output_udp.so: mjpg_streamer.h utils.h
 	make -C plugins/output_udp all
 	cp plugins/output_udp/output_udp.so .
+	
+output_mars2020.so: mjpg_streamer.h utils.h
+	make -C plugins/output_mars2020 all
+	cp plugins/output_mars2020/output_mars2020.so .
 
 input_file.so: mjpg_streamer.h utils.h
 	make -C plugins/input_file all
@@ -132,6 +137,7 @@ clean:
 	make -C plugins/output_autofocus $@
 	make -C plugins/output_viewer $@
 	make -C plugins/output_rtsp $@
+	make -C plugins/output_mars2020 $@
 #	make -C plugins/input_http $@
 	rm -f *.a *.o $(APP_BINARY) core *~ *.so *.lo
 
