@@ -1192,14 +1192,23 @@ void send_Input_JSON(int fd, int plugin_number)
             "\"controls\": [\n");
     if(pglobal->in[plugin_number].in_parameters != NULL) {
         for(i = 0; i < pglobal->in[plugin_number].parametercount; i++) {
-            char *menuString = calloc(0, 0);
+            char *menuString = NULL;
             if(pglobal->in[plugin_number].in_parameters[i].ctrl.type == V4L2_CTRL_TYPE_MENU) {
                 if(pglobal->in[plugin_number].in_parameters[i].menuitems != NULL) {
                     int j, k = 1;
                     for(j = pglobal->in[plugin_number].in_parameters[i].ctrl.minimum; j <= pglobal->in[plugin_number].in_parameters[i].ctrl.maximum; j++) {
                         int prevSize = strlen(menuString);
                         int itemLength = strlen((char*)&pglobal->in[plugin_number].in_parameters[i].menuitems[j].name)  + strlen("\"\": \"\"");
-                        menuString = realloc(menuString, (prevSize + itemLength + 5) * (sizeof(char)));
+                        if (menuString == NULL) {
+                            menuString = calloc(itemLength, sizeof(char));
+                        } else {
+                            menuString = realloc(menuString, (strlen(menuString) + itemLength) * (sizeof(char)));
+                        }
+
+                        if (menuString == NULL) {
+                            DBG("Realloc/calloc failed: %s\n", strerror(errno));
+                        }
+
                         if(j != pglobal->in[plugin_number].in_parameters[i].ctrl.maximum) {
                             sprintf(menuString + prevSize, "\"%d\": \"%s\", ", j , (char*)&pglobal->in[plugin_number].in_parameters[i].menuitems[j].name);
                         } else {
@@ -1265,7 +1274,7 @@ void send_Input_JSON(int fd, int plugin_number)
             "\"formats\": [\n");
     if(pglobal->in[plugin_number].in_formats != NULL) {
         for(i = 0; i < pglobal->in[plugin_number].formatCount; i++) {
-            char *resolutionsString = calloc(0, 0);
+            char *resolutionsString = NULL;
             int resolutionsStringLength = 0;
             int j = 0;
             for(j = 0; j < pglobal->in[plugin_number].in_formats[i].resolutionCount; j++) {
@@ -1281,7 +1290,15 @@ void send_Input_JSON(int fd, int plugin_number)
                 resolutionsStringLength += strlen(buffer_num);
                 if(j != (pglobal->in[plugin_number].in_formats[i].resolutionCount - 1)) {
                     resolutionsStringLength += (strlen("\"\": \"x\", ") + 5);
-                    resolutionsString = realloc(resolutionsString, resolutionsStringLength * sizeof(char*));
+                    if (resolutionsString == NULL)
+                        resolutionsString = calloc(resolutionsStringLength, sizeof(char*));
+                    else
+                        resolutionsString = realloc(resolutionsString, resolutionsStringLength * sizeof(char*));
+                    if (resolutionsString == NULL) {
+                        DBG("Realloc/calloc failed\n");
+                        return;
+                    }
+
                     sprintf(resolutionsString + strlen(resolutionsString),
                             "\"%d\": \"%dx%d\", ",
                             j,
@@ -1289,7 +1306,14 @@ void send_Input_JSON(int fd, int plugin_number)
                             pglobal->in[plugin_number].in_formats[i].supportedResolutions[j].height);
                 } else {
                     resolutionsStringLength += (strlen("\"\": \"x\"")+5);
-                    resolutionsString = realloc(resolutionsString, resolutionsStringLength * sizeof(char*));
+                    if (resolutionsString == NULL)
+                        resolutionsString = calloc(resolutionsStringLength, sizeof(char*));
+                    else
+                        resolutionsString = realloc(resolutionsString, resolutionsStringLength * sizeof(char*));
+                    if (resolutionsString == NULL) {
+                        DBG("Realloc/calloc failed\n");
+                        return;
+                    }
                     sprintf(resolutionsString + strlen(resolutionsString),
                             "\"%d\": \"%dx%d\"",
                             j,
@@ -1452,7 +1476,17 @@ void send_Output_JSON(int fd, int plugin_number)
                     for(j = pglobal->out[plugin_number].out_parameters[i].ctrl.minimum; j <= pglobal->out[plugin_number].out_parameters[i].ctrl.maximum; j++) {
                         int prevSize = strlen(menuString);
                         int itemLength = strlen((char*)&pglobal->out[plugin_number].out_parameters[i].menuitems[j].name)  + strlen("\"\": \"\"");
-                        menuString = realloc(menuString, (prevSize + itemLength + 3) * (sizeof(char)));
+                        if (menuString == NULL) {
+                            menuString = calloc(itemLength, sizeof(char));
+                        } else {
+                            menuString = realloc(menuString, (strlen(menuString) + itemLength) * (sizeof(char)));
+                        }
+
+                        if (menuString == NULL) {
+                            DBG("Realloc/calloc failed: %s\n", strerror(errno));
+                            return;
+                        }
+
                         if(j != pglobal->out[plugin_number].out_parameters[i].ctrl.maximum) {
                             sprintf(menuString + prevSize, "\"%d\": \"%s\", ", j , (char*)&pglobal->out[plugin_number].out_parameters[i].menuitems[j].name);
                         } else {

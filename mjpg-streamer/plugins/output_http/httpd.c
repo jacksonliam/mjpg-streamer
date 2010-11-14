@@ -1151,14 +1151,24 @@ void send_Input_JSON(int fd, int plugin_number)
             "\"controls\": [\n");
     if(pglobal->in[plugin_number].in_parameters != NULL) {
         for(i = 0; i < pglobal->in[plugin_number].parametercount; i++) {
-            char *menuString = calloc(0, 0);
+            char *menuString = NULL;
             if(pglobal->in[plugin_number].in_parameters[i].ctrl.type == V4L2_CTRL_TYPE_MENU) {
                 if(pglobal->in[plugin_number].in_parameters[i].menuitems != NULL) {
                     int j, k = 1;
                     for(j = pglobal->in[plugin_number].in_parameters[i].ctrl.minimum; j <= pglobal->in[plugin_number].in_parameters[i].ctrl.maximum; j++) {
                         int prevSize = strlen(menuString);
                         int itemLength = strlen((char*)&pglobal->in[plugin_number].in_parameters[i].menuitems[j].name)  + strlen("\"\": \"\"");
-                        menuString = realloc(menuString, (prevSize + itemLength + 3) * (sizeof(char)));
+                        if (menuString == NULL) {
+                            menuString = calloc(itemLength, sizeof(char));
+                        } else {
+                            menuString = realloc(menuString, (strlen(menuString) + itemLength) * (sizeof(char)));
+                        }
+
+                        if (menuString == NULL) {
+                            DBG("Realloc/calloc failed: %s\n", strerror(errno));
+                            return;
+                        }
+
                         if(j != pglobal->in[plugin_number].in_parameters[i].ctrl.maximum) {
                             sprintf(menuString + prevSize, "\"%d\": \"%s\", ", j , (char*)&pglobal->in[plugin_number].in_parameters[i].menuitems[j].name);
                         } else {
@@ -1215,89 +1225,8 @@ void send_Input_JSON(int fd, int plugin_number)
     } else {
         DBG("The input plugin has no paramters\n");
     }
-    sprintf(buffer + strlen(buffer),
-            "\n],\n"
-            /*"},\n"*/);
 
-    sprintf(buffer + strlen(buffer),
-            //"{\n"
-            "\"formats\": [\n");
-    if(pglobal->in[plugin_number].in_formats != NULL) {
-        for(i = 0; i < pglobal->in[plugin_number].formatCount; i++) {
-            char *resolutionsString = calloc(0, 0);
-            int resolutionsStringLength = 0;
-            int j = 0;
-            for(j = 0; j < pglobal->in[plugin_number].in_formats[i].resolutionCount; j++) {
-                char buffer_num[6];
-                memset(buffer_num, '\0', 6);
-                // JSON format example:
-                // {"0": "320x240", "1": "640x480", "2": "960x720"}
-                sprintf(buffer_num, "%d", j);
-                resolutionsStringLength += strlen(buffer_num);
-                sprintf(buffer_num, "%d", pglobal->in[plugin_number].in_formats[i].supportedResolutions[j].width);
-                resolutionsStringLength += strlen(buffer_num);
-                sprintf(buffer_num, "%d", pglobal->in[plugin_number].in_formats[i].supportedResolutions[j].height);
-                resolutionsStringLength += strlen(buffer_num);
-                if(j != (pglobal->in[plugin_number].in_formats[i].resolutionCount - 1)) {
-                    resolutionsStringLength += strlen("\"\": \"x\", ");
-                    resolutionsString = realloc(resolutionsString, resolutionsStringLength * sizeof(char*));
-                    sprintf(resolutionsString + strlen(resolutionsString),
-                            "\"%d\": \"%dx%d\", ",
-                            j,
-                            pglobal->in[plugin_number].in_formats[i].supportedResolutions[j].width,
-                            pglobal->in[plugin_number].in_formats[i].supportedResolutions[j].height);
-                } else {
-                    resolutionsStringLength += strlen("\"\": \"x\"");
-                    resolutionsString = realloc(resolutionsString, resolutionsStringLength * sizeof(char*));
-                    sprintf(resolutionsString + strlen(resolutionsString),
-                            "\"%d\": \"%dx%d\"",
-                            j,
-                            pglobal->in[plugin_number].in_formats[i].supportedResolutions[j].width,
-                            pglobal->in[plugin_number].in_formats[i].supportedResolutions[j].height);
-                }
-            }
 
-            sprintf(buffer + strlen(buffer),
-                    "{\n"
-                    "\"id\": \"%d\",\n"
-                    "\"name\": \"%s\",\n"
-#ifdef V4L2_FMT_FLAG_COMPRESSED
-                    "\"compressed\": \"%s\",\n"
-#endif
-#ifdef V4L2_FMT_FLAG_EMULATED
-                    "\"emulated\": \"%s\",\n"
-#endif
-                    "\"current\": \"%s\",\n"
-                    "\"resolutions\": {%s}\n"
-                    ,
-                    pglobal->in[plugin_number].in_formats[i].format.index,
-                    pglobal->in[plugin_number].in_formats[i].format.description,
-#ifdef V4L2_FMT_FLAG_COMPRESSED
-                    pglobal->in[plugin_number].in_formats[i].format.flags & V4L2_FMT_FLAG_COMPRESSED ? "true" : "false",
-#endif
-#ifdef V4L2_FMT_FLAG_EMULATED
-                    pglobal->in[plugin_number].in_formats[i].format.flags & V4L2_FMT_FLAG_EMULATED ? "true" : "false",
-#endif
-                    pglobal->in[plugin_number].in_formats[i].currentResolution != -1 ? "true" : "false",
-                    resolutionsString
-                   );
-
-            if(pglobal->in[plugin_number].in_formats[i].currentResolution != -1) {
-                sprintf(buffer + strlen(buffer),
-                        ",\n\"currentResolution\": \"%d\"\n",
-                        pglobal->in[plugin_number].in_formats[i].currentResolution
-                       );
-            }
-
-            if(i != (pglobal->in[plugin_number].formatCount - 1)) {
-                sprintf(buffer + strlen(buffer), "},\n");
-            } else {
-                sprintf(buffer + strlen(buffer), "}\n");
-            }
-
-            free(resolutionsString);
-        }
-    }
     sprintf(buffer + strlen(buffer),
             "\n]\n"
             "}\n");
@@ -1312,7 +1241,7 @@ void send_Input_JSON(int fd, int plugin_number)
 
 void send_Program_JSON(int fd)
 {
-    char buffer[BUFFER_SIZE*16] = {0}; // FIXME do reallocation if the buffer size is small
+    char buffer[BUFFER_SIZE*16] = {0}; // FIXME do rea llocation if the buffer size is small
     int i, k;
     sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
             "Content-type: %s\r\n" \
@@ -1385,7 +1314,7 @@ Return Value: -
 ******************************************************************************/
 void send_Output_JSON(int fd, int plugin_number)
 {
-    char buffer[BUFFER_SIZE*16] = {0}; // FIXME do reallocation if the buffer size is small
+    char buffer[BUFFER_SIZE*16] = {0}; // FIXME do re allocation if the buffer size is small
     int i;
     sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
             "Content-type: %s\r\n" \
@@ -1400,14 +1329,24 @@ void send_Output_JSON(int fd, int plugin_number)
             "\"controls\": [\n");
     if(pglobal->out[plugin_number].out_parameters != NULL) {
         for(i = 0; i < pglobal->out[plugin_number].parametercount; i++) {
-            char *menuString = calloc(0, 0);
+            char *menuString = NULL;
             if(pglobal->out[plugin_number].out_parameters[i].ctrl.type == V4L2_CTRL_TYPE_MENU) {
                 if(pglobal->out[plugin_number].out_parameters[i].menuitems != NULL) {
                     int j, k = 1;
                     for(j = pglobal->out[plugin_number].out_parameters[i].ctrl.minimum; j <= pglobal->out[plugin_number].out_parameters[i].ctrl.maximum; j++) {
                         int prevSize = strlen(menuString);
                         int itemLength = strlen((char*)&pglobal->out[plugin_number].out_parameters[i].menuitems[j].name)  + strlen("\"\": \"\"");
-                        menuString = realloc(menuString, (prevSize + itemLength + 3) * (sizeof(char)));
+                        if (menuString == NULL) {
+                            menuString = calloc(itemLength, sizeof(char));
+                        } else {
+                            menuString = realloc(menuString, (prevSize + itemLength + 3) * (sizeof(char)));
+                        }
+
+                        if (menuString == NULL) {
+                            DBG("Not enough memory\n");
+                            return;
+                        }
+
                         if(j != pglobal->out[plugin_number].out_parameters[i].ctrl.maximum) {
                             sprintf(menuString + prevSize, "\"%d\": \"%s\", ", j , (char*)&pglobal->out[plugin_number].out_parameters[i].menuitems[j].name);
                         } else {

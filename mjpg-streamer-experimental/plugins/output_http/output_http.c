@@ -179,7 +179,6 @@ int output_init(output_parameter *param, int id)
     OPRINT("commands..........: %s\n", (nocommands) ? "disabled" : "enabled");
 
     param->global->out[id].parametercount = 0;
-    param->global->out[id].out_parameters = malloc(0 * sizeof(control));
     control dummyCtrl;
     dummyCtrl.group = IN_CMD_GENERIC; // if we use non V4L2 input we do not have to use groups.
     dummyCtrl.menuitems = NULL;
@@ -196,10 +195,7 @@ int output_init(output_parameter *param, int id)
     ctrl.flags =  V4L2_CTRL_FLAG_SLIDER;
     dummyCtrl.ctrl = ctrl;
 
-    param->global->out[id].out_parameters =
-        (control*)realloc(
-            param->global->out[id].out_parameters,
-            (param->global->out[id].parametercount + 1) * sizeof(control));
+    param->global->out[id].out_parameters = (control*)calloc(1, sizeof(control));
     param->global->out[id].out_parameters[param->global->out[id].parametercount] = dummyCtrl;
     param->global->out[id].parametercount++;
 

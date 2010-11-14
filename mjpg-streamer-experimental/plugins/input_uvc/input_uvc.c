@@ -278,29 +278,6 @@ int input_init(input_parameter *param, int id)
         initDynCtrls(cams[id].videoIn->fd);
 
     enumerateControls(cams[id].videoIn, cams[id].pglobal, id); // enumerate V4L2 controls after UVC extended mapping
-
-    /*control zoomCtrl;
-    zoomCtrl.group = IN_CMD_V4L2;
-    zoomCtrl.menuitems = NULL;
-    zoomCtrl.value = 0; // or give it a readed value
-    zoomCtrl.class_id = V4L2_CTRL_CLASS_USER; // non V4L2 ctrl so it is not acceptible.
-    static struct v4l2_queryctrl ctrl;
-    ctrl.id = V4L2_CID_PAN_RELATIVE;
-    ctrl.type = V4L2_CTRL_TYPE_INTEGER;
-    sprintf((char*)&ctrl.name, "PAN test");
-    ctrl.minimum = 0;
-    ctrl.maximum = 100;
-    ctrl.step = 1;
-    ctrl.default_value = 0;
-    ctrl.flags =  V4L2_CTRL_FLAG_SLIDER;
-    zoomCtrl.ctrl = ctrl;
-
-    param->global->in[id].in_parameters =
-        (control*)realloc(
-            param->global->in[id].in_parameters,
-            (param->global->in[id].parametercount + 1) * sizeof(control));
-    param->global->in[id].in_parameters[param->global->in[id].parametercount] = zoomCtrl;
-    param->global->in[id].parametercount++;*/
     return 0;
 }
 

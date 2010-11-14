@@ -94,7 +94,7 @@ int init_videoIn(struct vdIn *vd, char *device, int width,
         DBG("Current size: %dx%d\n", currentWidth, currentHeight);
     }
 
-    pglobal->in[id].in_formats = malloc(0 * sizeof(struct v4l2_fmtdesc));
+    pglobal->in[id].in_formats = NULL;
     for(pglobal->in[id].formatCount = 0; 1; pglobal->in[id].formatCount++) {
         struct v4l2_fmtdesc fmtdesc;
         fmtdesc.index = pglobal->in[id].formatCount;
@@ -102,8 +102,19 @@ int init_videoIn(struct vdIn *vd, char *device, int width,
         if(xioctl(vd->fd, VIDIOC_ENUM_FMT, &fmtdesc) < 0) {
             break;
         }
-        pglobal->in[id].in_formats =
-            (input_format*)realloc(pglobal->in[id].in_formats, (pglobal->in[id].formatCount + 1) * sizeof(input_format));
+
+        if (pglobal->in[id].in_formats == NULL) {
+            pglobal->in[id].in_formats = (input_format*)calloc(1, sizeof(input_format));
+        } else {
+            pglobal->in[id].in_formats = (input_format*)realloc(pglobal->in[id].in_formats, (pglobal->in[id].formatCount + 1) * sizeof(input_format));
+        }
+
+        if (pglobal->in[id].in_formats == NULL) {
+            DBG("Calloc/realloc failed: %s\n", strerror(errno));
+            return -1;
+        }
+
+
         memcpy(&pglobal->in[id].in_formats[pglobal->in[id].formatCount], &fmtdesc, sizeof(input_format));
 
         if(fmtdesc.pixelformat == format)
@@ -114,7 +125,7 @@ int init_videoIn(struct vdIn *vd, char *device, int width,
         fsenum.index = pglobal->in[id].formatCount;
         fsenum.pixel_format = fmtdesc.pixelformat;
         int j = 0;
-        pglobal->in[id].in_formats[pglobal->in[id].formatCount].supportedResolutions = malloc(0);
+        pglobal->in[id].in_formats[pglobal->in[id].formatCount].supportedResolutions = NULL;
         pglobal->in[id].in_formats[pglobal->in[id].formatCount].resolutionCount = 0;
         pglobal->in[id].in_formats[pglobal->in[id].formatCount].currentResolution = -1;
         while(1) {
@@ -122,8 +133,19 @@ int init_videoIn(struct vdIn *vd, char *device, int width,
             j++;
             if(xioctl(vd->fd, VIDIOC_ENUM_FRAMESIZES, &fsenum) == 0) {
                 pglobal->in[id].in_formats[pglobal->in[id].formatCount].resolutionCount++;
-                pglobal->in[id].in_formats[pglobal->in[id].formatCount].supportedResolutions = (input_resolution*)
-                        realloc(pglobal->in[id].in_formats[pglobal->in[id].formatCount].supportedResolutions, j * sizeof(input_resolution));
+                if (pglobal->in[id].in_formats[pglobal->in[id].formatCount].supportedResolutions == NULL) {
+                    pglobal->in[id].in_formats[pglobal->in[id].formatCount].supportedResolutions = (input_resolution*)
+                            calloc(1, sizeof(input_resolution));
+                } else {
+                    pglobal->in[id].in_formats[pglobal->in[id].formatCount].supportedResolutions = (input_resolution*)
+                            realloc(pglobal->in[id].in_formats[pglobal->in[id].formatCount].supportedResolutions, j * sizeof(input_resolution));
+                }
+
+                if (pglobal->in[id].in_formats[pglobal->in[id].formatCount].supportedResolutions == NULL) {
+                    DBG("Calloc/realloc failed\n");
+                    return -1;
+                }
+
                 pglobal->in[id].in_formats[pglobal->in[id].formatCount].supportedResolutions[j-1].width = fsenum.discrete.width;
                 pglobal->in[id].in_formats[pglobal->in[id].formatCount].supportedResolutions[j-1].height = fsenum.discrete.height;
                 if(format == fmtdesc.pixelformat) {
@@ -626,10 +648,18 @@ void control_readed(struct vdIn *vd, struct v4l2_queryctrl *ctrl, globals *pglob
 {
     struct v4l2_control c;
     c.id = ctrl->id;
-    pglobal->in[id].in_parameters =
-        (control*)realloc(
-            pglobal->in[id].in_parameters,
-            (pglobal->in[id].parametercount + 1) * sizeof(control));
+    if (pglobal->in[id].in_parameters == NULL) {
+        pglobal->in[id].in_parameters = (control*)calloc(1, sizeof(control));
+    } else {
+        pglobal->in[id].in_parameters =
+        (control*)realloc(pglobal->in[id].in_parameters,(pglobal->in[id].parametercount + 1) * sizeof(control));
+    }
+
+    if (pglobal->in[id].in_parameters == NULL) {
+        DBG("Calloc failed\n");
+        return;
+    }
+
     memcpy(&pglobal->in[id].in_parameters[pglobal->in[id].parametercount].ctrl, ctrl, sizeof(struct v4l2_queryctrl));
     pglobal->in[id].in_parameters[pglobal->in[id].parametercount].group = IN_CMD_V4L2;
     pglobal->in[id].in_parameters[pglobal->in[id].parametercount].value = c.value;
@@ -753,7 +783,7 @@ void enumerateControls(struct vdIn *vd, globals *pglobal, int id)
     // enumerating v4l2 controls
     struct v4l2_queryctrl ctrl;
     pglobal->in[id].parametercount = 0;
-    pglobal->in[id].in_parameters = malloc(0 * sizeof(control));
+    pglobal->in[id].in_parameters = NULL;
     /* Enumerate the v4l2 controls
      Try the extended control API first */
 #ifdef V4L2_CTRL_FLAG_NEXT_CTRL
@@ -808,10 +838,17 @@ void enumerateControls(struct vdIn *vd, globals *pglobal, int id)
         ctrl_jpeg.default_value = 50;
         ctrl_jpeg.flags = 0;
         ctrl_jpeg.type = V4L2_CTRL_TYPE_INTEGER;
-        pglobal->in[id].in_parameters =
-            (control*)realloc(
-                pglobal->in[id].in_parameters,
-                (pglobal->in[id].parametercount + 1) * sizeof(control));
+        if (pglobal->in[id].in_parameters == NULL) {
+            pglobal->in[id].in_parameters = (control*)calloc(1, sizeof(control));
+        } else {
+            pglobal->in[id].in_parameters = (control*)realloc(pglobal->in[id].in_parameters,(pglobal->in[id].parametercount + 1) * sizeof(control));
+        }
+
+        if (pglobal->in[id].in_parameters == NULL) {
+            DBG("Calloc/realloc failed\n");
+            return;
+        }
+
         memcpy(&pglobal->in[id].in_parameters[pglobal->in[id].parametercount].ctrl, &ctrl_jpeg, sizeof(struct v4l2_queryctrl));
         pglobal->in[id].in_parameters[pglobal->in[id].parametercount].group = IN_CMD_JPEG_QUALITY;
         pglobal->in[id].in_parameters[pglobal->in[id].parametercount].value = pglobal->in[id].jpegcomp.quality;

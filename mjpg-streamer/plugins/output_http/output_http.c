@@ -177,32 +177,6 @@ int output_init(output_parameter *param, int id)
     OPRINT("HTTP TCP port.....: %d\n", ntohs(port));
     OPRINT("username:password.: %s\n", (credentials == NULL) ? "disabled" : credentials);
     OPRINT("commands..........: %s\n", (nocommands) ? "disabled" : "enabled");
-
-    param->global->out[id].parametercount = 0;
-    param->global->out[id].out_parameters = malloc(0 * sizeof(control));
-    control dummyCtrl;
-    dummyCtrl.group = IN_CMD_GENERIC; // if we use non V4L2 input we do not have to use groups.
-    dummyCtrl.menuitems = NULL;
-    dummyCtrl.value = 0; // or give it a readed value
-    dummyCtrl.class_id = 0; // non V4L2 ctrl so it is not acceptible.
-    static struct v4l2_queryctrl ctrl;
-    ctrl.id = 1; // or whatever but it has to be unique for the controls in the same group
-    ctrl.type = V4L2_CTRL_TYPE_INTEGER;
-    sprintf((char*)&ctrl.name, "Dummy parameter");
-    ctrl.minimum = 0;
-    ctrl.maximum = 100;
-    ctrl.step = 1;
-    ctrl.default_value = 0;
-    ctrl.flags =  V4L2_CTRL_FLAG_SLIDER;
-    dummyCtrl.ctrl = ctrl;
-
-    param->global->out[id].out_parameters =
-        (control*)realloc(
-            param->global->out[id].out_parameters,
-            (param->global->out[id].parametercount + 1) * sizeof(control));
-    param->global->out[id].out_parameters[param->global->out[id].parametercount] = dummyCtrl;
-    param->global->out[id].parametercount++;
-
     return 0;
 }
 
