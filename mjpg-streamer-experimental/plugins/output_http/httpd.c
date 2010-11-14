@@ -1199,7 +1199,7 @@ void send_Input_JSON(int fd, int plugin_number)
                     for(j = pglobal->in[plugin_number].in_parameters[i].ctrl.minimum; j <= pglobal->in[plugin_number].in_parameters[i].ctrl.maximum; j++) {
                         int prevSize = strlen(menuString);
                         int itemLength = strlen((char*)&pglobal->in[plugin_number].in_parameters[i].menuitems[j].name)  + strlen("\"\": \"\"");
-                        menuString = realloc(menuString, (prevSize + itemLength + 3) * (sizeof(char)));
+                        menuString = realloc(menuString, (prevSize + itemLength + 5) * (sizeof(char)));
                         if(j != pglobal->in[plugin_number].in_parameters[i].ctrl.maximum) {
                             sprintf(menuString + prevSize, "\"%d\": \"%s\", ", j , (char*)&pglobal->in[plugin_number].in_parameters[i].menuitems[j].name);
                         } else {
@@ -1280,7 +1280,7 @@ void send_Input_JSON(int fd, int plugin_number)
                 sprintf(buffer_num, "%d", pglobal->in[plugin_number].in_formats[i].supportedResolutions[j].height);
                 resolutionsStringLength += strlen(buffer_num);
                 if(j != (pglobal->in[plugin_number].in_formats[i].resolutionCount - 1)) {
-                    resolutionsStringLength += strlen("\"\": \"x\", ");
+                    resolutionsStringLength += (strlen("\"\": \"x\", ") + 5);
                     resolutionsString = realloc(resolutionsString, resolutionsStringLength * sizeof(char*));
                     sprintf(resolutionsString + strlen(resolutionsString),
                             "\"%d\": \"%dx%d\", ",
@@ -1288,7 +1288,7 @@ void send_Input_JSON(int fd, int plugin_number)
                             pglobal->in[plugin_number].in_formats[i].supportedResolutions[j].width,
                             pglobal->in[plugin_number].in_formats[i].supportedResolutions[j].height);
                 } else {
-                    resolutionsStringLength += strlen("\"\": \"x\"");
+                    resolutionsStringLength += (strlen("\"\": \"x\"")+5);
                     resolutionsString = realloc(resolutionsString, resolutionsStringLength * sizeof(char*));
                     sprintf(resolutionsString + strlen(resolutionsString),
                             "\"%d\": \"%dx%d\"",
