@@ -1156,7 +1156,7 @@ void send_Input_JSON(int fd, int plugin_number)
                 if(pglobal->in[plugin_number].in_parameters[i].menuitems != NULL) {
                     int j, k = 1;
                     for(j = pglobal->in[plugin_number].in_parameters[i].ctrl.minimum; j <= pglobal->in[plugin_number].in_parameters[i].ctrl.maximum; j++) {
-                        int prevSize = strlen(menuString);
+                        int prevSize = 0;
                         int itemLength = strlen((char*)&pglobal->in[plugin_number].in_parameters[i].menuitems[j].name)  + strlen("\"\": \"\"");
                         if (menuString == NULL) {
                             menuString = calloc(itemLength, sizeof(char));
@@ -1169,6 +1169,7 @@ void send_Input_JSON(int fd, int plugin_number)
                             return;
                         }
 
+                        prevSize = strlen(menuString);
                         if(j != pglobal->in[plugin_number].in_parameters[i].ctrl.maximum) {
                             sprintf(menuString + prevSize, "\"%d\": \"%s\", ", j , (char*)&pglobal->in[plugin_number].in_parameters[i].menuitems[j].name);
                         } else {
