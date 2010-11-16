@@ -864,7 +864,8 @@ void *client_thread(void *arg)
         char *sch = strchr(buffer, '_');
         if(sch != NULL) {  // there is an _ in the url so the input number should be present
             DBG("sch %s\n", sch + 1); // FIXME if more than 10 input plugin is added
-            char numStr[2];
+            char numStr[3];
+            memset(numStr, 0, 3);
             strncpy(numStr, sch + 1, 1);
             input_number = atoi(numStr);
         }
@@ -1159,9 +1160,9 @@ void send_Input_JSON(int fd, int plugin_number)
                         int prevSize = 0;
                         int itemLength = strlen((char*)&pglobal->in[plugin_number].in_parameters[i].menuitems[j].name)  + strlen("\"\": \"\"");
                         if (menuString == NULL) {
-                            menuString = calloc(itemLength, sizeof(char));
+                            menuString = (char*)calloc(itemLength + 5, sizeof(char));
                         } else {
-                            menuString = realloc(menuString, (strlen(menuString) + itemLength) * (sizeof(char)));
+                            menuString = (char*)realloc(menuString, (strlen(menuString) + itemLength + 5) * (sizeof(char)));
                         }
 
                         if (menuString == NULL) {
@@ -1338,9 +1339,9 @@ void send_Output_JSON(int fd, int plugin_number)
                         int prevSize = strlen(menuString);
                         int itemLength = strlen((char*)&pglobal->out[plugin_number].out_parameters[i].menuitems[j].name)  + strlen("\"\": \"\"");
                         if (menuString == NULL) {
-                            menuString = calloc(itemLength, sizeof(char));
+                            menuString = (char*)calloc(itemLength + 5, sizeof(char));
                         } else {
-                            menuString = realloc(menuString, (prevSize + itemLength + 3) * (sizeof(char)));
+                            menuString = (char*)realloc(menuString, (prevSize + itemLength + 5) * (sizeof(char)));
                         }
 
                         if (menuString == NULL) {

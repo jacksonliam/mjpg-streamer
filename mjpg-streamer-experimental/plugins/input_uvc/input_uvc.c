@@ -365,7 +365,7 @@ void *cam_thread(void *arg)
     pglobal = pcontext->pglobal;
 
     /* set cleanup handler to cleanup allocated ressources */
-    pthread_cleanup_push(cam_cleanup, NULL);
+    pthread_cleanup_push(cam_cleanup, pcontext);
 
     while(!pglobal->stop) {
         while(pcontext->videoIn->streamingState == STREAMING_PAUSED) {

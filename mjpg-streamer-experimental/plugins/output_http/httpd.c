@@ -867,7 +867,8 @@ void *client_thread(void *arg)
         char *sch = strchr(buffer, '_');
         if(sch != NULL) {  // there is an _ in the url so the input number should be present
             DBG("Suffix character: %s\n", sch + 1); // FIXME if more than 10 input plugin is added
-            char numStr[2];
+            char numStr[3];
+            memset(numStr, 0, 3);
             strncpy(numStr, sch + 1, 1);
             plugin_number = atoi(numStr);
         }
@@ -1200,9 +1201,9 @@ void send_Input_JSON(int fd, int plugin_number)
                         int prevSize = 0;
                         int itemLength = strlen((char*)&pglobal->in[plugin_number].in_parameters[i].menuitems[j].name)  + strlen("\"\": \"\"");
                         if (menuString == NULL) {
-                            menuString = calloc(itemLength, sizeof(char));
+                            menuString = calloc(itemLength + 5, sizeof(char));
                         } else {
-                            menuString = realloc(menuString, (strlen(menuString) + itemLength) * (sizeof(char)));
+                            menuString = realloc(menuString, (strlen(menuString) + itemLength + 5) * (sizeof(char)));
                         }
 
                         if (menuString == NULL) {

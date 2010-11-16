@@ -134,11 +134,11 @@ int init_videoIn(struct vdIn *vd, char *device, int width,
             if(xioctl(vd->fd, VIDIOC_ENUM_FRAMESIZES, &fsenum) == 0) {
                 pglobal->in[id].in_formats[pglobal->in[id].formatCount].resolutionCount++;
                 if (pglobal->in[id].in_formats[pglobal->in[id].formatCount].supportedResolutions == NULL) {
-                    pglobal->in[id].in_formats[pglobal->in[id].formatCount].supportedResolutions = (input_resolution*)
-                            calloc(1, sizeof(input_resolution));
+                    pglobal->in[id].in_formats[pglobal->in[id].formatCount].supportedResolutions =
+                        (input_resolution*)calloc(1, sizeof(input_resolution));
                 } else {
-                    pglobal->in[id].in_formats[pglobal->in[id].formatCount].supportedResolutions = (input_resolution*)
-                            realloc(pglobal->in[id].in_formats[pglobal->in[id].formatCount].supportedResolutions, j * sizeof(input_resolution));
+                    pglobal->in[id].in_formats[pglobal->in[id].formatCount].supportedResolutions =
+                        (input_resolution*)realloc(pglobal->in[id].in_formats[pglobal->in[id].formatCount].supportedResolutions, j * sizeof(input_resolution));
                 }
 
                 if (pglobal->in[id].in_formats[pglobal->in[id].formatCount].supportedResolutions == NULL) {
