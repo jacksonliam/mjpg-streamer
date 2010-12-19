@@ -157,6 +157,9 @@ int input_init(input_parameter *param, int id)
     IPRINT("delete file.......: %s\n", (rm) ? "yes, delete" : "no, do not delete");
     IPRINT("filename must be..: %s\n", (filename == NULL) ? "-no filter for certain filename set-" : filename);
 
+    param->global->in[id].name = malloc((strlen(INPUT_PLUGIN_NAME) + 1) * sizeof(char));
+    sprintf(param->global->in[id].name, INPUT_PLUGIN_NAME);
+
     return 0;
 }
 
@@ -164,7 +167,6 @@ int input_stop(int id)
 {
     DBG("will cancel input thread\n");
     pthread_cancel(worker);
-
     return 0;
 }
 
@@ -232,7 +234,7 @@ void *worker_thread(void *arg)
         /* wait for new frame, read will block until something happens */
         rc = read(fd, ev, size);
         if(rc == -1) {
-            perror("reading inotify events failed");
+            perror("reading inotify events failed\n");
             break;
         }
 

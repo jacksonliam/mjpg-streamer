@@ -38,6 +38,7 @@
 #include <syslog.h>
 
 #include <dirent.h>
+#include "output_file.h"
 
 #include "../../utils.h"
 #include "../../mjpg_streamer.h"
@@ -51,6 +52,7 @@ static char *folder = "/tmp";
 static unsigned char *frame = NULL;
 static char *command = NULL;
 static int input_number = 0;
+static char *mjpgFileName = NULL;
 
 /******************************************************************************
 Description.: print a help message
@@ -64,12 +66,13 @@ void help(void)
             " ---------------------------------------------------------------\n" \
             " The following parameters can be passed to this plugin:\n\n" \
             " [-f | --folder ]........: folder to save pictures\n" \
-            " [-m | --mjpeg ]........: save the stream to an mjpeg file\n" \
+            " [-m | --mjpeg ].........: save the frames to an mjpg file \n" \
             " [-d | --delay ].........: delay after saving pictures in ms\n" \
+            " The following arguments are takes effect only if the current mode is not MJPG  "
             " [-s | --size ]..........: size of ring buffer (max number of pictures to hold)\n" \
             " [-e | --exceed ]........: allow ringbuffer to exceed limit by this amount\n" \
             " [-c | --command ].......: execute command after saving picture\n\n" \
-            " [-i | --input ].......: read frames from the specified input plugin\n\n" \
+            " [-i | --input ].........: read frames from the specified input plugin\n\n" \
             " ---------------------------------------------------------------\n");
 }
 
@@ -81,6 +84,10 @@ Return Value: -
 void worker_cleanup(void *arg)
 {
     static unsigned char first_run = 1;
+
+    if (mjpgFileName != NULL) {
+        close(fd);
+    }
 
     if(!first_run) {
         DBG("already cleaned up ressources\n");
@@ -205,7 +212,7 @@ void *worker_thread(void *arg)
     /* set cleanup handler to cleanup allocated ressources */
     pthread_cleanup_push(worker_cleanup, NULL);
 
-    while(ok >= 0 && !pglobal->in[input_number].stop) {
+    while(ok >= 0 && !pglobal->stop) {
         DBG("waiting for fresh frame\n");
         pthread_cond_wait(&pglobal->in[input_number].db_update, &pglobal->in[input_number].db);
 
@@ -232,78 +239,88 @@ void *worker_thread(void *arg)
         /* allow others to access the global buffer again */
         pthread_mutex_unlock(&pglobal->in[input_number].db);
 
-        /* prepare filename */
-        memset(buffer1, 0, sizeof(buffer1));
-        memset(buffer2, 0, sizeof(buffer2));
-
-        /* get current time */
-        t = time(NULL);
-        now = localtime(&t);
-        if(now == NULL) {
-            perror("localtime");
-            return NULL;
-        }
-
-        /* prepare string, add time and date values */
-        if(strftime(buffer1, sizeof(buffer1), "%%s/%Y_%m_%d_%H_%M_%S_picture_%%09llu.jpg", now) == 0) {
-            OPRINT("strftime returned 0\n");
-            free(frame); frame = NULL;
-            return NULL;
-        }
-
-        /* finish filename by adding the foldername and a counter value */
-        snprintf(buffer2, sizeof(buffer2), buffer1, folder, counter);
-
-        counter++;
-
-        DBG("writing file: %s\n", buffer2);
-
-        /* open file for write */
-        if((fd = open(buffer2, O_CREAT | O_RDWR | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) {
-            OPRINT("could not open the file %s\n", buffer2);
-            return NULL;
-        }
-
-        /* save picture to file */
-        if(write(fd, frame, frame_size) < 0) {
-            OPRINT("could not write to file %s\n", buffer2);
-            perror("write()");
-            close(fd);
-            return NULL;
-        }
-
-        close(fd);
-
-        /* call the command if user specified one, pass current filename as argument */
-        if(command != NULL) {
+        if (mjpgFileName == NULL) { // single files with ringbuffer mode
+            /* prepare filename */
             memset(buffer1, 0, sizeof(buffer1));
+            memset(buffer2, 0, sizeof(buffer2));
 
-            /* buffer2 still contains the filename, pass it to the command as parameter */
-            snprintf(buffer1, sizeof(buffer1), "%s \"%s\"", command, buffer2);
-            DBG("calling command %s", buffer1);
-
-            /* in addition provide the filename as environment variable */
-            if((rc = setenv("MJPG_FILE", buffer2, 1)) != 0) {
-                LOG("setenv failed (return value %d)\n", rc);
+            /* get current time */
+            t = time(NULL);
+            now = localtime(&t);
+            if(now == NULL) {
+                perror("localtime");
+                return NULL;
             }
 
-            /* execute the command now */
-            if((rc = system(buffer1)) != 0) {
-                LOG("command failed (return value %d)\n", rc);
+            /* prepare string, add time and date values */
+            if(strftime(buffer1, sizeof(buffer1), "%%s/%Y_%m_%d_%H_%M_%S_picture_%%09llu.jpg", now) == 0) {
+                OPRINT("strftime returned 0\n");
+                free(frame); frame = NULL;
+                return NULL;
             }
-        }
 
-        /*
-         * maintain ringbuffer
-         * do not maintain ringbuffer for each picture, this saves ressources since
-         * each run of the maintainance function involves sorting/malloc/free operations
-         */
-        if(ringbuffer_exceed <= 0) {
-            /* keep ringbuffer excactly at specified siOUTPUT_PLUGIN_NAMEze */
-            maintain_ringbuffer(ringbuffer_size);
-        } else if(counter == 1 || counter % (ringbuffer_exceed + 1) == 0) {
-            DBG("counter: %llu, will clean-up now\n", counter);
-            maintain_ringbuffer(ringbuffer_size);
+            /* finish filename by adding the foldername and a counter value */
+            snprintf(buffer2, sizeof(buffer2), buffer1, folder, counter);
+
+            counter++;
+
+            DBG("writing file: %s\n", buffer2);
+
+            /* open file for write */
+            if((fd = open(buffer2, O_CREAT | O_RDWR | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) {
+                OPRINT("could not open the file %s\n", buffer2);
+                return NULL;
+            }
+
+            /* save picture to file */
+            if(write(fd, frame, frame_size) < 0) {
+                OPRINT("could not write to file %s\n", buffer2);
+                perror("write()");
+                close(fd);
+                return NULL;
+            }
+
+            close(fd);
+
+            /* call the command if user specified one, pass current filename as argument */
+            if(command != NULL) {
+                memset(buffer1, 0, sizeof(buffer1));
+
+                /* buffer2 still contains the filename, pass it to the command as parameter */
+                snprintf(buffer1, sizeof(buffer1), "%s \"%s\"", command, buffer2);
+                DBG("calling command %s", buffer1);
+
+                /* in addition provide the filename as environment variable */
+                if((rc = setenv("MJPG_FILE", buffer2, 1)) != 0) {
+                    LOG("setenv failed (return value %d)\n", rc);
+                }
+
+                /* execute the command now */
+                if((rc = system(buffer1)) != 0) {
+                    LOG("command failed (return value %d)\n", rc);
+                }
+            }
+
+            /*
+             * maintain ringbuffer
+             * do not maintain ringbuffer for each picture, this saves ressources since
+             * each run of the maintainance function involves sorting/malloc/free operations
+             */
+            if(ringbuffer_exceed <= 0) {
+                /* keep ringbuffer excactly at specified siOUTPUT_PLUGIN_NAMEze */
+                maintain_ringbuffer(ringbuffer_size);
+            } else if(counter == 1 || counter % (ringbuffer_exceed + 1) == 0) {
+                DBG("counter: %llu, will clean-up now\n", counter);
+                maintain_ringbuffer(ringbuffer_size);
+            }
+        } else { // recording to MJPG file
+            /* save picture to file */
+            if(write(fd, frame, frame_size) < 0) {
+                OPRINT("could not write to file %s\n", buffer2);
+                perror("write()");
+                close(fd);
+                return NULL;
+            }
         }
 
         /* if specified, wait now */
@@ -423,7 +440,7 @@ int output_init(output_parameter *param, int id)
         case 12:
         case 13:
             DBG("case 12,13\n");
-            OPRINT("recording to mjpg file not yet implemented\n");
+            mjpgFileName = strdup(optarg);
             break;
         }
     }
@@ -436,11 +453,62 @@ int output_init(output_parameter *param, int id)
     OPRINT("output folder.....: %s\n", folder);
     OPRINT("input plugin.....: %d: %s\n", input_number, pglobal->in[input_number].plugin);
     OPRINT("delay after save..: %d\n", delay);
-    if(ringbuffer_size > 0) {
-        OPRINT("ringbuffer size...: %d to %d\n", ringbuffer_size, ringbuffer_size + ringbuffer_exceed);
+    if  (mjpgFileName == NULL) {
+        if(ringbuffer_size > 0) {
+            OPRINT("ringbuffer size...: %d to %d\n", ringbuffer_size, ringbuffer_size + ringbuffer_exceed);
+        } else {
+            OPRINT("ringbuffer size...: %s\n", "no ringbuffer");
+        }
     } else {
-        OPRINT("ringbuffer size...: %s\n", "no ringbuffer");
+        char *fnBuffer = malloc(strlen(mjpgFileName) + strlen(folder) + 3);
+        sprintf(fnBuffer, "%s/%s", folder, mjpgFileName);
+
+        OPRINT("output file.......: %s\n", fnBuffer);
+        if((fd = open(fnBuffer, O_CREAT | O_RDWR | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) {
+            OPRINT("could not open the file %s\n", fnBuffer);
+            free(fnBuffer);
+            return 1;
+        }
+        free(fnBuffer);
     }
+
+    param->global->out[id].parametercount = 2;
+
+    param->global->out[id].out_parameters = (control*) calloc(2, sizeof(control));
+
+    control take_ctrl;
+	take_ctrl.group = IN_CMD_GENERIC;
+	take_ctrl.menuitems = NULL;
+	take_ctrl.value = 1;
+	take_ctrl.class_id = 0;
+
+	take_ctrl.ctrl.id = OUT_FILE_CMD_TAKE;
+	take_ctrl.ctrl.type = V4L2_CTRL_TYPE_BUTTON;
+	strcpy((char*) take_ctrl.ctrl.name, "Take snapshot");
+	take_ctrl.ctrl.minimum = 0;
+	take_ctrl.ctrl.maximum = 1;
+	take_ctrl.ctrl.step = 1;
+	take_ctrl.ctrl.default_value = 0;
+
+	param->global->out[id].out_parameters[0] = take_ctrl;
+
+    control filename_ctrl;
+	filename_ctrl.group = IN_CMD_GENERIC;
+	filename_ctrl.menuitems = NULL;
+	filename_ctrl.value = 1;
+	filename_ctrl.class_id = 0;
+
+	filename_ctrl.ctrl.id = OUT_FILE_CMD_FILENAME;
+	filename_ctrl.ctrl.type = V4L2_CTRL_TYPE_STRING;
+	strcpy((char*) filename_ctrl.ctrl.name, "Filename");
+	filename_ctrl.ctrl.minimum = 0;
+	filename_ctrl.ctrl.maximum = 32;
+	filename_ctrl.ctrl.step = 1;
+	filename_ctrl.ctrl.default_value = 0;
+
+	param->global->out[id].out_parameters[1] = filename_ctrl;
+
+
     return 0;
 }
 
@@ -469,8 +537,87 @@ int output_run(int id)
     return 0;
 }
 
-int output_cmd(int plugin, unsigned int control_id, unsigned int group, int value)
+int output_cmd(int plugin_id, unsigned int control_id, unsigned int group, int value, char *valueStr)
 {
-    DBG("command (%d, value: %d) for group %d triggered for plugin instance #%02d\n", control_id, value, group, plugin);
+    int i = 0;
+    DBG("command (%d, value: %d) for group %d triggered for plugin instance #%02d\n", control_id, value, group, plugin_id);
+    switch(group) {
+		case IN_CMD_GENERIC:
+			for(i = 0; i < pglobal->out[plugin_id].parametercount; i++) {
+				if((pglobal->out[plugin_id].out_parameters[i].ctrl.id == control_id) && (pglobal->out[plugin_id].out_parameters[i].group == IN_CMD_GENERIC)) {
+					DBG("Generic control found (id: %d): %s\n", control_id, pglobal->out[plugin_id].out_parameters[i].ctrl.name);
+					switch(control_id) {
+                            case OUT_FILE_CMD_TAKE: {
+                                if (valueStr != NULL) {
+                                    int frame_size = 0;
+                                    unsigned char *tmp_framebuffer = NULL;
+
+                                    if(pthread_mutex_lock(&pglobal->in[input_number].db)) {
+                                        DBG("Unable to lock mutex\n");
+                                        return -1;
+                                    }
+                                    /* read buffer */
+                                    frame_size = pglobal->in[input_number].size;
+
+                                    /* check if buffer for frame is large enough, increase it if necessary */
+                                    if(frame_size > max_frame_size) {
+                                        DBG("increasing buffer size to %d\n", frame_size);
+
+                                        max_frame_size = frame_size + (1 << 16);
+                                        if((tmp_framebuffer = realloc(frame, max_frame_size)) == NULL) {
+                                            pthread_mutex_unlock(&pglobal->in[input_number].db);
+                                            LOG("not enough memory\n");
+                                            return -1;
+                                        }
+
+                                        frame = tmp_framebuffer;
+                                    }
+
+                                    /* copy frame to our local buffer now */
+                                    memcpy(frame, pglobal->in[input_number].buf, frame_size);
+
+                                    /* allow others to access the global buffer again */
+                                    pthread_mutex_unlock(&pglobal->in[input_number].db);
+
+                                    DBG("writing file: %s\n", valueStr);
+
+                                    int fd;
+                                    /* open file for write */
+                                    if((fd = open(valueStr, O_CREAT | O_RDWR | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) {
+                                        OPRINT("could not open the file %s\n", valueStr);
+                                        return -1;
+                                    }
+
+                                    /* save picture to file */
+                                    if(write(fd, frame, frame_size) < 0) {
+                                        OPRINT("could not write to file %s\n", valueStr);
+                                        perror("write()");
+                                        close(fd);
+                                        return -1;
+                                    }
+
+                                    close(fd);
+                                } else {
+                                    DBG("No filename specified\n");
+                                    return -1;
+                                }
+                            } break;
+                            case OUT_FILE_CMD_FILENAME: {
+                                DBG("Not yet implemented\n");
+                                return -1;
+                            } break;
+                            default: {
+                                DBG("Unknown command\n");
+                                return -1;
+                            } break;
+					}
+					DBG("Ctrl %s new value: %d\n", pglobal->out[plugin_id].out_parameters[i].ctrl.name, value);
+					return 0;
+				}
+			}
+			DBG("Requested generic control (%d) did not found\n", control_id);
+			return -1;
+			break;
+	}
     return 0;
 }

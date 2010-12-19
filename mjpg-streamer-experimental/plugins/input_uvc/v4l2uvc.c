@@ -99,6 +99,7 @@ int init_videoIn(struct vdIn *vd, char *device, int width,
     // enumerating formats
     int currentWidth, currentHeight = 0;
     struct v4l2_format currentFormat;
+    memset(&currentFormat, 0, sizeof(struct v4l2_format));
     currentFormat.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     if(xioctl(vd->fd, VIDIOC_G_FMT, &currentFormat) == 0) {
         currentWidth = currentFormat.fmt.pix.width;
@@ -109,6 +110,7 @@ int init_videoIn(struct vdIn *vd, char *device, int width,
     pglobal->in[id].in_formats = NULL;
     for(pglobal->in[id].formatCount = 0; 1; pglobal->in[id].formatCount++) {
         struct v4l2_fmtdesc fmtdesc;
+        memset(&fmtdesc, 0, sizeof(struct v4l2_fmtdesc));
         fmtdesc.index = pglobal->in[id].formatCount;
         fmtdesc.type  = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         if(xioctl(vd->fd, VIDIOC_ENUM_FMT, &fmtdesc) < 0) {
@@ -133,6 +135,7 @@ int init_videoIn(struct vdIn *vd, char *device, int width,
 
         DBG("Supported format: %s\n", fmtdesc.description);
         struct v4l2_frmsizeenum fsenum;
+        memset(&fsenum, 0, sizeof(struct v4l2_frmsizeenum));
         fsenum.index = pglobal->in[id].formatCount;
         fsenum.pixel_format = fmtdesc.pixelformat;
         int j = 0;
@@ -659,6 +662,7 @@ int v4l2ResetControl(struct vdIn *vd, int control)
 void control_readed(struct vdIn *vd, struct v4l2_queryctrl *ctrl, globals *pglobal, int id)
 {
     struct v4l2_control c;
+    memset(&c, 0, sizeof(struct v4l2_control));
     c.id = ctrl->id;
 
     if (pglobal->in[id].in_parameters == NULL) {
@@ -682,6 +686,7 @@ void control_readed(struct vdIn *vd, struct v4l2_queryctrl *ctrl, globals *pglob
         int i;
         for(i = ctrl->minimum; i <= ctrl->maximum; i++) {
             struct v4l2_querymenu qm;
+            memset(&qm, 0 , sizeof(struct v4l2_querymenu));
             qm.id = ctrl->id;
             qm.index = i;
             if(xioctl(vd->fd, VIDIOC_QUERYMENU, &qm) == 0) {
@@ -696,9 +701,8 @@ void control_readed(struct vdIn *vd, struct v4l2_queryctrl *ctrl, globals *pglob
     }
 
     pglobal->in[id].in_parameters[pglobal->in[id].parametercount].value = 0;
-#ifdef V4L2_CTRL_FLAG_NEXT_CTRL
     pglobal->in[id].in_parameters[pglobal->in[id].parametercount].class_id = (ctrl->id & 0xFFFF0000);
-#else
+#ifndef V4L2_CTRL_FLAG_NEXT_CTRL
     pglobal->in[id].in_parameters[pglobal->in[id].parametercount].class_id = V4L2_CTRL_CLASS_USER;
 #endif
 
@@ -810,6 +814,7 @@ void enumerateControls(struct vdIn *vd, globals *pglobal, int id)
 {
     // enumerating v4l2 controls
     struct v4l2_queryctrl ctrl;
+    memset(&ctrl, 0, sizeof(struct v4l2_queryctrl));
     pglobal->in[id].parametercount = 0;
     pglobal->in[id].in_parameters = malloc(0 * sizeof(control));
     /* Enumerate the v4l2 controls

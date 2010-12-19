@@ -205,7 +205,7 @@ void *worker_thread(void *arg)
     /* set cleanup handler to cleanup allocated ressources */
     pthread_cleanup_push(worker_cleanup, NULL);
 
-    while(ok >= 0 && !pglobal->in[input_number].stop) {
+    while(ok >= 0 && !pglobal->stop) {
         DBG("waiting for fresh frame\n");
         pthread_cond_wait(&pglobal->in[input_number].db_update, &pglobal->in[input_number].db);
 

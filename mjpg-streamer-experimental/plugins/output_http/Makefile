@@ -14,6 +14,7 @@ OTHER_HEADERS = ../../mjpg_streamer.h ../../utils.h ../output.h ../input.h
 CFLAGS += -DLINUX -D_GNU_SOURCE -Wall -shared -fPIC
 CFLAGS +=  -g
 CFLAGS += -DDEBUG
+
 LFLAGS += -lpthread -ldl
 
 ifeq ($(WXP_COMPAT),true)

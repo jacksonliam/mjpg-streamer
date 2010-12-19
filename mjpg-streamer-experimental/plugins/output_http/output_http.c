@@ -178,7 +178,7 @@ int output_init(output_parameter *param, int id)
     OPRINT("username:password.: %s\n", (credentials == NULL) ? "disabled" : credentials);
     OPRINT("commands..........: %s\n", (nocommands) ? "disabled" : "enabled");
 
-    param->global->out[id].name = malloc(strlen(OUTPUT_PLUGIN_NAME) * sizeof(char));
+    param->global->out[id].name = malloc((strlen(OUTPUT_PLUGIN_NAME) + 1) * sizeof(char));
     sprintf(param->global->out[id].name, OUTPUT_PLUGIN_NAME);
 
     return 0;

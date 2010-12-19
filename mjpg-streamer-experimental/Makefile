@@ -39,9 +39,10 @@ PLUGINS += output_http.so
 PLUGINS += input_testpicture.so
 PLUGINS += output_autofocus.so
 PLUGINS += input_file.so
+PLUGINS += input_megatec.so
 # PLUGINS += output_mars2020.so
 # PLUGINS += output_rtsp.so
-# PLUGINS += output_ptp2.so # commented out because it depends on libgphoto
+# PLUGINS += input_ptp2.so # commented out because it depends on libgphoto
 # PLUGINS += input_http.so 
 # PLUGINS += output_viewer.so # commented out because it depends on SDL
 
@@ -110,9 +111,13 @@ output_rtsp.so: mjpg_streamer.h utils.h
 	make -C plugins/output_rtsp all
 	cp plugins/output_rtsp/output_rtsp.so .
 	
-output_ptp2.so: mjpg_streamer.h utils.h
+input_ptp2.so: mjpg_streamer.h utils.h
 	make -C plugins/input_ptp2 all
 	cp plugins/input_ptp2/input_ptp2.so .	
+	
+input_megatec.so: mjpg_streamer.h utils.h
+	make -C plugins/input_megatec all
+	cp plugins/input_megatec/input_megatec.so .	
 
 #input_http.so: mjpg_streamer.h utils.h
 #	make -C plugins/input_http all

@@ -45,6 +45,9 @@
 #define V4L2_CTRL_TYPE_STRING_SUPPORTED
 #endif
 
+#include "../output_file/output_file.h"
+
+
 static globals *pglobal;
 extern context servers[MAX_OUTPUT_PLUGINS];
 
@@ -695,6 +698,8 @@ void command(int id, int fd, char *parameter)
         }
         plugin_no = MAX(MIN(strtol(svalue, NULL, 10), INT_MAX), INT_MIN);
         DBG("The plugin number value converted value form string %s to integer %d\n", svalue, plugin_no);
+    } else {
+        value = NULL;
     }
 
     switch(dest) {
@@ -789,8 +794,35 @@ void *client_thread(void *arg)
 #endif
         query_suffixed = 255;
     } else if(strstr(buffer, "GET /?action=take") != NULL) {
+        int len;
         req.type = A_TAKE;
         query_suffixed = 255;
+
+        /* advance by the length of known string */
+        if((pb = strstr(buffer, "GET /?action=take")) == NULL) {
+            DBG("HTTP request seems to be malformed\n");
+            send_error(lcfd.fd, 400, "Malformed HTTP request");
+            close(lcfd.fd);
+            return NULL;
+        }
+        pb += strlen("GET /?action=take"); // a pb points to thestring after the first & after command
+
+        /* only accept certain characters */
+        len = MIN(MAX(strspn(pb, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-=&1234567890%./"), 0), 100);
+        req.parameter = malloc(len + 1);
+        if(req.parameter == NULL) {
+            exit(EXIT_FAILURE);
+        }
+        memset(req.parameter, 0, len + 1);
+        strncpy(req.parameter, pb, len);
+
+        if(unescape(req.parameter) == -1) {
+            free(req.parameter);
+            send_error(lcfd.fd, 500, "could not properly unescape command parameter string");
+            LOG("could not properly unescape command parameter string\n");
+            close(lcfd.fd);
+            return NULL;
+        }
     } else if((strstr(buffer, "GET /input") != NULL) && (strstr(buffer, ".json") != NULL)) {
         req.type = A_INPUT_JSON;
         query_suffixed = 255;
@@ -973,9 +1005,27 @@ void *client_thread(void *arg)
             if (pglobal->out[i].name != NULL) {
                 if (strstr(pglobal->out[i].name, "FILE output plugin")) {
                     found = 255;
-                    DBG("output_file found: %d\n", i);
-                    //int (*cmd)(int plugin, unsigned int control_id, unsigned int group, int value);
-                    //ret = pglobal->out[i].cmd(plugin_number, 0, 0, 0, );
+                    DBG("output_file found id: %d\n", i);
+                    char *filename = NULL;
+                    char *filenamearg = NULL;
+                    int len = 0;
+                    DBG("Buffer: %s \n", req.parameter);
+                    if((filename = strstr(req.parameter, "filename=")) != NULL) {
+                        filename += strlen("filename=");
+                        char *fn = strchr(filename, '&');
+                        if (fn == NULL)
+                            len = strlen(filename);
+                        else
+                            len = (int)(fn - filename);
+                        filenamearg = (char*)calloc(len, sizeof(char));
+                        memcpy(filenamearg, filename, len);
+                        DBG("Filename = %s\n", filenamearg);
+                        //int output_cmd(int plugin_id, unsigned int control_id, unsigned int group, int value, char *valueStr)
+                        ret = pglobal->out[i].cmd(i, OUT_FILE_CMD_TAKE, IN_CMD_GENERIC, 0, filenamearg);
+                    } else {
+                        DBG("filename is not specified int the URL\n");
+                        send_error(lcfd.fd, 404, "The &filename= must present for the take command in the URL");
+                    }
                     break;
                 }
             }
@@ -1069,14 +1119,14 @@ void *server_thread(void *arg)
         /* ignore "socket already in use" errors */
         on = 1;
         if(setsockopt(pcontext->sd[i], SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
-            perror("setsockopt(SO_REUSEADDR) failed");
+            perror("setsockopt(SO_REUSEADDR) failed\n");
         }
 
         /* IPv6 socket should listen to IPv6 only, otherwise we will get "socket already in use" */
         on = 1;
         if(aip2->ai_family == AF_INET6 && setsockopt(pcontext->sd[i], IPPROTO_IPV6, IPV6_V6ONLY,
                 (const void *)&on , sizeof(on)) < 0) {
-            perror("setsockopt(IPV6_V6ONLY) failed");
+            perror("setsockopt(IPV6_V6ONLY) failed\n");
         }
 
         /* perhaps we will use this keep-alive feature oneday */
@@ -1104,7 +1154,7 @@ void *server_thread(void *arg)
     pcontext->sd_len = i;
 
     if(pcontext->sd_len < 1) {
-        OPRINT("%s(): bind(%d) failed", __FUNCTION__, htons(pcontext->conf.port));
+        OPRINT("%s(): bind(%d) failed\n", __FUNCTION__, htons(pcontext->conf.port));
         closelog();
         exit(EXIT_FAILURE);
     }
@@ -1208,7 +1258,7 @@ void send_Input_JSON(int fd, int plugin_number)
 
                         if (menuString == NULL) {
                             DBG("Realloc/calloc failed: %s\n", strerror(errno));
-                            return 0;
+                            return;
                         }
                         prevSize = strlen(menuString);
 

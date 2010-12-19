@@ -133,12 +133,12 @@
                   $("<input/>")
                     .attr("type", "checkbox")
                     .attr("checked", "checked")
-                    .change(function(){setControl_bool(dest, plugin_id, item.id, item.group ($(this).attr("checked")?1:0));})
+                    .change(function(){setControl_bool(dest, plugin_id, item.id, item.group, ($(this).attr("checked")?1:0));})
 		            .appendTo("#td_ctrl_"+suffix+"_"+plugin_id+"_"+item.group+"-"+item.id);
                 else
                   $("<input/>")
                     .attr("type", "checkbox")
-                    .change(function(){setControl_bool(dest, plugin_id, item.id, item.group ($(this).attr("checked")?1:0));})
+                    .change(function(){setControl_bool(dest, plugin_id, item.id, item.group, ($(this).attr("checked")?1:0));})
                     .appendTo("#td_ctrl_"+suffix+"_"+plugin_id+"_"+item.group+"-"+item.id);
               } else if (item.type == 7) { // string type controls
                   $("<input/>").attr("value", item.value).appendTo("#td_ctrl_"+suffix+"_"+plugin_id+"_"+item.group+"-"+item.id);
