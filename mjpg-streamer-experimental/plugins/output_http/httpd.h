@@ -84,7 +84,9 @@ static const struct {
 typedef enum {
     A_UNKNOWN,
     A_SNAPSHOT,
+    A_SNAPSHOT_WXP,
     A_STREAM,
+    A_STREAM_WXP,
     A_COMMAND,
     A_FILE,
     A_TAKE,

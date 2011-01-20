@@ -429,6 +429,96 @@ void send_stream(int fd, int input_number)
     free(frame);
 }
 
+#ifdef WXP_COMPAT
+
+/******************************************************************************
+Description.: Send an mjpg stream in the same format as the WebcamXP does
+Input Value.: fildescriptor fd to send the answer to
+Return Value: -
+******************************************************************************/
+void send_stream_wxp(int fd, int input_number)
+{
+    unsigned char *frame = NULL, *tmp = NULL;
+    int frame_size = 0, max_frame_size = 0;
+    char buffer[BUFFER_SIZE] = {0};
+    struct timeval timestamp;
+
+    DBG("preparing header\n");
+
+    time_t curDate, expiresDate;
+    curDate = time(NULL);
+    expiresDate = curDate - 1380; // teh expires date is before the current date with 23 minute (1380) sec
+
+    char curDateBuffer[80];
+    char expDateBuffer[80];
+
+    strftime(curDateBuffer, 80, "%a, %d %b %Y %H:%M:%S %Z", localtime(&curDate));
+    strftime(expDateBuffer, 80, "%a, %d %b %Y %H:%M:%S %Z", localtime(&expiresDate));
+    sprintf(buffer, "HTTP/1.1 200 OK\r\n" \
+                    "Connection: keep-alive\r\n" \
+                    "Content-Type: multipart/x-mixed-replace; boundary=--myboundary\r\n" \
+                    "Content-Length: 9999999\r\n" \
+                    "Cache-control: no-cache, must revalidate\r\n" \
+                    "Date: %s\r\n" \
+                    "Expires: %s\r\n" \
+                    "Pragma: no-cache\r\n" \
+                    "Server: webcamXP\r\n"
+                    "\r\n",
+                    curDateBuffer,
+                    expDateBuffer);
+
+    if(write(fd, buffer, strlen(buffer)) < 0) {
+        free(frame);
+        return;
+    }
+
+    DBG("Headers send, sending stream now\n");
+
+    while(!pglobal->stop) {
+
+        /* wait for fresh frames */
+        pthread_cond_wait(&pglobal->in[input_number].db_update, &pglobal->in[input_number].db);
+
+        /* read buffer */
+        frame_size = pglobal->in[input_number].size;
+
+        /* check if framebuffer is large enough, increase it if necessary */
+        if(frame_size > max_frame_size) {
+            DBG("increasing buffer size to %d\n", frame_size);
+
+            max_frame_size = frame_size + TEN_K;
+            if((tmp = realloc(frame, max_frame_size)) == NULL) {
+                free(frame);
+                pthread_mutex_unlock(&pglobal->in[input_number].db);
+                send_error(fd, 500, "not enough memory");
+                return;
+            }
+
+            frame = tmp;
+        }
+
+        /* copy v4l2_buffer timeval to user space */
+        timestamp = pglobal->in[input_number].timestamp;
+
+        memcpy(frame, pglobal->in[input_number].buf, frame_size);
+        DBG("got frame (size: %d kB)\n", frame_size / 1024);
+
+        pthread_mutex_unlock(&pglobal->in[input_number].db);
+
+        memset(buffer, 0, 50*sizeof(char));
+        sprintf(buffer, "mjpeg %07d12345", frame_size);
+        DBG("sending intemdiate header\n");
+        if(write(fd, buffer, 50) < 0) break;
+
+        DBG("sending frame\n");
+        if(write(fd, frame, frame_size) < 0) break;
+    }
+
+    free(frame);
+}
+
+#endif
+
 /******************************************************************************
 Description.: Send error messages and headers.
 Input Value.: * fd.....: is the filedescriptor to send the message to
@@ -780,19 +870,20 @@ void *client_thread(void *arg)
     /* determine what to deliver */
     if(strstr(buffer, "GET /?action=snapshot") != NULL) {
         req.type = A_SNAPSHOT;
+        query_suffixed = 255;
 #ifdef WXP_COMPAT
     } else if((strstr(buffer, "GET /cam") != NULL) && (strstr(buffer, ".jpg") != NULL)) {
-        req.type = A_SNAPSHOT;
+        req.type = A_SNAPSHOT_WXP;
+        query_suffixed = 255;
 #endif
-        query_suffixed = 255;
     } else if(strstr(buffer, "GET /?action=stream") != NULL) {
-        query_suffixed = 255;
         req.type = A_STREAM;
+        query_suffixed = 255;
 #ifdef WXP_COMPAT
     } else if((strstr(buffer, "GET /cam") != NULL) && (strstr(buffer, ".mjpg") != NULL)) {
-        req.type = A_STREAM;
-#endif
+        req.type = A_STREAM_WXP;
         query_suffixed = 255;
+#endif
     } else if(strstr(buffer, "GET /?action=take") != NULL) {
         int len;
         req.type = A_TAKE;
@@ -903,6 +994,10 @@ void *client_thread(void *arg)
             memset(numStr, 0, 3);
             strncpy(numStr, sch + 1, 1);
             plugin_number = atoi(numStr);
+
+            if ((req.type == A_SNAPSHOT_WXP) || (req.type == A_STREAM_WXP)) { // webcamxp adds offset to the camera number
+                plugin_number--;
+            }
         }
         DBG("plugin_no: %d\n", plugin_number);
     }
@@ -961,6 +1056,7 @@ void *client_thread(void *arg)
         }
     }
     switch(req.type) {
+    case A_SNAPSHOT_WXP:
     case A_SNAPSHOT:
         DBG("Request for snapshot from input: %d\n", plugin_number);
         send_snapshot(lcfd.fd, plugin_number);
@@ -969,6 +1065,12 @@ void *client_thread(void *arg)
         DBG("Request for stream from input: %d\n", plugin_number);
         send_stream(lcfd.fd, plugin_number);
         break;
+#ifdef WXP_COMPAT
+    case A_STREAM_WXP:
+        DBG("Request for WXP compat stream from input: %d\n", plugin_number);
+        send_stream_wxp(lcfd.fd, plugin_number);
+        break;
+#endif
     case A_COMMAND:
         if(lcfd.pc->conf.nocommands) {
             send_error(lcfd.fd, 501, "this server is configured to not accept commands");

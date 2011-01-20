@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <jpeglib.h>
 #include <stdlib.h>
+#include <linux/videodev2.h>
 
 #include "v4l2uvc.h"
 
@@ -126,6 +127,7 @@ GLOBAL(void) dest_buffer(j_compress_ptr cinfo, unsigned char *buffer, int size, 
 /******************************************************************************
 Description.: yuv2jpeg function is based on compress_yuyv_to_jpeg written by
               Gabriel A. Devenyi.
+              modified to support other formats like RGB5:6:5 by Miklós Márton
               It uses the destination manager implemented above to compress
               YUYV data to JPEG. Most other implementations use the
               "jpeg_stdio_dest" from libjpeg, which can not store compressed
@@ -134,7 +136,7 @@ Input Value.: video structure from v4l2uvc.c/h, destination buffer and buffersiz
               the buffer must be large enough, no error/size checking is done!
 Return Value: the buffer will contain the compressed data
 ******************************************************************************/
-int compress_yuyv_to_jpeg(struct vdIn *vd, unsigned char *buffer, int size, int quality)
+int compress_image_to_jpeg(struct vdIn *vd, unsigned char *buffer, int size, int quality)
 {
     struct jpeg_compress_struct cinfo;
     struct jpeg_error_mgr jerr;
@@ -162,37 +164,56 @@ int compress_yuyv_to_jpeg(struct vdIn *vd, unsigned char *buffer, int size, int 
     jpeg_start_compress(&cinfo, TRUE);
 
     z = 0;
-    while(cinfo.next_scanline < vd->height) {
-        int x;
-        unsigned char *ptr = line_buffer;
+    if (vd->formatIn == V4L2_PIX_FMT_YUYV) {
+        while(cinfo.next_scanline < vd->height) {
+            int x;
+            unsigned char *ptr = line_buffer;
 
-        for(x = 0; x < vd->width; x++) {
-            int r, g, b;
-            int y, u, v;
 
-            if(!z)
-                y = yuyv[0] << 8;
-            else
-                y = yuyv[2] << 8;
-            u = yuyv[1] - 128;
-            v = yuyv[3] - 128;
+            for(x = 0; x < vd->width; x++) {
+                int r, g, b;
+                int y, u, v;
 
-            r = (y + (359 * v)) >> 8;
-            g = (y - (88 * u) - (183 * v)) >> 8;
-            b = (y + (454 * u)) >> 8;
+                if(!z)
+                    y = yuyv[0] << 8;
+                else
+                    y = yuyv[2] << 8;
+                u = yuyv[1] - 128;
+                v = yuyv[3] - 128;
 
-            *(ptr++) = (r > 255) ? 255 : ((r < 0) ? 0 : r);
-            *(ptr++) = (g > 255) ? 255 : ((g < 0) ? 0 : g);
-            *(ptr++) = (b > 255) ? 255 : ((b < 0) ? 0 : b);
+                r = (y + (359 * v)) >> 8;
+                g = (y - (88 * u) - (183 * v)) >> 8;
+                b = (y + (454 * u)) >> 8;
 
-            if(z++) {
-                z = 0;
-                yuyv += 4;
+                *(ptr++) = (r > 255) ? 255 : ((r < 0) ? 0 : r);
+                *(ptr++) = (g > 255) ? 255 : ((g < 0) ? 0 : g);
+                *(ptr++) = (b > 255) ? 255 : ((b < 0) ? 0 : b);
+
+                if(z++) {
+                    z = 0;
+                    yuyv += 4;
+                }
             }
-        }
 
-        row_pointer[0] = line_buffer;
-        jpeg_write_scanlines(&cinfo, row_pointer, 1);
+            row_pointer[0] = line_buffer;
+            jpeg_write_scanlines(&cinfo, row_pointer, 1);
+        }
+    } else if (vd->formatIn == V4L2_PIX_FMT_RGB565) {
+        while(cinfo.next_scanline < vd->height) {
+            int x;
+            unsigned char *ptr = line_buffer;
+
+            for(x = 0; x < vd->width; x++) {
+                unsigned int twoByte = (yuyv[0] << 8) + yuyv[1];
+                *(ptr++) = (twoByte & 0b1111100000000000) >> 11;
+                *(ptr++) = (twoByte & 0b0000011111100000) >> 5;
+                *(ptr++) = (twoByte & 0b0000000000011111);
+                yuyv += 2;
+            }
+
+            row_pointer[0] = line_buffer;
+            jpeg_write_scanlines(&cinfo, row_pointer, 1);
+        }
     }
 
     jpeg_finish_compress(&cinfo);

@@ -131,6 +131,7 @@ int input_init(input_parameter *param, int id)
             {"no_dynctrl", no_argument, 0, 0},
             {"l", required_argument, 0, 0},
             {"led", required_argument, 0, 0},
+            {"fourcc", required_argument, 0, 0},
             {0, 0, 0, 0}
         };
 
@@ -235,7 +236,15 @@ int input_init(input_parameter *param, int id)
           led = IN_CMD_LED_BLINK;
         }*/
             break;
-
+        case 18:
+            DBG("case 18,19\n");
+            //fourcc
+            if (strcmp(optarg, "RGBP") == 0) {
+                format = V4L2_PIX_FMT_RGB565;
+            } else {
+                DBG("FOURCC %s not supported\n", optarg);
+            }
+            break;
         default:
             DBG("default case\n");
             help();
@@ -258,8 +267,23 @@ int input_init(input_parameter *param, int id)
     IPRINT("Using V4L2 device.: %s\n", dev);
     IPRINT("Desired Resolution: %i x %i\n", width, height);
     IPRINT("Frames Per Second.: %i\n", fps);
-    IPRINT("Format............: %s\n", (format == V4L2_PIX_FMT_YUYV) ? "YUV" : "MJPEG");
-    if(format == V4L2_PIX_FMT_YUYV)
+    char *fmtString = NULL;
+    switch (format) {
+        case V4L2_PIX_FMT_YUYV:
+            fmtString = "YUYV";
+            break;
+        case V4L2_PIX_FMT_MJPEG:
+            fmtString = "JPEG";
+            break;
+        case V4L2_PIX_FMT_RGB565:
+            fmtString = "RGB565";
+            break;
+        default:
+            fmtString = "Unknown format";
+    }
+
+    IPRINT("Format............: %s\n", fmtString);
+    if(format != V4L2_PIX_FMT_MJPEG)
         IPRINT("JPEG Quality......: %d\n", gquality);
 
     DBG("vdIn pn: %d\n", id);
@@ -403,7 +427,7 @@ void *cam_thread(void *arg)
          */
         if(pcontext->videoIn->formatIn == V4L2_PIX_FMT_YUYV) {
             DBG("compressing frame from input: %d\n", (int)pcontext->id);
-            pglobal->in[pcontext->id].size = compress_yuyv_to_jpeg(pcontext->videoIn, pglobal->in[pcontext->id].buf, pcontext->videoIn->framesizeIn, gquality);
+            pglobal->in[pcontext->id].size = compress_image_to_jpeg(pcontext->videoIn, pglobal->in[pcontext->id].buf, pcontext->videoIn->framesizeIn, gquality);
         } else {
             DBG("copying frame from input: %d\n", (int)pcontext->id);
             pglobal->in[pcontext->id].size = memcpy_picture(pglobal->in[pcontext->id].buf, pcontext->videoIn->tmpbuffer, pcontext->videoIn->buf.bytesused);

@@ -891,4 +891,37 @@ void enumerateControls(struct vdIn *vd, globals *pglobal, int id)
         pglobal->in[id].jpegcomp.quality = -1;
     }
 
+    // beginning of the Philips webcam related stuff
+	/*struct pwc_leds pwcl;
+	struct pwc_mpt_range pmr;
+	struct pwc_mpt_angles pma;
+
+	// verify that it IS a Philips Webcam
+	if (xioctl(fd, VIDIOCPWCPROBE, &pwcp) == -1) {
+		DBG("This is not a Philips webcam\n")
+		return;
+	}
+
+    if (xioctl(fd, VIDIOCPWCMPTGRANGE, &pmr) == -1) {
+		DBG("Pan/Tilt is not supported\n");
+		return;
+	} else {
+		DBG("Pan min. : %d, max.: %d\n", pmr.pan_min, pmr.pan_max);
+		DBG(("Tilt min.: %d, max.: %d\n", pmr.tilt_min, pmr.tilt_max);
+	}
+
+	pma.absolute=1;
+	if (ioctl(fd, VIDIOCPWCMPTGANGLE, &pma) == -1) {
+		DBG("Get pan/tilt position is not supported\n");
+	} else {
+		DBG("Pan  (degrees * 100): %d\n", pma.pan);
+		DBG("Tilt (degrees * 100): %d\n", pma.tilt);
+		pglobal->in[id].parametercount += 2;
+        pglobal->in[id].in_parameters = (control*)realloc(pglobal->in[id].in_parameters,(pglobal->in[id].parametercount) * sizeof(control));
+        control panCtr, tiltCtrl;
+        panCtrl.group = IN_CMD_PWC;
+        tiltCtrl.group = IN_CMD_PWC;
+        panCtrl.menuitems = NULL;
+        panCtrl.menuitems = NULL;
+	}*/
 }
