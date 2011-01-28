@@ -425,7 +425,7 @@ void *cam_thread(void *arg)
          * Getting JPEGs straight from the webcam, is one of the major advantages of
          * Linux-UVC compatible devices.
          */
-        if(pcontext->videoIn->formatIn == V4L2_PIX_FMT_YUYV) {
+        if ((pcontext->videoIn->formatIn == V4L2_PIX_FMT_YUYV) || (pcontext->videoIn->formatIn == V4L2_PIX_FMT_RGB565)) {
             DBG("compressing frame from input: %d\n", (int)pcontext->id);
             pglobal->in[pcontext->id].size = compress_image_to_jpeg(pcontext->videoIn, pglobal->in[pcontext->id].buf, pcontext->videoIn->framesizeIn, gquality);
         } else {

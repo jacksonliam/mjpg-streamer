@@ -178,14 +178,18 @@ int init_videoIn(struct vdIn *vd, char *device, int width,
     /* alloc a temp buffer to reconstruct the pict */
     vd->framesizeIn = (vd->width * vd->height << 1);
     switch(vd->formatIn) {
-    case V4L2_PIX_FMT_MJPEG:
+    case V4L2_PIX_FMT_MJPEG: // in JPG mode te frame size is varies at every frame, so we allocate a bit bigger buffer
         vd->tmpbuffer = (unsigned char *) calloc(1, (size_t) vd->framesizeIn);
         if(!vd->tmpbuffer)
             goto error;
         vd->framebuffer =
             (unsigned char *) calloc(1, (size_t) vd->width * (vd->height + 8) * 2);
         break;
+    case V4L2_PIX_FMT_RGB565: // buffer allocation for non variing frame size formats
     case V4L2_PIX_FMT_YUYV:
+        vd->framebuffer =
+            (unsigned char *) calloc(1, (size_t) vd->framesizeIn);
+        break;
         vd->framebuffer =
             (unsigned char *) calloc(1, (size_t) vd->framesizeIn);
         break;
@@ -268,10 +272,16 @@ static int init_v4l2(struct vdIn *vd)
          */
         if(vd->formatIn != vd->fmt.fmt.pix.pixelformat) {
             if(vd->formatIn == V4L2_PIX_FMT_MJPEG) {
-                fprintf(stderr, "The inpout device does not supports MJPEG mode\nYou may also try the YUV mode (-yuv option), but it requires a much more CPU power\n");
+                fprintf(stderr, "The inpout device does not supports MJPEG mode\n"
+                                "You may also try the YUV mode (-yuv option), \n"
+                                "or the you can set another supported formats using the -fourcc argument."
+                                "Note: streaming using uncompressed formats will require much more CPU power on your server\n");
                 goto fatal;
             } else if(vd->formatIn == V4L2_PIX_FMT_YUYV) {
-                fprintf(stderr, "The input device does not supports YUV mode\n");
+                fprintf(stderr, "The input device does not supports YUV format\n");
+                goto fatal;
+            } else if (vd->formatIn == V4L2_PIX_FMT_RGB565) {
+                fprintf(stderr, "The input device does not supports RGB565 format\n");
                 goto fatal;
             }
         } else {
@@ -469,7 +479,7 @@ int uvcGrab(struct vdIn *vd)
         if(debug)
             fprintf(stderr, "bytes in used %d \n", vd->buf.bytesused);
         break;
-
+    case V4L2_PIX_FMT_RGB565:
     case V4L2_PIX_FMT_YUYV:
         if(vd->buf.bytesused > vd->framesizeIn)
             memcpy(vd->framebuffer, vd->mem[vd->buf.index], (size_t) vd->framesizeIn);
