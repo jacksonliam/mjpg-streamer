@@ -136,7 +136,6 @@ int init_videoIn(struct vdIn *vd, char *device, int width,
         DBG("Supported format: %s\n", fmtdesc.description);
         struct v4l2_frmsizeenum fsenum;
         memset(&fsenum, 0, sizeof(struct v4l2_frmsizeenum));
-        fsenum.index = pglobal->in[id].formatCount;
         fsenum.pixel_format = fmtdesc.pixelformat;
         int j = 0;
         pglobal->in[id].in_formats[pglobal->in[id].formatCount].supportedResolutions = NULL;
