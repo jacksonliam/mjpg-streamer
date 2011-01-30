@@ -205,9 +205,9 @@ int compress_image_to_jpeg(struct vdIn *vd, unsigned char *buffer, int size, int
 
             for(x = 0; x < vd->width; x++) {
                 unsigned int twoByte = (yuyv[0] << 8) + yuyv[1];
-                *(ptr++) = (twoByte & 0b1111100000000000) >> 11;
-                *(ptr++) = (twoByte & 0b0000011111100000) >> 6;
-                *(ptr++) = (twoByte & 0b0000000000011111);
+                *(ptr++) = ((twoByte & 0b1111100000000000) >> 8);
+                *(ptr++) = (twoByte & 0b0000011111100000) >> 3;
+                *(ptr++) = ((twoByte & 0b0000000000011111) << 3);
                 yuyv += 2;
             }
 
