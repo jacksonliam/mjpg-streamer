@@ -1108,10 +1108,13 @@ void *server_thread(void *arg)
                 /* start new thread that will handle this TCP connected client */
                 DBG("create thread to handle client that just established a connection\n");
 
+#if 0
+/* commented out as it fills up syslog with many redundant entries */
+
                 if(getnameinfo((struct sockaddr *)&client_addr, addr_len, name, sizeof(name), NULL, 0, NI_NUMERICHOST) == 0) {
                     syslog(LOG_INFO, "serving client: %s\n", name);
                 }
-
+#endif
                 if(pthread_create(&client, NULL, &client_thread, pcfd) != 0) {
                     DBG("could not launch another client thread\n");
                     close(pcfd->fd);
