@@ -23,7 +23,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 #include <sys/ioctl.h>
 #include <errno.h>
 #include <signal.h>
@@ -48,7 +48,7 @@ static pthread_t worker;
 static globals *pglobal;
 static int fd, delay;
 static unsigned char *frame = NULL;
-static int plugin_number;
+static int input_number;
 
 /******************************************************************************
 Description.: print a help message
@@ -110,13 +110,14 @@ void *worker_thread(void *arg)
 
     while(!pglobal->stop) {
         DBG("waiting for fresh frame\n");
-        pthread_cond_wait(&pglobal->in[plugin_number].db_update, &pglobal->in[plugin_number].db);
+        pthread_mutex_lock(&pglobal->in[input_number].db);
+        pthread_cond_wait(&pglobal->in[input_number].db_update, &pglobal->in[input_number].db);
 
         /* read buffer */
-        frame_size = pglobal->in[plugin_number].size;
-        memcpy(frame, pglobal->in[plugin_number].buf, frame_size);
+        frame_size = pglobal->in[input_number].size;
+        memcpy(frame, pglobal->in[input_number].buf, frame_size);
 
-        pthread_mutex_unlock(&pglobal->in[plugin_number].db);
+        pthread_mutex_unlock(&pglobal->in[input_number].db);
 
         /* process frame */
         sv = getFrameSharpnessValue(frame, frame_size);
@@ -227,7 +228,7 @@ int output_init(output_parameter *param)
             /* i input */
         case 4:
         case 5:
-            plugin_number = atoi(optarg);
+            input_number = atoi(optarg);
             break;
         }
     }

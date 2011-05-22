@@ -37,8 +37,8 @@ PLUGINS += output_file.so
 PLUGINS += output_udp.so
 PLUGINS += output_http.so
 PLUGINS += input_testpicture.so
-PLUGINS += output_autofocus.so
-PLUGINS += input_gspcav1.so
+#PLUGINS += output_autofocus.so
+#PLUGINS += input_gspcav1.so
 PLUGINS += input_file.so
 # PLUGINS += output_rtsp.so
 # PLUGINS += output_ptp2.so # commented out because it depends on libgphoto
@@ -91,7 +91,7 @@ output_file.so: mjpg_streamer.h utils.h
 
 ifeq ($(WXP_COMPAT),true)
 output_http.so: mjpg_streamer.h utils.h
-	make -C plugins/output_http WXP_COMPAT=true all
+	make -C plugins/output_http -DWXP_COMPAT all
 	cp plugins/output_http/output_http.so .
 else
 output_http.so: mjpg_streamer.h utils.h

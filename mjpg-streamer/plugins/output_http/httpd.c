@@ -36,7 +36,7 @@
 #include <netdb.h>
 #include <errno.h>
 #include <limits.h>
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 #include <linux/version.h>
 #include "../../mjpg_streamer.h"
 #include "../../utils.h"
@@ -309,6 +309,7 @@ void send_snapshot(int fd, int input_number)
     struct timeval timestamp;
 
     /* wait for a fresh frame */
+    pthread_mutex_lock(&pglobal->in[input_number].db);
     pthread_cond_wait(&pglobal->in[input_number].db_update, &pglobal->in[input_number].db);
 
     /* read buffer */
@@ -375,6 +376,7 @@ void send_stream(int fd, int input_number)
     while(!pglobal->stop) {
 
         /* wait for fresh frames */
+        pthread_mutex_lock(&pglobal->in[input_number].db);
         pthread_cond_wait(&pglobal->in[input_number].db_update, &pglobal->in[input_number].db);
 
         /* read buffer */
