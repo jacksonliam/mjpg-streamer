@@ -34,10 +34,8 @@
 
 #include "mjpg-proxy.h"
 
-#include "http_utils.h"
+#include "misc.h"
 
-
-int sockfd;
 
 
 #define HEADER 1
@@ -63,21 +61,13 @@ void init_extractor_state(struct extractor_state * state) {
     search_pattern_reset(&state->boundary);
 }
 
-// dumb 4 byte storing to detect double CRLF
-int is_crlf(int bytes) {
-    int result = (((13 << 8) | (10)) & bytes) == ((13 << 8) | (10));
-    return result ;
-}
+void init_mjpg_proxy(struct extractor_state * state){
+state->hostname = strdup("localhost");
+state->port = strdup("8080");
 
-int is_crlfcrlf(int bytes) {
-    int result = is_crlf(bytes) && is_crlf(bytes >> 16);
-    return result;
+init_extractor_state(state);
 
 }
-void push_byte(int * bytes, char byte) {
-    * bytes = ((* bytes) << 8) | byte ;
-}
-
 
 // main method
 // we process all incoming buffer byte per byte and extract binary data from it to state->buffer
@@ -120,33 +110,20 @@ void extract_data(struct extractor_state * state, char * buffer, int length) {
 
 char request [] = "GET /?action=stream HTTP/1.0\r\n\r\n";
 
-void send_request_and_process_response() {
+void send_request_and_process_response(struct extractor_state * state) {
     int recv_length;
     char netbuffer[NETBUFFER_SIZE];
 
-    init_extractor_state(&state);
+    init_extractor_state(state);
     
     // send request
-    send(sockfd, request, sizeof(request), 0);
+    send(state->sockfd, request, sizeof(request), 0);
 
     // and listen for answer until sockerror or THEY stop us 
     // TODO: we must handle EINTR here, it really might occur
-    while ( (recv_length = recv(sockfd, netbuffer, sizeof(netbuffer), 0)) > 0 && !*(state.should_stop))
-        extract_data(&state, netbuffer, recv_length);
+    while ( (recv_length = recv(state->sockfd, netbuffer, sizeof(netbuffer), 0)) > 0 && !*(state->should_stop))
+        extract_data(state, netbuffer, recv_length);
 
-}
-
-
-char * host = "localhost";
-char * port = "8080";
-char * unknown_param = "unknown_param";
-
-char * get_param_value(const char * name){
-  if (strcmp(name, "host") ==0)
-    return host;
-  else if (strcmp(name, "port") == 0)
-    return port;
-  else return unknown_param;
 }
 
 // TODO:this must be reworked to decouple from mjpeg-streamer
@@ -167,7 +144,7 @@ void show_version() {
     printf("Version - %s\n", VERSION);
 }
 
-int parse_cmd_line(int argc, char * argv []) {
+int parse_cmd_line(struct extractor_state * state, int argc, char * argv []) {
     while (TRUE) {
         static struct option long_options [] = {
             {"help", no_argument, 0, 'h'},
@@ -197,10 +174,12 @@ int parse_cmd_line(int argc, char * argv []) {
                 return 1;
                 break;
             case 'H' :
-                host = strdup(optarg);
+                free(state->hostname);
+                state->hostname = strdup(optarg);
                 break;
             case 'p' :
-                port = strdup(optarg);
+                free(state->port);
+                state->port = strdup(optarg);
                 break;
             }
     }
@@ -209,31 +188,30 @@ int parse_cmd_line(int argc, char * argv []) {
 }
 
 // TODO: consider using hints for http
-// TODO: maybe remove explicit exit() call. I don't know how it works in threads
+
 // TODO: consider moving delays to plugin command line arguments
-void connect_and_stream(){
+void connect_and_stream(struct extractor_state * state){
     struct addrinfo * info, * rp;
     int errorcode;
     while (TRUE) {
-        errorcode = getaddrinfo(host, port, NULL, &info);
+        errorcode = getaddrinfo(state->hostname, state->port, NULL, &info);
         if (errorcode) {
             perror(gai_strerror(errorcode));
-            exit(EXIT_FAILURE);
         };
         for (rp = info ; rp != NULL; rp = rp->ai_next) {
-            sockfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
-            if (sockfd <0) {
+            state->sockfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+            if (state->sockfd <0) {
                 perror("Can't allocate socket, will continue probing\n");
                 continue;
             }
 
             DBG("socket value is %d\n", sockfd);
-            if (connect(sockfd, (struct sockaddr *) rp->ai_addr, rp->ai_addrlen)>=0 ) {
+            if (connect(state->sockfd, (struct sockaddr *) rp->ai_addr, rp->ai_addrlen)>=0 ) {
                 DBG("connected to host\n");
                 break;
             }
 
-            close(sockfd);
+            close(state->sockfd);
 
         }
 
@@ -245,14 +223,20 @@ void connect_and_stream(){
         }
         else
         {
-            send_request_and_process_response();
+            send_request_and_process_response(state);
             
             DBG ("Closing socket\n");
-            close (sockfd);
-            if (*state.should_stop)
+            close (state->sockfd);
+            if (*state->should_stop)
               break;
             sleep(1);
         };
     }
 
 }
+
+void close_mjpg_proxy(struct extractor_state * state){
+free(state->hostname);
+free(state->port);
+}
+

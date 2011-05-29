@@ -52,6 +52,8 @@ void worker_cleanup(void *);
 
 #define INPUT_PLUGIN_NAME "HTTP Input plugin"
 
+struct extractor_state  proxy;
+
 /*** plugin interface functions ***/
 
 /******************************************************************************
@@ -76,15 +78,16 @@ int input_init(input_parameter *param, int plugin_no)
     for(i = 0; i < param->argc; i++) {
         DBG("argv[%d]=%s\n", i, param->argv[i]);
     }
+    init_mjpg_proxy( &proxy );
 
     reset_getopt();
-    if (parse_cmd_line(param->argc, param->argv))
+    if (parse_cmd_line(&proxy, param->argc, param->argv))
        return 1;
 
     pglobal = param->global;
 
-    IPRINT("host.............: %s\n", get_param_value("host"));
-    IPRINT("port.............: %s\n", get_param_value("port"));
+    IPRINT("host.............: %s\n", proxy.hostname);
+    IPRINT("port.............: %s\n", proxy.port);
 
     return 0;
 }
@@ -98,7 +101,6 @@ int input_stop(int id)
 {
     DBG("will cancel input thread\n");
     pthread_cancel(worker);
-
     return 0;
 }
 
@@ -126,12 +128,6 @@ int input_run(int id)
 }
 
 
-/******************************************************************************
-Description.: copy a picture from testpictures.h and signal this to all output
-              plugins, afterwards switch to the next frame of the animation.
-Input Value.: arg is not used
-Return Value: NULL
-******************************************************************************/
 void on_image_received(char * data, int length){
         /* copy JPG picture to global buffer */
         pthread_mutex_lock(&pglobal->in[plugin_number].db);
@@ -151,10 +147,9 @@ void *worker_thread(void *arg)
     /* set cleanup handler to cleanup allocated resources */
     pthread_cleanup_push(worker_cleanup, NULL);
     
-    state.should_stop = & pglobal->stop;
-    state.on_image_received = on_image_received;
-    
-    connect_and_stream();
+    proxy.on_image_received = on_image_received;
+    proxy.should_stop =  & pglobal->stop;
+    connect_and_stream(&proxy);
     
     IPRINT("leaving input thread, calling cleanup function now\n");
     pthread_cleanup_pop(1);
@@ -178,7 +173,7 @@ void worker_cleanup(void *arg)
 
     first_run = 0;
     DBG("cleaning up resources allocated by input thread\n");
-
+    close_mjpg_proxy(&proxy);
     if(pglobal->in[plugin_number].buf != NULL) free(pglobal->in[plugin_number].buf);
 }
 

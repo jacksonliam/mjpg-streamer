@@ -16,18 +16,23 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA    #
 #                                                                              #
 *******************************************************************************/
-#include "http_utils.h"
+#include "misc.h"
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netdb.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
+
+// dumb 4 byte storing to detect double CRLF
+int is_crlf(int bytes) {
+    int result = (((13 << 8) | (10)) & bytes) == ((13 << 8) | (10));
+    return result ;
+}
+
+int is_crlfcrlf(int bytes) {
+    int result = is_crlf(bytes) && is_crlf(bytes >> 16);
+    return result;
+
+}
+void push_byte(int * bytes, char byte) {
+    * bytes = ((* bytes) << 8) | byte ;
+}
 
 int min(int a, int b) {
     if (a<b)

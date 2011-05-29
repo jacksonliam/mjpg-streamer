@@ -15,8 +15,8 @@ CFLAGS += -O2 -DLINUX -D_GNU_SOURCE -Wall -shared -fPIC
 #CFLAGS += -DDEBUG
 LFLAGS += -lpthread -ldl
 
-HEADERS = http_utils.h mjpg-proxy.h version.h
-SOURCES = input_http.c http_utils.c  mjpg-proxy.c
+HEADERS = misc.h mjpg-proxy.h version.h
+SOURCES = input_http.c misc.c  mjpg-proxy.c
 FILES =  $(SOURCES) $(HEADERS)
 
 all: input_http.so

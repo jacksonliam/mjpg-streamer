@@ -20,7 +20,7 @@
 #ifndef MJPG_PROXY_H
 #define MJPG_PROXY_H
 
-#include "http_utils.h"
+#include "misc.h"
 
 
 #ifndef DBG
@@ -34,12 +34,17 @@
 #define BUFFER_SIZE 1024 * 100
 
 struct extractor_state {
+    
+    char * port;
+    char * hostname;
+
     // this is current result
     char buffer [BUFFER_SIZE];
     int length;
 
     // this is inner state of a parser
 
+    int sockfd;
     int part;
     int last_four_bytes;
     struct search_pattern contentlength;
@@ -50,13 +55,12 @@ struct extractor_state {
         
 };
 
-extern struct extractor_state state;
+void init_mjpg_proxy(struct extractor_state  * state);
 
-int parse_cmd_line(int argc, char * argv []);
+int parse_cmd_line(struct extractor_state * out_state, int argc, char * argv []);
 
-void connect_and_stream();
+void connect_and_stream(struct extractor_state * state);
 
-char * get_param_value(const char * name);
-
+void close_mjpg_proxy(struct extractor_state * state);
 
 #endif

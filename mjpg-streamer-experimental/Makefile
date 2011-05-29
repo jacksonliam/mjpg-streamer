@@ -43,7 +43,7 @@ PLUGINS += input_file.so
 # PLUGINS += output_mars2020.so
 # PLUGINS += output_rtsp.so
 # PLUGINS += input_ptp2.so # commented out because it depends on libgphoto
-# PLUGINS += input_http.so 
+PLUGINS += input_http.so 
 # PLUGINS += output_viewer.so # commented out because it depends on SDL
 
 # define the names of object files
@@ -119,9 +119,9 @@ input_megatec.so: mjpg_streamer.h utils.h
 	make -C plugins/input_megatec all
 	cp plugins/input_megatec/input_megatec.so .	
 
-#input_http.so: mjpg_streamer.h utils.h
-#	make -C plugins/input_http all
-#	cp plugins/input_http/input_http.so .
+input_http.so: mjpg_streamer.h utils.h
+	make -C plugins/input_http all
+	cp plugins/input_http/input_http.so .
 
 # The viewer plugin requires the SDL library for compilation
 # This is very uncommmon on embedded devices, so it is commented out and will
@@ -143,7 +143,7 @@ clean:
 	make -C plugins/output_viewer $@
 	make -C plugins/output_rtsp $@
 	make -C plugins/output_mars2020 $@
-#	make -C plugins/input_http $@
+	make -C plugins/input_http $@
 	rm -f *.a *.o $(APP_BINARY) core *~ *.so *.lo
 
 # useful to make a backup "make tgz"
