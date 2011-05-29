@@ -1,0 +1,1 @@
+#define VERSION "No version"
