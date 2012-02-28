@@ -244,6 +244,7 @@ void *worker_thread(void *arg)
     struct stat stats;
     DIR *dir = NULL;
     struct dirent *ent;
+    struct timeval timestamp;
 
     if (mode == ExistingFiles) {
         dir = opendir(folder);
@@ -325,7 +326,8 @@ void *worker_thread(void *arg)
 
         /* allocate memory for frame */
         if(pglobal->in[plugin_number].buf != NULL) free(pglobal->in[plugin_number].buf);
-        pglobal->in[plugin_number].buf = malloc(filesize + (1 << 16));
+            pglobal->in[plugin_number].buf = malloc(filesize + (1 << 16));
+
         if(pglobal->in[plugin_number].buf == NULL) {
             fprintf(stderr, "could not allocate memory\n");
             break;
@@ -339,8 +341,9 @@ void *worker_thread(void *arg)
             break;
         }
 
+        gettimeofday(&timestamp, NULL);
+        pglobal->in[plugin_number].timestamp = timestamp;
         DBG("new frame copied (size: %d)\n", pglobal->in[plugin_number].size);
-
         /* signal fresh_frame */
         pthread_cond_broadcast(&pglobal->in[plugin_number].db_update);
         pthread_mutex_unlock(&pglobal->in[plugin_number].db);
