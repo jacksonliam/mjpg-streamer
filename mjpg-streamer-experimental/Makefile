@@ -20,8 +20,8 @@ CFLAGS += $(SVNDEV)
 
 # general compile flags, enable all warnings to make compile more verbose
 CFLAGS += -DLINUX -D_GNU_SOURCE -Wall 
-CFLAGS += -g 
-CFLAGS +=  -DDEBUG
+#CFLAGS += -g 
+#CFLAGS +=  -DDEBUG
 
 # we are using the libraries "libpthread" and "libdl"
 # libpthread is used to run several tasks (virtually) in parallel
@@ -39,6 +39,7 @@ PLUGINS += output_http.so
 PLUGINS += input_testpicture.so
 PLUGINS += output_autofocus.so
 PLUGINS += input_file.so
+# PLUGINS += input_pylon.so
 # PLUGINS += input_megatec.so
 # PLUGINS += output_mars2020.so
 # PLUGINS += output_rtsp.so
@@ -59,7 +60,7 @@ application: $(APP_BINARY)
 plugins: $(PLUGINS)
 
 $(APP_BINARY): mjpg_streamer.c mjpg_streamer.h mjpg_streamer.o utils.c utils.h utils.o
-	$(CC) $(CFLAGS) $(LFLAGS) $(OBJECTS) -o $(APP_BINARY)
+	$(CC) $(CFLAGS) $(OBJECTS) $(LFLAGS) -o $(APP_BINARY)
 	chmod 755 $(APP_BINARY)
 
 output_autofocus.so: mjpg_streamer.h utils.h
@@ -118,6 +119,10 @@ input_ptp2.so: mjpg_streamer.h utils.h
 input_megatec.so: mjpg_streamer.h utils.h
 	make -C plugins/input_megatec all
 	cp plugins/input_megatec/input_megatec.so .	
+	
+input_pylon.so: mjpg_streamer.h utils.h
+	make -C plugins/input_pylon all
+	cp plugins/input_megatec/input_pylon.so .	
 
 input_http.so: mjpg_streamer.h utils.h
 	make -C plugins/input_http all
@@ -144,6 +149,7 @@ clean:
 	make -C plugins/output_rtsp $@
 	make -C plugins/output_mars2020 $@
 	make -C plugins/input_http $@
+#	make -C plugins/input_pylon $@
 	rm -f *.a *.o $(APP_BINARY) core *~ *.so *.lo
 
 # useful to make a backup "make tgz"
