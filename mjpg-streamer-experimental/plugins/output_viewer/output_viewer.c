@@ -277,6 +277,7 @@ void *worker_thread(void *arg)
 
     while(!pglobal->stop) {
         DBG("waiting for fresh frame\n");
+        pthread_mutex_lock(&pglobal->db);
         pthread_cond_wait(&pglobal->db_update, &pglobal->db);
 
         /* read buffer */

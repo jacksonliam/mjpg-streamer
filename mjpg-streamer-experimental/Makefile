@@ -147,9 +147,8 @@ clean:
 	make -C plugins/output_autofocus $@
 	make -C plugins/output_viewer $@
 	make -C plugins/output_rtsp $@
-	make -C plugins/output_mars2020 $@
+#	make -C plugins/output_mars2020 $@
 	make -C plugins/input_http $@
-#	make -C plugins/input_pylon $@
 	rm -f *.a *.o $(APP_BINARY) core *~ *.so *.lo
 
 # useful to make a backup "make tgz"

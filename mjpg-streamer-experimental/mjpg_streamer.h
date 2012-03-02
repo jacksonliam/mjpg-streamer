@@ -28,6 +28,7 @@
 #define MAX_INPUT_PLUGINS 10
 #define MAX_OUTPUT_PLUGINS 10
 #define MAX_PLUGIN_ARGUMENTS 32
+
 #include <linux/types.h>          /* for videodev2.h */
 #include <linux/videodev2.h>
 

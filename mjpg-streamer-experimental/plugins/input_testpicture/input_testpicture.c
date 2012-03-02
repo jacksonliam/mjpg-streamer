@@ -23,7 +23,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <linux/videodev.h>
 #include <sys/ioctl.h>
 #include <errno.h>
 #include <signal.h>
@@ -34,6 +33,9 @@
 #include <getopt.h>
 #include <pthread.h>
 #include <syslog.h>
+
+#include <linux/types.h>          /* for videodev2.h */
+#include <linux/videodev2.h>
 
 #include "../../mjpg_streamer.h"
 #include "../../utils.h"

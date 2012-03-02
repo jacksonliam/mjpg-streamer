@@ -23,7 +23,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <linux/videodev.h>
 #include <sys/ioctl.h>
 #include <errno.h>
 #include <signal.h>
@@ -36,8 +35,11 @@
 #include <fcntl.h>
 #include <time.h>
 #include <syslog.h>
-
 #include <dirent.h>
+
+#include <linux/types.h>          /* for videodev2.h */
+#include <linux/videodev2.h>
+
 #include "output_file.h"
 
 #include "../../utils.h"
@@ -68,11 +70,11 @@ void help(void)
             " [-f | --folder ]........: folder to save pictures\n" \
             " [-m | --mjpeg ].........: save the frames to an mjpg file \n" \
             " [-d | --delay ].........: delay after saving pictures in ms\n" \
-            " The following arguments are takes effect only if the current mode is not MJPG  "
+            " [-i | --input ].........: read frames from the specified input plugin\n" \
+            " The following arguments are takes effect only if the current mode is not MJPG\n" \
             " [-s | --size ]..........: size of ring buffer (max number of pictures to hold)\n" \
             " [-e | --exceed ]........: allow ringbuffer to exceed limit by this amount\n" \
-            " [-c | --command ].......: execute command after saving picture\n\n" \
-            " [-i | --input ].........: read frames from the specified input plugin\n\n" \
+            " [-c | --command ].......: execute command after saving picture\n"\
             " ---------------------------------------------------------------\n");
 }
 
@@ -214,6 +216,8 @@ void *worker_thread(void *arg)
 
     while(ok >= 0 && !pglobal->stop) {
         DBG("waiting for fresh frame\n");
+
+        pthread_mutex_lock(&pglobal->in[input_number].db);
         pthread_cond_wait(&pglobal->in[input_number].db_update, &pglobal->in[input_number].db);
 
         /* read buffer */

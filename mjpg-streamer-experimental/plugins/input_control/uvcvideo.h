@@ -26,7 +26,8 @@
 #define _USB_VIDEO_H_
 
 #include <linux/kernel.h>
-#include <linux/videodev.h>
+#include <linux/types.h>          /* for videodev2.h */
+#include <linux/videodev2.h>
 
 /* Compatibility */
 #include "uvc_compat.h"

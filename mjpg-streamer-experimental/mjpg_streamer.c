@@ -24,7 +24,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <linux/videodev.h>
 #include <sys/ioctl.h>
 #include <errno.h>
 #include <signal.h>
@@ -37,6 +36,8 @@
 #include <dlfcn.h>
 #include <fcntl.h>
 #include <syslog.h>
+#include <linux/types.h>          /* for videodev2.h */
+#include <linux/videodev2.h>
 
 #include "utils.h"
 #include "mjpg_streamer.h"
@@ -261,7 +262,7 @@ int main(int argc, char *argv[])
 
         default:
             help(argv[0]);
-            return 0;
+            exit(EXIT_FAILURE);
         }
     }
 
@@ -399,7 +400,7 @@ int main(int argc, char *argv[])
         if(global.out[i].init(&global.out[i].param, i)) {
             LOG("output_init() return value signals to exit\n");
             closelog();
-            exit(0);
+            exit(EXIT_FAILURE);
         }
     }
 

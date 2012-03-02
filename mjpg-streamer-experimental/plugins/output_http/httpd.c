@@ -36,11 +36,16 @@
 #include <netdb.h>
 #include <errno.h>
 #include <limits.h>
-#include <linux/videodev.h>
+
 #include <linux/version.h>
+#include <linux/types.h>          /* for videodev2.h */
+#include <linux/videodev2.h>
+
 #include "../../mjpg_streamer.h"
 #include "../../utils.h"
+
 #include "httpd.h"
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32)
 #define V4L2_CTRL_TYPE_STRING_SUPPORTED
 #endif
@@ -312,6 +317,7 @@ void send_snapshot(int fd, int input_number)
     struct timeval timestamp;
 
     /* wait for a fresh frame */
+    pthread_mutex_lock(&pglobal->in[input_number].db);
     pthread_cond_wait(&pglobal->in[input_number].db_update, &pglobal->in[input_number].db);
 
     /* read buffer */
@@ -378,6 +384,7 @@ void send_stream(int fd, int input_number)
     while(!pglobal->stop) {
 
         /* wait for fresh frames */
+        pthread_mutex_lock(&pglobal->in[input_number].db);
         pthread_cond_wait(&pglobal->in[input_number].db_update, &pglobal->in[input_number].db);
 
         /* read buffer */
@@ -477,6 +484,7 @@ void send_stream_wxp(int fd, int input_number)
     while(!pglobal->stop) {
 
         /* wait for fresh frames */
+        pthread_mutex_lock(&pglobal->in[input_number].db);
         pthread_cond_wait(&pglobal->in[input_number].db_update, &pglobal->in[input_number].db);
 
         /* read buffer */
@@ -843,7 +851,7 @@ void *client_thread(void *arg)
 {
     int cnt;
     char query_suffixed = 0;
-    int plugin_number = 0;
+    int input_number = 0;
     char buffer[BUFFER_SIZE] = {0}, *pb = buffer;
     iobuffer iobuf;
     request req;
@@ -993,13 +1001,13 @@ void *client_thread(void *arg)
             char numStr[3];
             memset(numStr, 0, 3);
             strncpy(numStr, sch + 1, 1);
-            plugin_number = atoi(numStr);
+            input_number = atoi(numStr);
 
             if ((req.type == A_SNAPSHOT_WXP) || (req.type == A_STREAM_WXP)) { // webcamxp adds offset to the camera number
-                plugin_number--;
+                input_number--;
             }
         }
-        DBG("plugin_no: %d\n", plugin_number);
+        DBG("plugin_no: %d\n", input_number);
     }
 
     /*
@@ -1042,14 +1050,14 @@ void *client_thread(void *arg)
     /* now it's time to answer */
     if (query_suffixed) {
         if (req.type == A_OUTPUT_JSON) {
-            if(!(plugin_number < pglobal->outcnt)) {
-                DBG("Output number: %d out of range (valid: 0..%d)\n", plugin_number, pglobal->outcnt-1);
+            if(!(input_number < pglobal->outcnt)) {
+                DBG("Output number: %d out of range (valid: 0..%d)\n", input_number, pglobal->outcnt-1);
                 send_error(lcfd.fd, 404, "Invalid output plugin number");
                 req.type = A_UNKNOWN;
             }
         } else {
-            if(!(plugin_number < pglobal->incnt)) {
-                DBG("Input number: %d out of range (valid: 0..%d)\n", plugin_number, pglobal->incnt-1);
+            if(!(input_number < pglobal->incnt)) {
+                DBG("Input number: %d out of range (valid: 0..%d)\n", input_number, pglobal->incnt-1);
                 send_error(lcfd.fd, 404, "Invalid input plugin number");
                 req.type = A_UNKNOWN;
             }
@@ -1058,17 +1066,17 @@ void *client_thread(void *arg)
     switch(req.type) {
     case A_SNAPSHOT_WXP:
     case A_SNAPSHOT:
-        DBG("Request for snapshot from input: %d\n", plugin_number);
-        send_snapshot(lcfd.fd, plugin_number);
+        DBG("Request for snapshot from input: %d\n", input_number);
+        send_snapshot(lcfd.fd, input_number);
         break;
     case A_STREAM:
-        DBG("Request for stream from input: %d\n", plugin_number);
-        send_stream(lcfd.fd, plugin_number);
+        DBG("Request for stream from input: %d\n", input_number);
+        send_stream(lcfd.fd, input_number);
         break;
 #ifdef WXP_COMPAT
     case A_STREAM_WXP:
-        DBG("Request for WXP compat stream from input: %d\n", plugin_number);
-        send_stream_wxp(lcfd.fd, plugin_number);
+        DBG("Request for WXP compat stream from input: %d\n", input_number);
+        send_stream_wxp(lcfd.fd, input_number);
         break;
 #endif
     case A_COMMAND:
@@ -1080,11 +1088,11 @@ void *client_thread(void *arg)
         break;
     case A_INPUT_JSON:
         DBG("Request for the Input plugin descriptor JSON file\n");
-        send_Input_JSON(lcfd.fd, plugin_number);
+        send_Input_JSON(lcfd.fd, input_number);
         break;
     case A_OUTPUT_JSON:
         DBG("Request for the Output plugin descriptor JSON file\n");
-        send_Output_JSON(lcfd.fd, plugin_number);
+        send_Output_JSON(lcfd.fd, input_number);
         break;
     case A_PROGRAM_JSON:
         DBG("Request for the program descriptor JSON file\n");
@@ -1138,7 +1146,7 @@ void *client_thread(void *arg)
             send_error(lcfd.fd, 404, "FILE output plugin not loaded, taking snapshot not possible");
         } else {
             if (ret == 0) {
-                send_snapshot(lcfd.fd, plugin_number);
+                send_snapshot(lcfd.fd, input_number);
             } else {
                 send_error(lcfd.fd, 404, "Taking snapshot failed!");
             }
@@ -1328,7 +1336,7 @@ Description.: Send a JSON file which is contains information about the input plu
 Input Value.: fildescriptor fd to send the answer to
 Return Value: -
 ******************************************************************************/
-void send_Input_JSON(int fd, int plugin_number)
+void send_Input_JSON(int fd, int input_number)
 {
     char buffer[BUFFER_SIZE*16] = {0}; // FIXME do reallocation if the buffer size is small
     int i;
@@ -1337,21 +1345,21 @@ void send_Input_JSON(int fd, int plugin_number)
             STD_HEADER \
             "\r\n", "application/x-javascript");
 
-    DBG("Serving the input plugin %d descriptor JSON file\n", plugin_number);
+    DBG("Serving the input plugin %d descriptor JSON file\n", input_number);
 
 
     sprintf(buffer + strlen(buffer),
             "{\n"
             "\"controls\": [\n");
-    if(pglobal->in[plugin_number].in_parameters != NULL) {
-        for(i = 0; i < pglobal->in[plugin_number].parametercount; i++) {
+    if(pglobal->in[input_number].in_parameters != NULL) {
+        for(i = 0; i < pglobal->in[input_number].parametercount; i++) {
             char *menuString = NULL;
-            if(pglobal->in[plugin_number].in_parameters[i].ctrl.type == V4L2_CTRL_TYPE_MENU) {
-                if(pglobal->in[plugin_number].in_parameters[i].menuitems != NULL) {
+            if(pglobal->in[input_number].in_parameters[i].ctrl.type == V4L2_CTRL_TYPE_MENU) {
+                if(pglobal->in[input_number].in_parameters[i].menuitems != NULL) {
                     int j, k = 1;
-                    for(j = pglobal->in[plugin_number].in_parameters[i].ctrl.minimum; j <= pglobal->in[plugin_number].in_parameters[i].ctrl.maximum; j++) {
+                    for(j = pglobal->in[input_number].in_parameters[i].ctrl.minimum; j <= pglobal->in[input_number].in_parameters[i].ctrl.maximum; j++) {
                         int prevSize = 0;
-                        int itemLength = strlen((char*)&pglobal->in[plugin_number].in_parameters[i].menuitems[j].name)  + strlen("\"\": \"\"");
+                        int itemLength = strlen((char*)&pglobal->in[input_number].in_parameters[i].menuitems[j].name)  + strlen("\"\": \"\"");
                         if (menuString == NULL) {
                             menuString = calloc(itemLength + 5, sizeof(char));
                         } else {
@@ -1364,10 +1372,10 @@ void send_Input_JSON(int fd, int plugin_number)
                         }
                         prevSize = strlen(menuString);
 
-                        if(j != pglobal->in[plugin_number].in_parameters[i].ctrl.maximum) {
-                            sprintf(menuString + prevSize, "\"%d\": \"%s\", ", j , (char*)&pglobal->in[plugin_number].in_parameters[i].menuitems[j].name);
+                        if(j != pglobal->in[input_number].in_parameters[i].ctrl.maximum) {
+                            sprintf(menuString + prevSize, "\"%d\": \"%s\", ", j , (char*)&pglobal->in[input_number].in_parameters[i].menuitems[j].name);
                         } else {
-                            sprintf(menuString + prevSize, "\"%d\": \"%s\"", j , (char*)&pglobal->in[plugin_number].in_parameters[i].menuitems[j].name);
+                            sprintf(menuString + prevSize, "\"%d\": \"%s\"", j , (char*)&pglobal->in[input_number].in_parameters[i].menuitems[j].name);
                         }
                         k++;
                     }
@@ -1387,20 +1395,20 @@ void send_Input_JSON(int fd, int plugin_number)
                     "\"dest\": \"0\",\n"
                     "\"flags\": \"%d\",\n"
                     "\"group\": \"%d\"",
-                    pglobal->in[plugin_number].in_parameters[i].ctrl.name,
-                    pglobal->in[plugin_number].in_parameters[i].ctrl.id,
-                    pglobal->in[plugin_number].in_parameters[i].ctrl.type,
-                    pglobal->in[plugin_number].in_parameters[i].ctrl.minimum,
-                    pglobal->in[plugin_number].in_parameters[i].ctrl.maximum,
-                    pglobal->in[plugin_number].in_parameters[i].ctrl.step,
-                    pglobal->in[plugin_number].in_parameters[i].ctrl.default_value,
-                    pglobal->in[plugin_number].in_parameters[i].value,
+                    pglobal->in[input_number].in_parameters[i].ctrl.name,
+                    pglobal->in[input_number].in_parameters[i].ctrl.id,
+                    pglobal->in[input_number].in_parameters[i].ctrl.type,
+                    pglobal->in[input_number].in_parameters[i].ctrl.minimum,
+                    pglobal->in[input_number].in_parameters[i].ctrl.maximum,
+                    pglobal->in[input_number].in_parameters[i].ctrl.step,
+                    pglobal->in[input_number].in_parameters[i].ctrl.default_value,
+                    pglobal->in[input_number].in_parameters[i].value,
                     // 0 is the code of the input plugin
-                    pglobal->in[plugin_number].in_parameters[i].ctrl.flags,
-                    pglobal->in[plugin_number].in_parameters[i].group
+                    pglobal->in[input_number].in_parameters[i].ctrl.flags,
+                    pglobal->in[input_number].in_parameters[i].group
                    );
 
-            if(pglobal->in[plugin_number].in_parameters[i].ctrl.type == V4L2_CTRL_TYPE_MENU) {
+            if(pglobal->in[input_number].in_parameters[i].ctrl.type == V4L2_CTRL_TYPE_MENU) {
                 sprintf(buffer + strlen(buffer),
                         ",\n"
                         "\"menu\": {%s}\n"
@@ -1412,7 +1420,7 @@ void send_Input_JSON(int fd, int plugin_number)
                         "}");
             }
 
-            if(i != (pglobal->in[plugin_number].parametercount - 1)) {
+            if(i != (pglobal->in[input_number].parametercount - 1)) {
                 sprintf(buffer + strlen(buffer), ",\n");
             }
             free(menuString);
@@ -1427,23 +1435,23 @@ void send_Input_JSON(int fd, int plugin_number)
     sprintf(buffer + strlen(buffer),
             //"{\n"
             "\"formats\": [\n");
-    if(pglobal->in[plugin_number].in_formats != NULL) {
-        for(i = 0; i < pglobal->in[plugin_number].formatCount; i++) {
+    if(pglobal->in[input_number].in_formats != NULL) {
+        for(i = 0; i < pglobal->in[input_number].formatCount; i++) {
             char *resolutionsString = NULL;
             int resolutionsStringLength = 0;
             int j = 0;
-            for(j = 0; j < pglobal->in[plugin_number].in_formats[i].resolutionCount; j++) {
+            for(j = 0; j < pglobal->in[input_number].in_formats[i].resolutionCount; j++) {
                 char buffer_num[6];
                 memset(buffer_num, '\0', 6);
                 // JSON format example:
                 // {"0": "320x240", "1": "640x480", "2": "960x720"}
                 sprintf(buffer_num, "%d", j);
                 resolutionsStringLength += strlen(buffer_num);
-                sprintf(buffer_num, "%d", pglobal->in[plugin_number].in_formats[i].supportedResolutions[j].width);
+                sprintf(buffer_num, "%d", pglobal->in[input_number].in_formats[i].supportedResolutions[j].width);
                 resolutionsStringLength += strlen(buffer_num);
-                sprintf(buffer_num, "%d", pglobal->in[plugin_number].in_formats[i].supportedResolutions[j].height);
+                sprintf(buffer_num, "%d", pglobal->in[input_number].in_formats[i].supportedResolutions[j].height);
                 resolutionsStringLength += strlen(buffer_num);
-                if(j != (pglobal->in[plugin_number].in_formats[i].resolutionCount - 1)) {
+                if(j != (pglobal->in[input_number].in_formats[i].resolutionCount - 1)) {
                     resolutionsStringLength += (strlen("\"\": \"x\", ") + 5);
                     if (resolutionsString == NULL)
                         resolutionsString = calloc(resolutionsStringLength, sizeof(char*));
@@ -1457,8 +1465,8 @@ void send_Input_JSON(int fd, int plugin_number)
                     sprintf(resolutionsString + strlen(resolutionsString),
                             "\"%d\": \"%dx%d\", ",
                             j,
-                            pglobal->in[plugin_number].in_formats[i].supportedResolutions[j].width,
-                            pglobal->in[plugin_number].in_formats[i].supportedResolutions[j].height);
+                            pglobal->in[input_number].in_formats[i].supportedResolutions[j].width,
+                            pglobal->in[input_number].in_formats[i].supportedResolutions[j].height);
                 } else {
                     resolutionsStringLength += (strlen("\"\": \"x\"")+5);
                     if (resolutionsString == NULL)
@@ -1472,8 +1480,8 @@ void send_Input_JSON(int fd, int plugin_number)
                     sprintf(resolutionsString + strlen(resolutionsString),
                             "\"%d\": \"%dx%d\"",
                             j,
-                            pglobal->in[plugin_number].in_formats[i].supportedResolutions[j].width,
-                            pglobal->in[plugin_number].in_formats[i].supportedResolutions[j].height);
+                            pglobal->in[input_number].in_formats[i].supportedResolutions[j].width,
+                            pglobal->in[input_number].in_formats[i].supportedResolutions[j].height);
                 }
             }
 
@@ -1490,26 +1498,26 @@ void send_Input_JSON(int fd, int plugin_number)
                     "\"current\": \"%s\",\n"
                     "\"resolutions\": {%s}\n"
                     ,
-                    pglobal->in[plugin_number].in_formats[i].format.index,
-                    pglobal->in[plugin_number].in_formats[i].format.description,
+                    pglobal->in[input_number].in_formats[i].format.index,
+                    pglobal->in[input_number].in_formats[i].format.description,
 #ifdef V4L2_FMT_FLAG_COMPRESSED
-                    pglobal->in[plugin_number].in_formats[i].format.flags & V4L2_FMT_FLAG_COMPRESSED ? "true" : "false",
+                    pglobal->in[input_number].in_formats[i].format.flags & V4L2_FMT_FLAG_COMPRESSED ? "true" : "false",
 #endif
 #ifdef V4L2_FMT_FLAG_EMULATED
-                    pglobal->in[plugin_number].in_formats[i].format.flags & V4L2_FMT_FLAG_EMULATED ? "true" : "false",
+                    pglobal->in[input_number].in_formats[i].format.flags & V4L2_FMT_FLAG_EMULATED ? "true" : "false",
 #endif
-                    pglobal->in[plugin_number].in_formats[i].currentResolution != -1 ? "true" : "false",
+                    pglobal->in[input_number].in_formats[i].currentResolution != -1 ? "true" : "false",
                     resolutionsString
                    );
 
-            if(pglobal->in[plugin_number].in_formats[i].currentResolution != -1) {
+            if(pglobal->in[input_number].in_formats[i].currentResolution != -1) {
                 sprintf(buffer + strlen(buffer),
                         ",\n\"currentResolution\": \"%d\"\n",
-                        pglobal->in[plugin_number].in_formats[i].currentResolution
+                        pglobal->in[input_number].in_formats[i].currentResolution
                        );
             }
 
-            if(i != (pglobal->in[plugin_number].formatCount - 1)) {
+            if(i != (pglobal->in[input_number].formatCount - 1)) {
                 sprintf(buffer + strlen(buffer), "},\n");
             } else {
                 sprintf(buffer + strlen(buffer), "}\n");
@@ -1607,7 +1615,7 @@ Description.: Send a JSON file which is contains information about the output pl
 Input Value.: fildescriptor fd to send the answer to
 Return Value: -
 ******************************************************************************/
-void send_Output_JSON(int fd, int plugin_number)
+void send_Output_JSON(int fd, int input_number)
 {
     char buffer[BUFFER_SIZE*16] = {0}; // FIXME do reallocation if the buffer size is small
     int i;
@@ -1616,21 +1624,21 @@ void send_Output_JSON(int fd, int plugin_number)
             STD_HEADER \
             "\r\n", "application/x-javascript");
 
-    DBG("Serving the output plugin %d descriptor JSON file\n", plugin_number);
+    DBG("Serving the output plugin %d descriptor JSON file\n", input_number);
 
 
     sprintf(buffer + strlen(buffer),
             "{\n"
             "\"controls\": [\n");
-    if(pglobal->out[plugin_number].out_parameters != NULL) {
-        for(i = 0; i < pglobal->out[plugin_number].parametercount; i++) {
+    if(pglobal->out[input_number].out_parameters != NULL) {
+        for(i = 0; i < pglobal->out[input_number].parametercount; i++) {
             char *menuString = calloc(0, 0);
-            if(pglobal->out[plugin_number].out_parameters[i].ctrl.type == V4L2_CTRL_TYPE_MENU) {
-                if(pglobal->out[plugin_number].out_parameters[i].menuitems != NULL) {
+            if(pglobal->out[input_number].out_parameters[i].ctrl.type == V4L2_CTRL_TYPE_MENU) {
+                if(pglobal->out[input_number].out_parameters[i].menuitems != NULL) {
                     int j, k = 1;
-                    for(j = pglobal->out[plugin_number].out_parameters[i].ctrl.minimum; j <= pglobal->out[plugin_number].out_parameters[i].ctrl.maximum; j++) {
+                    for(j = pglobal->out[input_number].out_parameters[i].ctrl.minimum; j <= pglobal->out[input_number].out_parameters[i].ctrl.maximum; j++) {
                         int prevSize = strlen(menuString);
-                        int itemLength = strlen((char*)&pglobal->out[plugin_number].out_parameters[i].menuitems[j].name)  + strlen("\"\": \"\"");
+                        int itemLength = strlen((char*)&pglobal->out[input_number].out_parameters[i].menuitems[j].name)  + strlen("\"\": \"\"");
                         if (menuString == NULL) {
                             menuString = calloc(itemLength, sizeof(char));
                         } else {
@@ -1642,10 +1650,10 @@ void send_Output_JSON(int fd, int plugin_number)
                             return;
                         }
 
-                        if(j != pglobal->out[plugin_number].out_parameters[i].ctrl.maximum) {
-                            sprintf(menuString + prevSize, "\"%d\": \"%s\", ", j , (char*)&pglobal->out[plugin_number].out_parameters[i].menuitems[j].name);
+                        if(j != pglobal->out[input_number].out_parameters[i].ctrl.maximum) {
+                            sprintf(menuString + prevSize, "\"%d\": \"%s\", ", j , (char*)&pglobal->out[input_number].out_parameters[i].menuitems[j].name);
                         } else {
-                            sprintf(menuString + prevSize, "\"%d\": \"%s\"", j , (char*)&pglobal->out[plugin_number].out_parameters[i].menuitems[j].name);
+                            sprintf(menuString + prevSize, "\"%d\": \"%s\"", j , (char*)&pglobal->out[input_number].out_parameters[i].menuitems[j].name);
                         }
                         k++;
                     }
@@ -1665,20 +1673,20 @@ void send_Output_JSON(int fd, int plugin_number)
                     "\"dest\": \"1\",\n"
                     "\"flags\": \"%d\",\n"
                     "\"group\": \"%d\"",
-                    pglobal->out[plugin_number].out_parameters[i].ctrl.name,
-                    pglobal->out[plugin_number].out_parameters[i].ctrl.id,
-                    pglobal->out[plugin_number].out_parameters[i].ctrl.type,
-                    pglobal->out[plugin_number].out_parameters[i].ctrl.minimum,
-                    pglobal->out[plugin_number].out_parameters[i].ctrl.maximum,
-                    pglobal->out[plugin_number].out_parameters[i].ctrl.step,
-                    pglobal->out[plugin_number].out_parameters[i].ctrl.default_value,
-                    pglobal->out[plugin_number].out_parameters[i].value,
+                    pglobal->out[input_number].out_parameters[i].ctrl.name,
+                    pglobal->out[input_number].out_parameters[i].ctrl.id,
+                    pglobal->out[input_number].out_parameters[i].ctrl.type,
+                    pglobal->out[input_number].out_parameters[i].ctrl.minimum,
+                    pglobal->out[input_number].out_parameters[i].ctrl.maximum,
+                    pglobal->out[input_number].out_parameters[i].ctrl.step,
+                    pglobal->out[input_number].out_parameters[i].ctrl.default_value,
+                    pglobal->out[input_number].out_parameters[i].value,
                     // 1 is the code of the output plugin
-                    pglobal->out[plugin_number].out_parameters[i].ctrl.flags,
-                    pglobal->out[plugin_number].out_parameters[i].group
+                    pglobal->out[input_number].out_parameters[i].ctrl.flags,
+                    pglobal->out[input_number].out_parameters[i].group
                    );
 
-            if(pglobal->out[plugin_number].out_parameters[i].ctrl.type == V4L2_CTRL_TYPE_MENU) {
+            if(pglobal->out[input_number].out_parameters[i].ctrl.type == V4L2_CTRL_TYPE_MENU) {
                 sprintf(buffer + strlen(buffer),
                         ",\n"
                         "\"menu\": {%s}\n"
@@ -1690,13 +1698,13 @@ void send_Output_JSON(int fd, int plugin_number)
                         "}");
             }
 
-            if(i != (pglobal->out[plugin_number].parametercount - 1)) {
+            if(i != (pglobal->out[input_number].parametercount - 1)) {
                 sprintf(buffer + strlen(buffer), ",\n");
             }
             free(menuString);
         }
     } else {
-        DBG("The output plugin %d has no paramters\n", plugin_number);
+        DBG("The output plugin %d has no paramters\n", input_number);
     }
     sprintf(buffer + strlen(buffer),
             "\n]\n"

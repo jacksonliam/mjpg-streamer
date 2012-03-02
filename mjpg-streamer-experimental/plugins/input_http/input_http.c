@@ -24,7 +24,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 #include <sys/ioctl.h>
 #include <errno.h>
 #include <signal.h>
@@ -146,11 +146,11 @@ void *worker_thread(void *arg)
 
     /* set cleanup handler to cleanup allocated resources */
     pthread_cleanup_push(worker_cleanup, NULL);
-    
+
     proxy.on_image_received = on_image_received;
     proxy.should_stop =  & pglobal->stop;
     connect_and_stream(&proxy);
-    
+
     IPRINT("leaving input thread, calling cleanup function now\n");
     pthread_cleanup_pop(1);
 

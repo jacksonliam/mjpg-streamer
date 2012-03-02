@@ -26,6 +26,8 @@
 #include <stdio.h>
 #include <jpeglib.h>
 #include <stdlib.h>
+
+#include <linux/types.h>          /* for videodev2.h */
 #include <linux/videodev2.h>
 
 #include "v4l2uvc.h"
@@ -204,10 +206,16 @@ int compress_image_to_jpeg(struct vdIn *vd, unsigned char *buffer, int size, int
             unsigned char *ptr = line_buffer;
 
             for(x = 0; x < vd->width; x++) {
+                /*
+                unsigned int tb = ((unsigned char)raw[i+1] << 8) + (unsigned char)raw[i];
+                r =  ((unsigned char)(raw[i+1]) & 248);
+                g = (unsigned char)(( tb & 2016) >> 3);
+                b =  ((unsigned char)raw[i] & 31) * 8;
+                */
                 unsigned int twoByte = (yuyv[1] << 8) + yuyv[0];
-                *(ptr++) = ((twoByte & 0b1111100000000000) >> 8);
-                *(ptr++) = (twoByte & 0b0000011111100000) >> 3;
-                *(ptr++) = ((twoByte & 0b0000000000011111) << 3);
+                *(ptr++) = (yuyv[1] & 248);
+                *(ptr++) = (unsigned char)((twoByte & 2016) >> 3);
+                *(ptr++) = ((yuyv[0] & 31) * 8);
                 yuyv += 2;
             }
 

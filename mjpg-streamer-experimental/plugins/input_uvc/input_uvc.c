@@ -27,7 +27,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <linux/videodev2.h>
 #include <sys/ioctl.h>
 #include <errno.h>
 #include <signal.h>
@@ -38,6 +37,9 @@
 #include <getopt.h>
 #include <pthread.h>
 #include <syslog.h>
+
+#include <linux/types.h>          /* for videodev2.h */
+#include <linux/videodev2.h>
 
 #include "../../utils.h"
 //#include "../../mjpg_streamer.h"
@@ -93,7 +95,8 @@ Return Value: 0 if everything is fine
 int input_init(input_parameter *param, int id)
 {
     char *dev = "/dev/video0", *s;
-    int width = 640, height = 480, fps = 5, format = V4L2_PIX_FMT_MJPEG, i;
+    int width = 640, height = 480, fps = -1, format = V4L2_PIX_FMT_MJPEG, i;
+
     /* initialize the mutes variable */
     if(pthread_mutex_init(&cams[id].controls_mutex, NULL) != 0) {
         IPRINT("could not initialize mutex variable\n");
@@ -269,11 +272,11 @@ int input_init(input_parameter *param, int id)
     IPRINT("Frames Per Second.: %i\n", fps);
     char *fmtString = NULL;
     switch (format) {
-        case V4L2_PIX_FMT_YUYV:
-            fmtString = "YUYV";
-            break;
         case V4L2_PIX_FMT_MJPEG:
             fmtString = "JPEG";
+            break;
+        case V4L2_PIX_FMT_YUYV:
+            fmtString = "YUYV";
             break;
         case V4L2_PIX_FMT_RGB565:
             fmtString = "RGB565";
@@ -416,6 +419,21 @@ void *cam_thread(void *arg)
             continue;
         }
 
+        // use software frame dropping on low fps
+        if (pcontext->videoIn->soft_framedrop == 1) {
+            unsigned long last = pglobal->in[pcontext->id].timestamp.tv_sec * 1000 +
+                                (pglobal->in[pcontext->id].timestamp.tv_usec/1000); // convert to ms
+            unsigned long current = pcontext->videoIn->buf.timestamp.tv_sec * 1000 +
+                                    pcontext->videoIn->buf.timestamp.tv_usec/1000; // convert to ms
+
+            // if the requested time did not esplashed skip the frame
+            if ((current - last) < pcontext->videoIn->frame_period_time) {
+                DBG("Last frame taken %d ms ago so drop it\n", (current - last));
+                continue;
+            }
+            DBG("Lagg: %d\n", (current - last) - pcontext->videoIn->frame_period_time);
+        }
+
         /* copy JPG picture to global buffer */
         pthread_mutex_lock(&pglobal->in[pcontext->id].db);
 
@@ -447,15 +465,6 @@ void *cam_thread(void *arg)
         /* signal fresh_frame */
         pthread_cond_broadcast(&pglobal->in[pcontext->id].db_update);
         pthread_mutex_unlock(&pglobal->in[pcontext->id].db);
-
-
-        /* only use usleep if the fps is below 5, otherwise the overhead is too long */
-        if(pcontext->videoIn->fps < 5) {
-            DBG("waiting for next frame for %d us\n", 1000 * 1000 / pcontext->videoIn->fps);
-            usleep(1000 * 1000 / pcontext->videoIn->fps);
-        } else {
-            DBG("waiting for next frame\n");
-        }
     }
 
     DBG("leaving input thread, calling cleanup function now\n");

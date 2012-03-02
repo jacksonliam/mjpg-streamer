@@ -78,6 +78,7 @@ int init_videoIn(struct vdIn *vd, char *device, int width,
     vd->fps = fps;
     vd->formatIn = format;
     vd->grabmethod = grabmethod;
+    vd->soft_framedrop = 0;
     if(init_v4l2(vd) < 0) {
         fprintf(stderr, " Init v4L2 failed !! exit fatal \n");
         goto error;;
@@ -271,7 +272,7 @@ static int init_v4l2(struct vdIn *vd)
          */
         if(vd->formatIn != vd->fmt.fmt.pix.pixelformat) {
             if(vd->formatIn == V4L2_PIX_FMT_MJPEG) {
-                fprintf(stderr, "The inpout device does not supports MJPEG mode\n"
+                fprintf(stderr, "The input device does not supports MJPEG mode\n"
                                 "You may also try the YUV mode (-yuv option), \n"
                                 "or the you can set another supported formats using the -fourcc argument."
                                 "Note: streaming using uncompressed formats will require much more CPU power on your server\n");
@@ -295,9 +296,49 @@ static int init_v4l2(struct vdIn *vd)
     setfps = (struct v4l2_streamparm *) calloc(1, sizeof(struct v4l2_streamparm));
     memset(setfps, 0, sizeof(struct v4l2_streamparm));
     setfps->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    setfps->parm.capture.timeperframe.numerator = 1;
-    setfps->parm.capture.timeperframe.denominator = vd->fps;
-    ret = xioctl(vd->fd, VIDIOC_S_PARM, setfps);
+
+    /*
+    * first query streaming parameters to determine that the FPS selection is supported
+    */
+    ret = xioctl(vd->fd, VIDIOC_G_PARM, setfps);
+    if (ret == 0) {
+        if (setfps->parm.capture.capability & V4L2_CAP_TIMEPERFRAME) {
+            memset(setfps, 0, sizeof(struct v4l2_streamparm));
+            setfps->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+            setfps->parm.capture.timeperframe.numerator = 1;
+            setfps->parm.capture.timeperframe.denominator = vd->fps==-1?255:vd->fps; // if no default fps set set it to maximum
+
+            ret = xioctl(vd->fd, VIDIOC_S_PARM, setfps);
+            if (ret) {
+                perror("Unable to set the FPS\n");
+            } else {
+                if (vd->fps != setfps->parm.capture.timeperframe.denominator) {
+                    IPRINT("FPS coerced ......: from %d to %d\n", vd->fps, setfps->parm.capture.timeperframe.denominator);
+                }
+
+                // if we selecting lower FPS than the allowed then we will use software framedropping
+                if (vd->fps < setfps->parm.capture.timeperframe.denominator) {
+                    vd->soft_framedrop = 1;
+                    vd->frame_period_time = 1000/vd->fps; // calcualate frame period time in ms
+                    IPRINT("Frame period time ......: %ld ms\n", vd->frame_period_time);
+
+                    // set FPS to maximum in order to minimize the lagging
+                    memset(setfps, 0, sizeof(struct v4l2_streamparm));
+                    setfps->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+                    setfps->parm.capture.timeperframe.numerator = 1;
+                    setfps->parm.capture.timeperframe.denominator = 255;
+                    ret = xioctl(vd->fd, VIDIOC_S_PARM, setfps);
+                    if (ret) {
+                        perror("Unable to set the FPS\n");
+                    }
+                }
+            }
+        } else {
+            perror("Setting FPS on the capture device is not supported, fallback to software framedropping\n");
+        }
+    } else {
+        perror("Unable to query that the FPS change is supported\n");
+    }
 
     /*
      * request buffers

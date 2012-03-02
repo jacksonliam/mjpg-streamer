@@ -35,7 +35,10 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/select.h>
-#include <linux/videodev.h>
+
+#include <linux/types.h>          /* for videodev2.h */
+#include <linux/videodev2.h>
+
 #include "../../mjpg_streamer.h"
 #define NB_BUFFER 4
 
@@ -105,6 +108,8 @@ struct vdIn {
     int framecount;
     int recordstart;
     int recordtime;
+    unsigned long frame_period_time; // in ms
+    unsigned char soft_framedrop;
 };
 
 /* context of each camera thread */
