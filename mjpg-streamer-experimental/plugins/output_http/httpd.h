@@ -93,6 +93,9 @@ typedef enum {
     A_INPUT_JSON,
     A_OUTPUT_JSON,
     A_PROGRAM_JSON,
+    #ifdef MANAGMENT
+    A_CLIENTS_JSON
+    #endif
 } answer_t;
 
 /*
@@ -131,6 +134,25 @@ typedef struct {
     config conf;
 } context;
 
+
+#if defined(MANAGMENT)
+/*
+ * this struct is used to hold information from the clients address, and last picture take time
+ */
+typedef struct _client_info {
+    struct _client_info *next;
+    char *address;
+    struct timeval last_take_time;
+} client_info;
+
+struct {
+    client_info **infos;
+    unsigned int client_count;
+    pthread_mutex_t mutex;
+} client_infos;
+
+#endif
+
 /*
  * this struct is just defined to allow passing all necessary details to a worker thread
  * "cfd" is for connected/accepted filedescriptor
@@ -138,14 +160,26 @@ typedef struct {
 typedef struct {
     context *pc;
     int fd;
+    #ifdef MANAGMENT
+    client_info *client;
+    #endif
 } cfd;
+
+
 
 /* prototypes */
 void *server_thread(void *arg);
 void send_error(int fd, int which, char *message);
-void send_Output_JSON(int fd, int plugin_number);
-void send_Input_JSON(int fd, int plugin_number);
-void send_Program_JSON(int fd);
+void send_output_JSON(int fd, int plugin_number);
+void send_input_JSON(int fd, int plugin_number);
+void send_program_JSON(int fd);
+
+#ifdef MANAGMENT
+client_info *add_client(char *address);
+int check_client_status(client_info *client);
+void update_client_timestamp(client_info *client);
+void send_clients_JSON(int fd);
+#endif
 
 
 

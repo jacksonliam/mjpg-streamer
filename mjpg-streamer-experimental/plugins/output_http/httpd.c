@@ -55,6 +55,7 @@
 
 static globals *pglobal;
 extern context servers[MAX_OUTPUT_PLUGINS];
+int piggy_fine = 2; // FIXME make it command line parameter
 
 /******************************************************************************
 Description.: initializes the iobuffer structure properly
@@ -74,7 +75,6 @@ Return Value: req
 ******************************************************************************/
 void init_request(request *req)
 {
-    req->type        = A_UNKNOWN;
     req->type        = A_UNKNOWN;
     req->parameter   = NULL;
     req->client      = NULL;
@@ -304,6 +304,95 @@ int unescape(char *string)
     return 0;
 }
 
+#ifdef MANAGMENT
+
+/******************************************************************************
+Description.: Adds a new client information struct to the ino list.
+Input Value.: Client IP address as a string
+Return Value: Returns with the newly added info or with a pointer to the existing item
+******************************************************************************/
+client_info *add_client(char *address)
+{
+    unsigned int i = 0;
+    int name_length = strlen(address);
+
+    pthread_mutex_lock(&client_infos.mutex);
+
+    for (; i<client_infos.client_count; i++) {
+        if (strcmp(client_infos.infos[i]->address, address) == 0) {
+            pthread_mutex_unlock(&client_infos.mutex);
+            return client_infos.infos[i];
+        }
+    }
+
+    client_info *current_client_info = malloc(sizeof(client_info));
+    if (current_client_info == NULL) {
+        fprintf(stderr, "could not allocate memory\n");
+        pthread_mutex_unlock(&client_infos.mutex);
+        return NULL;
+    }
+
+    current_client_info->address = malloc(name_length * sizeof(char));
+    if (current_client_info->address == NULL) {
+        fprintf(stderr, "could not allocate memory\n");
+        pthread_mutex_unlock(&client_infos.mutex);
+        return NULL;
+    }
+
+    strcpy(current_client_info->address, address);
+    memset(&(current_client_info->last_take_time), 0, sizeof(struct timeval)); // set last time to zero
+
+    client_infos.infos = realloc(client_infos.infos, (client_infos.client_count + 1) * sizeof(client_info*));
+    client_infos.infos[client_infos.client_count] = current_client_info;
+    client_infos.client_count += 1;
+
+    pthread_mutex_unlock(&client_infos.mutex);
+    return current_client_info;
+}
+
+/******************************************************************************
+Description.: Looks in the client_infos for the current ip address.
+Input Value.: Client IP address as a string
+Return Value: If a frame was served to it within the specified interval it returns 1
+              If not it returns with 0
+******************************************************************************/
+int check_client_status(client_info *client)
+{
+    unsigned int i = 0;
+    pthread_mutex_lock(&client_infos.mutex);
+    for (; i<client_infos.client_count; i++) {
+        if (client_infos.infos[i] == client) {
+            long msec;
+            struct timeval tim;
+            gettimeofday(&tim, NULL);
+            msec  =(tim.tv_sec - client_infos.infos[i]->last_take_time.tv_sec)*1000;
+            msec +=(tim.tv_usec - client_infos.infos[i]->last_take_time.tv_usec)/1000;
+            DBG("diff: %ld\n", msec);
+            if (msec < 1000) { // FIXME make it paramter
+                DBG("CHEATER\n");
+                pthread_mutex_unlock(&client_infos.mutex);
+                return 1;
+            } else {
+                pthread_mutex_unlock(&client_infos.mutex);
+                return 0;
+            }
+        }
+    }
+    DBG("Client not found in the client list! How did it happend?? This is a BUG\n");
+    pthread_mutex_unlock(&client_infos.mutex);
+    return 0;
+}
+
+void update_client_timestamp(client_info *client)
+{
+    struct timeval tim;
+    pthread_mutex_lock(&client_infos.mutex);
+    gettimeofday(&tim, NULL);
+    memcpy(&client->last_take_time, &tim, sizeof(struct timeval));
+    pthread_mutex_unlock(&client_infos.mutex);
+}
+#endif
+
 /******************************************************************************
 Description.: Send a complete HTTP response and a single JPG-frame.
 Input Value.: fildescriptor fd to send the answer to
@@ -346,8 +435,8 @@ void send_snapshot(int fd, int input_number)
             "\r\n", (int) timestamp.tv_sec, (int) timestamp.tv_usec);
 
     /* send header and image now */
-    if(write(fd, buffer, strlen(buffer)) < 0 || \
-            write(fd, frame, frame_size) < 0) {
+    if (write(fd, buffer, strlen(buffer)) < 0 ||
+        write(fd, frame, frame_size) < 0) {
         free(frame);
         return;
     }
@@ -360,7 +449,7 @@ Description.: Send a complete HTTP response and a stream of JPG-frames.
 Input Value.: fildescriptor fd to send the answer to
 Return Value: -
 ******************************************************************************/
-void send_stream(int fd, int input_number)
+void send_stream(cfd *context_fd, int input_number)
 {
     unsigned char *frame = NULL, *tmp = NULL;
     int frame_size = 0, max_frame_size = 0;
@@ -374,7 +463,7 @@ void send_stream(int fd, int input_number)
             "\r\n" \
             "--" BOUNDARY "\r\n");
 
-    if(write(fd, buffer, strlen(buffer)) < 0) {
+    if(write(context_fd->fd, buffer, strlen(buffer)) < 0) {
         free(frame);
         return;
     }
@@ -398,7 +487,7 @@ void send_stream(int fd, int input_number)
             if((tmp = realloc(frame, max_frame_size)) == NULL) {
                 free(frame);
                 pthread_mutex_unlock(&pglobal->in[input_number].db);
-                send_error(fd, 500, "not enough memory");
+                send_error(context_fd->fd, 500, "not enough memory");
                 return;
             }
 
@@ -413,6 +502,10 @@ void send_stream(int fd, int input_number)
 
         pthread_mutex_unlock(&pglobal->in[input_number].db);
 
+        #ifdef MANAGMENT
+        update_client_timestamp(context_fd->client);
+        #endif
+
         /*
          * print the individual mimetype and the length
          * sending the content-length fixes random stream disruption observed
@@ -423,23 +516,22 @@ void send_stream(int fd, int input_number)
                 "X-Timestamp: %d.%06d\r\n" \
                 "\r\n", frame_size, (int)timestamp.tv_sec, (int)timestamp.tv_usec);
         DBG("sending intemdiate header\n");
-        if(write(fd, buffer, strlen(buffer)) < 0) break;
+        if(write(context_fd->fd, buffer, strlen(buffer)) < 0) break;
 
         DBG("sending frame\n");
-        if(write(fd, frame, frame_size) < 0) break;
+        if(write(context_fd->fd, frame, frame_size) < 0) break;
 
         DBG("sending boundary\n");
         sprintf(buffer, "\r\n--" BOUNDARY "\r\n");
-        if(write(fd, buffer, strlen(buffer)) < 0) break;
+        if(write(context_fd->fd, buffer, strlen(buffer)) < 0) break;
     }
 
     free(frame);
 }
 
 #ifdef WXP_COMPAT
-
 /******************************************************************************
-Description.: Send an mjpg stream in the same format as the WebcamXP does
+Description.: Sends a mjpg stream in the same format as the WebcamXP does
 Input Value.: fildescriptor fd to send the answer to
 Return Value: -
 ******************************************************************************/
@@ -508,6 +600,10 @@ void send_stream_wxp(int fd, int input_number)
         /* copy v4l2_buffer timeval to user space */
         timestamp = pglobal->in[input_number].timestamp;
 
+        #ifdef MANAGMENT
+        update_client_timestamp(context_fd->client);
+        #endif
+
         memcpy(frame, pglobal->in[input_number].buf, frame_size);
         DBG("got frame (size: %d kB)\n", frame_size / 1024);
 
@@ -524,7 +620,6 @@ void send_stream_wxp(int fd, int input_number)
 
     free(frame);
 }
-
 #endif
 
 /******************************************************************************
@@ -566,6 +661,13 @@ void send_error(int fd, int which, char *message)
                 STD_HEADER \
                 "\r\n" \
                 "400: Not Found!\r\n" \
+                "%s", message);
+    } else if (which == 403) {
+        sprintf(buffer, "HTTP/1.0 403 Forbidden\r\n" \
+                "Content-type: text/plain\r\n" \
+                STD_HEADER \
+                "\r\n" \
+                "403: Forbidden!\r\n" \
                 "%s", message);
     } else {
         sprintf(buffer, "HTTP/1.0 501 Not Implemented\r\n" \
@@ -879,19 +981,45 @@ void *client_thread(void *arg)
     if(strstr(buffer, "GET /?action=snapshot") != NULL) {
         req.type = A_SNAPSHOT;
         query_suffixed = 255;
-#ifdef WXP_COMPAT
+        #ifdef MANAGMENT
+        if (check_client_status(lcfd.client)) {
+            req.type = A_UNKNOWN;
+            lcfd.client,last_take_time.tv_sec += piggy_fine;
+            send_error(lcfd.fd, 403, "frame already sent");
+        }
+        #endif
+	#ifdef WXP_COMPAT
     } else if((strstr(buffer, "GET /cam") != NULL) && (strstr(buffer, ".jpg") != NULL)) {
         req.type = A_SNAPSHOT_WXP;
         query_suffixed = 255;
-#endif
+        #ifdef MANAGMENT
+        if (check_client_status(lcfd.client)) {
+            req.type = A_UNKNOWN;
+            lcfd.client,last_take_time.tv_sec += piggy_fine;
+            send_error(lcfd.fd, 403, "frame already sent");
+        }
+        #endif
+	#endif
     } else if(strstr(buffer, "GET /?action=stream") != NULL) {
         req.type = A_STREAM;
         query_suffixed = 255;
-#ifdef WXP_COMPAT
+        #ifdef MANAGMENT
+        if (check_client_status(lcfd.client)) {
+            req.type = A_UNKNOWN;
+            send_error(lcfd.fd, 403, "frame already sent");
+        }
+        #endif
+	#ifdef WXP_COMPAT
     } else if((strstr(buffer, "GET /cam") != NULL) && (strstr(buffer, ".mjpg") != NULL)) {
         req.type = A_STREAM_WXP;
         query_suffixed = 255;
-#endif
+        #ifdef MANAGMENT
+        if (check_client_status(lcfd.client)) {
+            req.type = A_UNKNOWN;
+            send_error(lcfd.fd, 403, "frame already sent");
+        }
+        #endif
+	#endif
     } else if(strstr(buffer, "GET /?action=take") != NULL) {
         int len;
         req.type = A_TAKE;
@@ -930,7 +1058,10 @@ void *client_thread(void *arg)
         query_suffixed = 255;
     } else if(strstr(buffer, "GET /program.json") != NULL) {
         req.type = A_PROGRAM_JSON;
-        query_suffixed = 255;
+    #ifdef MANAGMENT
+    } else if(strstr(buffer, "GET /clients.json") != NULL) {
+        req.type = A_CLIENTS_JSON;
+    #endif
     } else if(strstr(buffer, "GET /?action=command") != NULL) {
         int len;
         req.type = A_COMMAND;
@@ -1063,6 +1194,7 @@ void *client_thread(void *arg)
             }
         }
     }
+
     switch(req.type) {
     case A_SNAPSHOT_WXP:
     case A_SNAPSHOT:
@@ -1071,14 +1203,14 @@ void *client_thread(void *arg)
         break;
     case A_STREAM:
         DBG("Request for stream from input: %d\n", input_number);
-        send_stream(lcfd.fd, input_number);
+        send_stream(&lcfd, input_number);
         break;
-#ifdef WXP_COMPAT
+    #ifdef WXP_COMPAT
     case A_STREAM_WXP:
         DBG("Request for WXP compat stream from input: %d\n", input_number);
         send_stream_wxp(lcfd.fd, input_number);
         break;
-#endif
+    #endif
     case A_COMMAND:
         if(lcfd.pc->conf.nocommands) {
             send_error(lcfd.fd, 501, "this server is configured to not accept commands");
@@ -1088,16 +1220,22 @@ void *client_thread(void *arg)
         break;
     case A_INPUT_JSON:
         DBG("Request for the Input plugin descriptor JSON file\n");
-        send_Input_JSON(lcfd.fd, input_number);
+        send_input_JSON(lcfd.fd, input_number);
         break;
     case A_OUTPUT_JSON:
         DBG("Request for the Output plugin descriptor JSON file\n");
-        send_Output_JSON(lcfd.fd, input_number);
+        send_output_JSON(lcfd.fd, input_number);
         break;
     case A_PROGRAM_JSON:
         DBG("Request for the program descriptor JSON file\n");
-        send_Program_JSON(lcfd.fd);
+        send_program_JSON(lcfd.fd);
         break;
+    #ifdef MANAGMENT
+    case A_CLIENTS_JSON:
+        DBG("Request for the clients JSON file\n");
+        send_clients_JSON(lcfd.fd);
+        break;
+    #endif
     case A_FILE:
         if(lcfd.pc->conf.www_folder == NULL)
             send_error(lcfd.fd, 501, "no www-folder configured");
@@ -1219,6 +1357,13 @@ void *server_thread(void *arg)
     for(i = 0; i < MAX_SD_LEN; i++)
         pcontext->sd[i] = -1;
 
+    #ifdef MANAGMENT
+    if (pthread_mutex_init(&client_infos.mutex, NULL)) {
+        perror("Mutex initialization failed");
+        exit(EXIT_FAILURE);
+    }
+    #endif
+
     /* open sockets for server (1 socket / address family) */
     i = 0;
     for(aip2 = aip; aip2 != NULL; aip2 = aip2->ai_next) {
@@ -1311,7 +1456,12 @@ void *server_thread(void *arg)
 
                 if(getnameinfo((struct sockaddr *)&client_addr, addr_len, name, sizeof(name), NULL, 0, NI_NUMERICHOST) == 0) {
                     syslog(LOG_INFO, "serving client: %s\n", name);
+                    DBG("serving client: %s\n", name);
                 }
+
+                #if defined(MANAGMENT)
+                pcfd->client = add_client(name);
+                #endif
 
                 if(pthread_create(&client, NULL, &client_thread, pcfd) != 0) {
                     DBG("could not launch another client thread\n");
@@ -1336,7 +1486,7 @@ Description.: Send a JSON file which is contains information about the input plu
 Input Value.: fildescriptor fd to send the answer to
 Return Value: -
 ******************************************************************************/
-void send_Input_JSON(int fd, int input_number)
+void send_input_JSON(int fd, int input_number)
 {
     char buffer[BUFFER_SIZE*16] = {0}; // FIXME do reallocation if the buffer size is small
     int i;
@@ -1538,7 +1688,7 @@ void send_Input_JSON(int fd, int input_number)
 }
 
 
-void send_Program_JSON(int fd)
+void send_program_JSON(int fd)
 {
     char buffer[BUFFER_SIZE*16] = {0}; // FIXME do reallocation if the buffer size is small
     int i, k;
@@ -1615,7 +1765,7 @@ Description.: Send a JSON file which is contains information about the output pl
 Input Value.: fildescriptor fd to send the answer to
 Return Value: -
 ******************************************************************************/
-void send_Output_JSON(int fd, int input_number)
+void send_output_JSON(int fd, int input_number)
 {
     char buffer[BUFFER_SIZE*16] = {0}; // FIXME do reallocation if the buffer size is small
     int i;
@@ -1625,7 +1775,6 @@ void send_Output_JSON(int fd, int input_number)
             "\r\n", "application/x-javascript");
 
     DBG("Serving the output plugin %d descriptor JSON file\n", input_number);
-
 
     sprintf(buffer + strlen(buffer),
             "{\n"
@@ -1719,3 +1868,48 @@ void send_Output_JSON(int fd, int input_number)
         DBG("unable to serve the control JSON file\n");
     }
 }
+
+#ifdef MANAGMENT
+void send_clients_JSON(int fd)
+{
+    char buffer[BUFFER_SIZE*16] = {0}; // FIXME do reallocation if the buffer size is small
+    unsigned long i = 0 ;
+    sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
+            "Content-type: %s\r\n" \
+            STD_HEADER \
+            "\r\n", "application/x-javascript");
+
+    DBG("Serving the clients JSON file\n");
+
+    sprintf(buffer + strlen(buffer),
+            "{\n"
+            "\"clients\": [\n");
+
+    for (; i<client_infos.client_count; i++) {
+        sprintf(buffer + strlen(buffer),
+            "{\n"
+            "\"address\": \"%s\",\n"
+            "\"timestamp\": %ld\n"
+            "}\n",
+            client_infos.infos[i]->address,
+            (unsigned long)client_infos.infos[i]->last_take_time.tv_sec);
+
+        if(i != (client_infos.client_count - 1)) {
+            sprintf(buffer + strlen(buffer), ",\n");
+        }
+    }
+
+    sprintf(buffer + strlen(buffer),
+            "]");
+
+    sprintf(buffer + strlen(buffer),
+            "\n}\n");
+    i = strlen(buffer);
+
+    /* first transmit HTTP-header, afterwards transmit content of file */
+    if(write(fd, buffer, i) < 0) {
+        DBG("unable to serve the control JSON file\n");
+    }
+}
+#endif
+
