@@ -984,7 +984,7 @@ void *client_thread(void *arg)
         #ifdef MANAGMENT
         if (check_client_status(lcfd.client)) {
             req.type = A_UNKNOWN;
-            lcfd.client,last_take_time.tv_sec += piggy_fine;
+            lcfd.client->last_take_time.tv_sec += piggy_fine;
             send_error(lcfd.fd, 403, "frame already sent");
         }
         #endif
@@ -995,7 +995,7 @@ void *client_thread(void *arg)
         #ifdef MANAGMENT
         if (check_client_status(lcfd.client)) {
             req.type = A_UNKNOWN;
-            lcfd.client,last_take_time.tv_sec += piggy_fine;
+            lcfd.client->last_take_time.tv_sec += piggy_fine;
             send_error(lcfd.fd, 403, "frame already sent");
         }
         #endif
@@ -1006,6 +1006,7 @@ void *client_thread(void *arg)
         #ifdef MANAGMENT
         if (check_client_status(lcfd.client)) {
             req.type = A_UNKNOWN;
+            lcfd.client->last_take_time.tv_sec += piggy_fine;
             send_error(lcfd.fd, 403, "frame already sent");
         }
         #endif
@@ -1016,6 +1017,7 @@ void *client_thread(void *arg)
         #ifdef MANAGMENT
         if (check_client_status(lcfd.client)) {
             req.type = A_UNKNOWN;
+            lcfd.client->last_take_time.tv_sec += piggy_fine;
             send_error(lcfd.fd, 403, "frame already sent");
         }
         #endif
