@@ -242,15 +242,17 @@ void *worker_thread(void *arg)
     int file;
     size_t filesize = 0;
     struct stat stats;
-    DIR *dir = NULL;
-    struct dirent *ent;
+    struct dirent **fileList;
+    int fileCount = 0;
+    int currentFileNumber = 0;
+    char hasJpgFile = 0;
     struct timeval timestamp;
 
     if (mode == ExistingFiles) {
-        dir = opendir(folder);
-        if (dir == NULL) {
-            fprintf(stderr, "The folder %s does not exists!\n", folder);
-            return NULL;
+        fileCount = scandir(folder, &fileList, 0, alphasort);
+        if (fileCount < 0) {
+           perror("error during scandir\n");
+           return NULL;
         }
     }
 
@@ -286,21 +288,22 @@ void *worker_thread(void *arg)
                 continue;
             }
             DBG("new file detected: %s\n", buffer);
-        } else { // mode == ExistingFiles
-            ent = readdir(dir);
-            if (ent == NULL) {
-                rewinddir(dir);
-                ent = readdir(dir);
-            }
-
-            if ((strcmp(ent->d_name, "..") == 0) ||
-                (strcmp(ent->d_name, ".") == 0)) {
+        } else {
+            if ((strstr(fileList[currentFileNumber]->d_name, ".jpg") != NULL) ||
+                (strstr(fileList[currentFileNumber]->d_name, ".JPG") != NULL)) {
+                hasJpgFile = 1;
+                DBG("serving file: %s\n", fileList[currentFileNumber]->d_name);
+                snprintf(buffer, sizeof(buffer), "%s%s", folder, fileList[currentFileNumber]->d_name);
+                currentFileNumber++;
+                if (currentFileNumber == fileCount)
+                    currentFileNumber = 0;
+            } else {
+                currentFileNumber++;
+                if ((currentFileNumber == fileCount) && (hasJpgFile == 0)) {
+                    perror("No files with jpg/JPG extension in the folder\n");
+                    goto thread_quit;
+                }
                 continue;
-            }
-
-            if (strstr(ent->d_name, ".jpg") != NULL) {
-                DBG("serving file: %s\n", ent->d_name);
-                snprintf(buffer, sizeof(buffer), "%s%s", folder, ent->d_name);
             }
         }
 
@@ -361,6 +364,12 @@ void *worker_thread(void *arg)
         if(delay != 0)
             usleep(1000 * 1000 * delay);
     }
+
+thread_quit:
+    while (fileCount--) {
+       free(fileList[fileCount]);
+    }
+    free(fileList);
 
     DBG("leaving input thread, calling cleanup function now\n");
     /* call cleanup handler, signal with the parameter */
