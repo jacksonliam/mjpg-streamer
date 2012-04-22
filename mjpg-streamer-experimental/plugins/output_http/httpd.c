@@ -368,7 +368,7 @@ int check_client_status(client_info *client)
             msec  =(tim.tv_sec - client_infos.infos[i]->last_take_time.tv_sec)*1000;
             msec +=(tim.tv_usec - client_infos.infos[i]->last_take_time.tv_usec)/1000;
             DBG("diff: %ld\n", msec);
-            if (msec < 1000) { // FIXME make it paramter
+            if ((msec < 1000) && (msec > 0)) { // FIXME make it parameter
                 DBG("CHEATER\n");
                 pthread_mutex_unlock(&client_infos.mutex);
                 return 1;
@@ -398,7 +398,7 @@ Description.: Send a complete HTTP response and a single JPG-frame.
 Input Value.: fildescriptor fd to send the answer to
 Return Value: -
 ******************************************************************************/
-void send_snapshot(int fd, int input_number)
+void send_snapshot(cfd *context_fd, int input_number)
 {
     unsigned char *frame = NULL;
     int frame_size = 0;
@@ -416,7 +416,7 @@ void send_snapshot(int fd, int input_number)
     if((frame = malloc(frame_size + 1)) == NULL) {
         free(frame);
         pthread_mutex_unlock(&pglobal->in[input_number].db);
-        send_error(fd, 500, "not enough memory");
+        send_error(context_fd->fd, 500, "not enough memory");
         return;
     }
     /* copy v4l2_buffer timeval to user space */
@@ -427,6 +427,10 @@ void send_snapshot(int fd, int input_number)
 
     pthread_mutex_unlock(&pglobal->in[input_number].db);
 
+    #ifdef MANAGMENT
+    update_client_timestamp(context_fd->client);
+    #endif
+
     /* write the response */
     sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
             STD_HEADER \
@@ -435,8 +439,8 @@ void send_snapshot(int fd, int input_number)
             "\r\n", (int) timestamp.tv_sec, (int) timestamp.tv_usec);
 
     /* send header and image now */
-    if (write(fd, buffer, strlen(buffer)) < 0 ||
-        write(fd, frame, frame_size) < 0) {
+    if (write(context_fd->fd, buffer, strlen(buffer)) < 0 ||
+        write(context_fd->fd, frame, frame_size) < 0) {
         free(frame);
         return;
     }
@@ -535,7 +539,7 @@ Description.: Sends a mjpg stream in the same format as the WebcamXP does
 Input Value.: fildescriptor fd to send the answer to
 Return Value: -
 ******************************************************************************/
-void send_stream_wxp(int fd, int input_number)
+void send_stream_wxp(cfd *context_fd, int input_number)
 {
     unsigned char *frame = NULL, *tmp = NULL;
     int frame_size = 0, max_frame_size = 0;
@@ -566,7 +570,7 @@ void send_stream_wxp(int fd, int input_number)
                     curDateBuffer,
                     expDateBuffer);
 
-    if(write(fd, buffer, strlen(buffer)) < 0) {
+    if(write(context_fd->fd, buffer, strlen(buffer)) < 0) {
         free(frame);
         return;
     }
@@ -590,7 +594,7 @@ void send_stream_wxp(int fd, int input_number)
             if((tmp = realloc(frame, max_frame_size)) == NULL) {
                 free(frame);
                 pthread_mutex_unlock(&pglobal->in[input_number].db);
-                send_error(fd, 500, "not enough memory");
+                send_error(context_fd->fd, 500, "not enough memory");
                 return;
             }
 
@@ -612,10 +616,10 @@ void send_stream_wxp(int fd, int input_number)
         memset(buffer, 0, 50*sizeof(char));
         sprintf(buffer, "mjpeg %07d12345", frame_size);
         DBG("sending intemdiate header\n");
-        if(write(fd, buffer, 50) < 0) break;
+        if(write(context_fd->fd, buffer, 50) < 0) break;
 
         DBG("sending frame\n");
-        if(write(fd, frame, frame_size) < 0) break;
+        if(write(context_fd->fd, frame, frame_size) < 0) break;
     }
 
     free(frame);
@@ -986,6 +990,7 @@ void *client_thread(void *arg)
             req.type = A_UNKNOWN;
             lcfd.client->last_take_time.tv_sec += piggy_fine;
             send_error(lcfd.fd, 403, "frame already sent");
+            query_suffixed = 0;            
         }
         #endif
 	#ifdef WXP_COMPAT
@@ -997,6 +1002,7 @@ void *client_thread(void *arg)
             req.type = A_UNKNOWN;
             lcfd.client->last_take_time.tv_sec += piggy_fine;
             send_error(lcfd.fd, 403, "frame already sent");
+            query_suffixed = 0;            
         }
         #endif
 	#endif
@@ -1008,6 +1014,7 @@ void *client_thread(void *arg)
             req.type = A_UNKNOWN;
             lcfd.client->last_take_time.tv_sec += piggy_fine;
             send_error(lcfd.fd, 403, "frame already sent");
+            query_suffixed = 0;
         }
         #endif
 	#ifdef WXP_COMPAT
@@ -1019,6 +1026,7 @@ void *client_thread(void *arg)
             req.type = A_UNKNOWN;
             lcfd.client->last_take_time.tv_sec += piggy_fine;
             send_error(lcfd.fd, 403, "frame already sent");
+            query_suffixed = 0;
         }
         #endif
 	#endif
@@ -1032,6 +1040,7 @@ void *client_thread(void *arg)
             DBG("HTTP request seems to be malformed\n");
             send_error(lcfd.fd, 400, "Malformed HTTP request");
             close(lcfd.fd);
+            query_suffixed = 0;
             return NULL;
         }
         pb += strlen("GET /?action=take"); // a pb points to thestring after the first & after command
@@ -1201,7 +1210,7 @@ void *client_thread(void *arg)
     case A_SNAPSHOT_WXP:
     case A_SNAPSHOT:
         DBG("Request for snapshot from input: %d\n", input_number);
-        send_snapshot(lcfd.fd, input_number);
+        send_snapshot(&lcfd, input_number);
         break;
     case A_STREAM:
         DBG("Request for stream from input: %d\n", input_number);
@@ -1210,7 +1219,7 @@ void *client_thread(void *arg)
     #ifdef WXP_COMPAT
     case A_STREAM_WXP:
         DBG("Request for WXP compat stream from input: %d\n", input_number);
-        send_stream_wxp(lcfd.fd, input_number);
+        send_stream_wxp(&lcfd, input_number);
         break;
     #endif
     case A_COMMAND:
@@ -1286,7 +1295,7 @@ void *client_thread(void *arg)
             send_error(lcfd.fd, 404, "FILE output plugin not loaded, taking snapshot not possible");
         } else {
             if (ret == 0) {
-                send_snapshot(lcfd.fd, input_number);
+                send_snapshot(&lcfd, input_number);
             } else {
                 send_error(lcfd.fd, 404, "Taking snapshot failed!");
             }

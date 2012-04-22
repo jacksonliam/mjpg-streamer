@@ -44,9 +44,14 @@
 #include "../../utils.h"
 //#include "../../mjpg_streamer.h"
 #include "v4l2uvc.h" // this header will includes the ../../mjpg_streamer.h
-#include "huffman.h"
+
+#ifndef NO_LIBJPG
 #include "jpeg_utils.h"
+#include "huffman.h"
+#endif
+
 #include "dynctrl.h"
+
 //#include "uvcvideo.h"
 
 #define INPUT_PLUGIN_NAME "UVC webcam grabber"
@@ -200,15 +205,25 @@ int input_init(input_parameter *param, int id)
         case 8:
         case 9:
             DBG("case 8,9\n");
+            #ifdef NO_LIBJPG
+            IPRINT("Compiled without libjpg YUV format is not available!\n");
+            exit(EXIT_FAILURE);
+            #else
             format = V4L2_PIX_FMT_YUYV;
+            #endif
             break;
 
             /* q, quality */
         case 10:
         case 11:
             DBG("case 10,11\n");
+            #ifdef NO_LIBJPG
+            IPRINT("Quality adjusting can be done in YUV mode !\n");
+            exit(EXIT_FAILURE);
+            #else
             format = V4L2_PIX_FMT_YUYV;
             gquality = MIN(MAX(atoi(optarg), 0), 100);
+            #endif
             break;
 
             /* m, minimum_size */
@@ -275,19 +290,23 @@ int input_init(input_parameter *param, int id)
         case V4L2_PIX_FMT_MJPEG:
             fmtString = "JPEG";
             break;
+        #ifndef NI_LIBJPG
         case V4L2_PIX_FMT_YUYV:
             fmtString = "YUYV";
             break;
         case V4L2_PIX_FMT_RGB565:
             fmtString = "RGB565";
             break;
+        #endif
         default:
             fmtString = "Unknown format";
     }
 
     IPRINT("Format............: %s\n", fmtString);
+    #ifndef NO_LIBJPG
     if(format != V4L2_PIX_FMT_MJPEG)
         IPRINT("JPEG Quality......: %d\n", gquality);
+    #endif
 
     DBG("vdIn pn: %d\n", id);
     /* open video device and prepare data structure */
@@ -405,7 +424,7 @@ void *cam_thread(void *arg)
             exit(EXIT_FAILURE);
         }
 
-        DBG("received frame of size: %d from plugin: %d\n", pcontext->videoIn->buf.bytesused, pcontext->id);
+        //DBG("received frame of size: %d from plugin: %d\n", pcontext->videoIn->buf.bytesused, pcontext->id);
 
         /*
          * Workaround for broken, corrupted frames:
@@ -428,10 +447,10 @@ void *cam_thread(void *arg)
 
             // if the requested time did not esplashed skip the frame
             if ((current - last) < pcontext->videoIn->frame_period_time) {
-                DBG("Last frame taken %d ms ago so drop it\n", (current - last));
+                //DBG("Last frame taken %d ms ago so drop it\n", (current - last));
                 continue;
             }
-            DBG("Lagg: %d\n", (current - last) - pcontext->videoIn->frame_period_time);
+            DBG("Lagg: %ld\n", (current - last) - pcontext->videoIn->frame_period_time);
         }
 
         /* copy JPG picture to global buffer */

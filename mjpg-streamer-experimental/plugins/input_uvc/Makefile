@@ -21,8 +21,9 @@ LFLAGS += -lv4l2
 CFLAGS += -DUSE_LIBV4L2
 endif
 
-
+ifneq ($(NO_LIBJPG),true)
 LFLAGS += -ljpeg
+endif
 
 all: input_uvc.so
 
