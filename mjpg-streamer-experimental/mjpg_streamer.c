@@ -113,7 +113,7 @@ void signal_handler(int sig)
     usleep(1000 * 1000);
 
     /* close handles of input plugins */
-    for(i = 0; i < global.outcnt; i++) {
+    for(i = 0; i < global.incnt; i++) {
         dlclose(global.in[i].handle);
     }
 
