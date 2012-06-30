@@ -14,7 +14,7 @@ OTHER_HEADERS = ../../mjpg_streamer.h ../../utils.h ../output.h ../input.h
 CFLAGS += -DLINUX -D_GNU_SOURCE -Wall -shared -fPIC -Wuninitialized
 CFLAGS +=  -g
 #CFLAGS += -DDEBUG
-CFLAGS += -DMANAGMENT
+#CFLAGS += -DMANAGMENT
 
 LFLAGS += -lpthread -ldl
 
