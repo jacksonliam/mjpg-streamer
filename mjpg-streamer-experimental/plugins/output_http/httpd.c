@@ -314,7 +314,7 @@ Return Value: Returns with the newly added info or with a pointer to the existin
 client_info *add_client(char *address)
 {
     unsigned int i = 0;
-    int name_length = strlen(address);
+    int name_length = strlen(address) + 1;
 
     pthread_mutex_lock(&client_infos.mutex);
 
@@ -885,9 +885,7 @@ void command(int id, int fd, char *parameter)
                 DBG("The command destination value converted form the string \"%s\" to integer %d -> PROGRAM\n", svalue, dest );
                 break;
         }
-
         #endif
-
     }
 
     int plugin_no = 0; // default plugin no = 0 for campatibility reasons
@@ -990,7 +988,7 @@ void *client_thread(void *arg)
             req.type = A_UNKNOWN;
             lcfd.client->last_take_time.tv_sec += piggy_fine;
             send_error(lcfd.fd, 403, "frame already sent");
-            query_suffixed = 0;            
+            query_suffixed = 0;
         }
         #endif
 	#ifdef WXP_COMPAT
@@ -1002,7 +1000,7 @@ void *client_thread(void *arg)
             req.type = A_UNKNOWN;
             lcfd.client->last_take_time.tv_sec += piggy_fine;
             send_error(lcfd.fd, 403, "frame already sent");
-            query_suffixed = 0;            
+            query_suffixed = 0;
         }
         #endif
 	#endif
@@ -1373,6 +1371,9 @@ void *server_thread(void *arg)
         perror("Mutex initialization failed");
         exit(EXIT_FAILURE);
     }
+
+    client_infos.client_count = 0;
+    client_infos.infos = NULL;
     #endif
 
     /* open sockets for server (1 socket / address family) */
