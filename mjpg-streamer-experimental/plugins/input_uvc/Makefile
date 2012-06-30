@@ -11,7 +11,7 @@ CC = gcc
 
 OTHER_HEADERS = ../../mjpg_streamer.h ../../utils.h ../output.h ../input.h
 
-CFLAGS +=  -DLINUX -D_GNU_SOURCE -Wall -shared -fPIC
+CFLAGS += -O1  -DLINUX -D_GNU_SOURCE -Wall -shared -fPIC
 
 CFLAGS += -g
 #CFLAGS += -DDEBUG
@@ -21,8 +21,10 @@ LFLAGS += -lv4l2
 CFLAGS += -DUSE_LIBV4L2
 endif
 
-ifneq ($(NO_LIBJPG),true)
+ifndef NO_LIBJPEG
 LFLAGS += -ljpeg
+else
+CFLAGS += -DNO_LIBJPEG
 endif
 
 all: input_uvc.so
@@ -31,7 +33,7 @@ clean:
 	rm -f *.a *.o core *~ *.so *.lo
 
 input_uvc.so: $(OTHER_HEADERS) input_uvc.c v4l2uvc.lo jpeg_utils.lo dynctrl.lo
-	$(CC) $(CFLAGS) $(LFLAGS) -o $@ input_uvc.c v4l2uvc.lo jpeg_utils.lo dynctrl.lo
+	$(CC) $(CFLAGS)  -o $@ input_uvc.c v4l2uvc.lo jpeg_utils.lo dynctrl.lo $(LFLAGS)
 
 v4l2uvc.lo: huffman.h uvc_compat.h v4l2uvc.c v4l2uvc.h
 	$(CC) -c $(CFLAGS) -o $@ v4l2uvc.c

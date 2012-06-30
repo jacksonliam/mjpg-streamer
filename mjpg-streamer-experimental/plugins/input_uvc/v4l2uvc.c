@@ -55,7 +55,7 @@ int xioctl(int fd, int IOCTL_X, void *arg)
 static int init_v4l2(struct vdIn *vd);
 
 int init_videoIn(struct vdIn *vd, char *device, int width,
-                 int height, int fps, int format, int grabmethod, globals *pglobal, int id)
+                 int height, int fps, int format, int grabmethod, globals *pglobal, int id, v4l2_std_id vstd)
 {
     if(vd == NULL || device == NULL)
         return -1;
@@ -77,6 +77,7 @@ int init_videoIn(struct vdIn *vd, char *device, int width,
     vd->height = height;
     vd->fps = fps;
     vd->formatIn = format;
+	 vd->vstd = vstd;
     vd->grabmethod = grabmethod;
     vd->soft_framedrop = 0;
     if(init_v4l2(vd) < 0) {
@@ -98,14 +99,14 @@ int init_videoIn(struct vdIn *vd, char *device, int width,
     }
 
     // enumerating formats
-    int currentWidth, currentHeight = 0;
+
     struct v4l2_format currentFormat;
     memset(&currentFormat, 0, sizeof(struct v4l2_format));
     currentFormat.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    if(xioctl(vd->fd, VIDIOC_G_FMT, &currentFormat) == 0) {
-        currentWidth = currentFormat.fmt.pix.width;
-        currentHeight = currentFormat.fmt.pix.height;
-        DBG("Current size: %dx%d\n", currentWidth, currentHeight);
+    if (xioctl(vd->fd, VIDIOC_G_FMT, &currentFormat) == 0) {
+        DBG("Current size: %dx%d\n", 
+             currentFormat.fmt.pix.width, 
+             currentFormat.fmt.pix.height);
     }
 
     pglobal->in[id].in_formats = NULL;
@@ -178,7 +179,7 @@ int init_videoIn(struct vdIn *vd, char *device, int width,
     /* alloc a temp buffer to reconstruct the pict */
     vd->framesizeIn = (vd->width * vd->height << 1);
     switch(vd->formatIn) {
-    case V4L2_PIX_FMT_MJPEG: // in JPG mode te frame size is varies at every frame, so we allocate a bit bigger buffer
+    case V4L2_PIX_FMT_MJPEG: // in JPG mode the frame size is varies at every frame, so we allocate a bit bigger buffer
         vd->tmpbuffer = (unsigned char *) calloc(1, (size_t) vd->framesizeIn);
         if(!vd->tmpbuffer)
             goto error;
@@ -247,6 +248,13 @@ static int init_v4l2(struct vdIn *vd)
         }
     }
 
+    if (vd->vstd != V4L2_STD_UNKNOWN) {
+        if (ioctl(vd->fd, VIDIOC_S_STD, &vd->vstd) == -1) {
+            fprintf(stderr, "Can't set video standard: %s\n",strerror(errno));
+            goto fatal;
+        }
+    }
+
     /*
      * set format in
      */
@@ -292,52 +300,58 @@ static int init_v4l2(struct vdIn *vd)
     /*
      * set framerate
      */
-    struct v4l2_streamparm *setfps;
-    setfps = (struct v4l2_streamparm *) calloc(1, sizeof(struct v4l2_streamparm));
-    memset(setfps, 0, sizeof(struct v4l2_streamparm));
-    setfps->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
-    /*
-    * first query streaming parameters to determine that the FPS selection is supported
-    */
-    ret = xioctl(vd->fd, VIDIOC_G_PARM, setfps);
-    if (ret == 0) {
-        if (setfps->parm.capture.capability & V4L2_CAP_TIMEPERFRAME) {
-            memset(setfps, 0, sizeof(struct v4l2_streamparm));
-            setfps->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-            setfps->parm.capture.timeperframe.numerator = 1;
-            setfps->parm.capture.timeperframe.denominator = vd->fps==-1?255:vd->fps; // if no default fps set set it to maximum
+    if (vd->fps != -1) {
+        struct v4l2_streamparm *setfps;
+        setfps = (struct v4l2_streamparm *) calloc(1, sizeof(struct v4l2_streamparm));
+        memset(setfps, 0, sizeof(struct v4l2_streamparm));
+        setfps->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
-            ret = xioctl(vd->fd, VIDIOC_S_PARM, setfps);
-            if (ret) {
-                perror("Unable to set the FPS\n");
-            } else {
-                if (vd->fps != setfps->parm.capture.timeperframe.denominator) {
-                    IPRINT("FPS coerced ......: from %d to %d\n", vd->fps, setfps->parm.capture.timeperframe.denominator);
-                }
+        /*
+        * first query streaming parameters to determine that the FPS selection is supported
+        */
+        ret = xioctl(vd->fd, VIDIOC_G_PARM, setfps);
+        if (ret == 0) {
+            if (setfps->parm.capture.capability & V4L2_CAP_TIMEPERFRAME) {
+                memset(setfps, 0, sizeof(struct v4l2_streamparm));
+                setfps->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+                setfps->parm.capture.timeperframe.numerator = 1;
+                setfps->parm.capture.timeperframe.denominator = vd->fps==-1?255:vd->fps; // if no default fps set set it to maximum
 
-                // if we selecting lower FPS than the allowed then we will use software framedropping
-                if (vd->fps < setfps->parm.capture.timeperframe.denominator) {
-                    vd->soft_framedrop = 1;
-                    vd->frame_period_time = 1000/vd->fps; // calcualate frame period time in ms
-                    IPRINT("Frame period time ......: %ld ms\n", vd->frame_period_time);
+                ret = xioctl(vd->fd, VIDIOC_S_PARM, setfps);
+                if (ret) {
+                    perror("Unable to set the FPS\n");
+                } else {
+                    if (vd->fps != setfps->parm.capture.timeperframe.denominator) {
+                        IPRINT("FPS coerced ......: from %d to %d\n", vd->fps, setfps->parm.capture.timeperframe.denominator);
+                    }
 
-                    // set FPS to maximum in order to minimize the lagging
-                    memset(setfps, 0, sizeof(struct v4l2_streamparm));
-                    setfps->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-                    setfps->parm.capture.timeperframe.numerator = 1;
-                    setfps->parm.capture.timeperframe.denominator = 255;
-                    ret = xioctl(vd->fd, VIDIOC_S_PARM, setfps);
-                    if (ret) {
-                        perror("Unable to set the FPS\n");
+                    // if we selecting lower FPS than the allowed then we will use software framedropping
+                    if (vd->fps < setfps->parm.capture.timeperframe.denominator) {
+                        vd->soft_framedrop = 1;
+                        vd->frame_period_time = 1000/vd->fps; // calcualate frame period time in ms
+                        IPRINT("Frame period time ......: %ld ms\n", vd->frame_period_time);
+
+                        // set FPS to maximum in order to minimize the lagging
+                        memset(setfps, 0, sizeof(struct v4l2_streamparm));
+                        setfps->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+                        setfps->parm.capture.timeperframe.numerator = 1;
+                        setfps->parm.capture.timeperframe.denominator = 255;
+                        ret = xioctl(vd->fd, VIDIOC_S_PARM, setfps);
+                        if (ret) {
+                            perror("Unable to set the FPS\n");
+                        }
                     }
                 }
+            } else {
+                perror("Setting FPS on the capture device is not supported, fallback to software framedropping\n");
+                vd->soft_framedrop = 1;
+                vd->frame_period_time = 1000/vd->fps; // calcualate frame period time in ms
+                IPRINT("Frame period time ......: %ld ms\n", vd->frame_period_time);
             }
         } else {
-            perror("Setting FPS on the capture device is not supported, fallback to software framedropping\n");
+            perror("Unable to query that the FPS change is supported\n");
         }
-    } else {
-        perror("Unable to query that the FPS change is supported\n");
     }
 
     /*

@@ -108,6 +108,7 @@ struct vdIn {
     int framecount;
     int recordstart;
     int recordtime;
+    v4l2_std_id vstd;
     unsigned long frame_period_time; // in ms
     unsigned char soft_framedrop;
 };
@@ -123,7 +124,7 @@ typedef struct {
 
 context cams[MAX_INPUT_PLUGINS];
 
-int init_videoIn(struct vdIn *vd, char *device, int width, int height, int fps, int format, int grabmethod, globals *pglobal, int id);
+int init_videoIn(struct vdIn *vd, char *device, int width, int height, int fps, int format, int grabmethod, globals *pglobal, int id, v4l2_std_id vstd);
 void enumerateControls(struct vdIn *vd, globals *pglobal, int id);
 void control_readed(struct vdIn *vd, struct v4l2_queryctrl *ctrl, globals *pglobal, int id);
 int setResolution(struct vdIn *vd, int width, int height);
