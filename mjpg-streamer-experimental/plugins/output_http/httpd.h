@@ -89,6 +89,7 @@ typedef enum {
     A_STREAM_WXP,
     A_COMMAND,
     A_FILE,
+    A_CGI,
     A_TAKE,
     A_INPUT_JSON,
     A_OUTPUT_JSON,
@@ -107,6 +108,7 @@ typedef struct {
     char *parameter;
     char *client;
     char *credentials;
+    char *query_string;
 } request;
 
 /* the iobuffer structure is used to read from the HTTP-client */

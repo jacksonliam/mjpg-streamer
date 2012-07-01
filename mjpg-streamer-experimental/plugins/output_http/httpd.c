@@ -92,6 +92,7 @@ void free_request(request *req)
     if(req->parameter != NULL) free(req->parameter);
     if(req->client != NULL) free(req->client);
     if(req->credentials != NULL) free(req->credentials);
+    if(req->query_string != NULL) free(req->query_string);
 }
 
 /******************************************************************************
@@ -693,8 +694,8 @@ Description.: Send HTTP header and copy the content of a file. To keep things
               files with known extension and supported mimetype get served.
               If no parameter was given, the file "index.html" will be copied.
 Input Value.: * fd.......: filedescriptor to send data to
-              * parameter: string that consists of the filename
               * id.......: specifies which server-context is the right one
+              * parameter: string that consists of the filename
 Return Value: -
 ******************************************************************************/
 void send_file(int id, int fd, char *parameter)
@@ -772,6 +773,77 @@ void send_file(int id, int fd, char *parameter)
     /* close file, job done */
     close(lfd);
 }
+
+/******************************************************************************
+Description.: Executes the specified CGI file if exists
+Input Value.: * fd...........: filedescriptor to send data to
+              * id...........: specifies which server-context is the right one
+              * parameter....: the requested file name
+              * query_string.: query parameters
+Return Value: -
+******************************************************************************/
+void execute_cgi(int id, int fd, char *parameter, char *query_string)
+{
+    int lfd = 0, i;
+    int buffer_length = 0;
+    char *buffer = NULL;
+    char fn_buffer[BUFFER_SIZE] = {0};
+    FILE *f = NULL;
+    config conf = servers[id].conf;
+
+    /* build the absolute path to the file */
+    strncat(fn_buffer, conf.www_folder, sizeof(fn_buffer) - 1);
+    strncat(fn_buffer, parameter, sizeof(fn_buffer) - strlen(fn_buffer) - 1);
+
+    if((lfd = open(fn_buffer, O_RDONLY)) < 0) {
+        DBG("file %s not accessible\n", fn_buffer);
+        send_error(fd, 404, "Could not open file");
+        return;
+    }
+
+    char *enviroment =
+        "SERVER_SOFTWARE=\"mjpg-streamer\" "
+        //"SERVER_NAME=\"%s\" "
+        "SERVER_PROTOCOL=\"HTTP/1.1\" "
+        "SERVER_PORT=\"%d\" "  // OK
+        "GATEWAY_INTERFACE=\"CGI/1.1\" "
+        "REQUEST_METHOD=\"GET\" "
+        "SCRIPT_NAME=\"%s\" " // OK
+        "QUERY_STRING=\"%s\" " //OK
+        //"REMOTE_ADDR=\"%s\" "
+        //"REMOTE_PORT=\"%d\" "
+        "%s"; // OK
+
+    buffer_length = 3;
+    buffer_length = strlen(fn_buffer) + strlen(enviroment) + strlen(parameter) + 256;
+
+    buffer = malloc(buffer_length);
+    if (buffer == NULL) {
+        exit(EXIT_FAILURE);
+    }
+
+    sprintf(buffer,
+            enviroment,
+            conf.port,
+            parameter,
+            query_string,
+            fn_buffer);
+
+    f = popen(buffer, "r");
+    if(f == NULL) {
+        DBG("Unable to execute the requested CGI script\n");
+        send_error(fd, 403, "CGI script cannot be executed");
+        return;
+    }
+
+    while((i = fread(buffer, 1, sizeof(buffer), f)) > 0) {
+        if (write(fd, buffer, i) < 0) {
+            fclose(f);
+            return;
+        }
+    }
+}
+
 
 /******************************************************************************
 Description.: Perform a command specified by parameter. Send response to fd.
@@ -979,6 +1051,8 @@ void *client_thread(void *arg)
         return NULL;
     }
 
+    req.query_string = NULL;
+
     /* determine what to deliver */
     if(strstr(buffer, "GET /?action=snapshot") != NULL) {
         req.type = A_SNAPSHOT;
@@ -1122,9 +1196,27 @@ void *client_thread(void *arg)
         if(req.parameter == NULL) {
             exit(EXIT_FAILURE);
         }
+
         memset(req.parameter, 0, len + 1);
         strncpy(req.parameter, pb, len);
 
+        if (strstr(pb, ".cgi") != NULL) {
+            req.type = A_CGI;
+            pb = strchr(pb, '?');
+            if (pb != NULL) {
+                pb++; // skip the ?
+                len = strspn(pb, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ._-1234567890=&");
+                req.query_string = malloc(len + 1);
+                if (req.query_string == NULL)
+                    exit(EXIT_FAILURE);
+                strncpy(req.query_string, pb, len);
+            } else {
+                req.query_string = malloc(2);
+                if (req.query_string == NULL)
+                    exit(EXIT_FAILURE);
+                sprintf(req.query_string, " ");
+            }
+        }
         DBG("parameter (len: %d): \"%s\"\n", len, req.parameter);
     }
 
@@ -1179,9 +1271,7 @@ void *client_thread(void *arg)
             DBG("access denied\n");
             send_error(lcfd.fd, 401, "username and password do not match to configuration");
             close(lcfd.fd);
-            if(req.parameter != NULL) free(req.parameter);
-            if(req.client != NULL) free(req.client);
-            if(req.credentials != NULL) free(req.credentials);
+            free_request(&req);
             return NULL;
         }
         DBG("access granted\n");
@@ -1254,7 +1344,7 @@ void *client_thread(void *arg)
     /*
         With the take argument we try to save the current image to file before we transmit it to the user.
         This is done trough the output_file plugin.
-        If it not loaded, or the file could not be saved we wont transmit the frame.
+        If it not loaded, or the file could not be saved then we won't transmit the frame.
     */
     case A_TAKE: {
         int i, ret = 0, found = 0;
@@ -1299,6 +1389,10 @@ void *client_thread(void *arg)
             }
         }
         } break;
+    case A_CGI:
+        DBG("cgi script: %s requested\n", req.parameter);
+        execute_cgi(lcfd.pc->id, lcfd.fd, req.parameter, req.query_string);
+        break;
     default:
         DBG("unknown request\n");
     }
