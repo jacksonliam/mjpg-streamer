@@ -12,9 +12,9 @@ CC = gcc
 OTHER_HEADERS = ../../mjpg_streamer.h ../../utils.h ../output.h ../input.h
 
 CFLAGS += -DLINUX -D_GNU_SOURCE -Wall -shared -fPIC -Wuninitialized
-CFLAGS +=  -g
-#CFLAGS += -DDEBUG
-#CFLAGS += -DMANAGMENT
+
+#CFLAGS += -g -DDEBUG # uncomment it to get debug symbols compiled in and debug messages shown
+#CFLAGS += -DMANAGMENT # experimental feature to control the clients maximum allowed thread count
 
 LFLAGS += -lpthread -ldl
 

@@ -13,8 +13,7 @@ OTHER_HEADERS = ../../mjpg_streamer.h ../../utils.h ../output.h ../input.h
 
 CFLAGS += -O1  -DLINUX -D_GNU_SOURCE -Wall -shared -fPIC
 
-CFLAGS += -g
-#CFLAGS += -DDEBUG
+#CFLAGS += -g -DDEBUG
 
 ifeq ($(USE_LIBV4L2),true)
 LFLAGS += -lv4l2
@@ -33,7 +32,7 @@ clean:
 	rm -f *.a *.o core *~ *.so *.lo
 
 input_uvc.so: $(OTHER_HEADERS) input_uvc.c v4l2uvc.lo jpeg_utils.lo dynctrl.lo
-	$(CC) $(CFLAGS)  -o $@ input_uvc.c v4l2uvc.lo jpeg_utils.lo dynctrl.lo $(LFLAGS)
+	$(CC) $(CFLAGS) -o $@ input_uvc.c v4l2uvc.lo jpeg_utils.lo dynctrl.lo $(LFLAGS)
 
 v4l2uvc.lo: huffman.h uvc_compat.h v4l2uvc.c v4l2uvc.h
 	$(CC) -c $(CFLAGS) -o $@ v4l2uvc.c

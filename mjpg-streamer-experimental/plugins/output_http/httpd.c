@@ -26,6 +26,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <ctype.h>
 #include <pthread.h>
 #include <sys/socket.h>
 #include <sys/select.h>
@@ -960,7 +961,7 @@ void command(int id, int fd, char *parameter)
         #endif
     }
 
-    int plugin_no = 0; // default plugin no = 0 for campatibility reasons
+    int plugin_no = 0; // default plugin no = 0 for compatibility reasons
     if((value = strstr(parameter, "plugin=")) != NULL) {
         value += strlen("plugin=");
         len = strspn(value, "-1234567890");
@@ -1609,13 +1610,26 @@ void send_input_JSON(int fd, int input_number)
             "\"controls\": [\n");
     if(pglobal->in[input_number].in_parameters != NULL) {
         for(i = 0; i < pglobal->in[input_number].parametercount; i++) {
+
             char *menuString = NULL;
             if(pglobal->in[input_number].in_parameters[i].ctrl.type == V4L2_CTRL_TYPE_MENU) {
                 if(pglobal->in[input_number].in_parameters[i].menuitems != NULL) {
                     int j, k = 1;
                     for(j = pglobal->in[input_number].in_parameters[i].ctrl.minimum; j <= pglobal->in[input_number].in_parameters[i].ctrl.maximum; j++) {
+                        char *tempName = NULL; // temporary storage for name sanity checking
+
                         int prevSize = 0;
-                        int itemLength = strlen((char*)&pglobal->in[input_number].in_parameters[i].menuitems[j].name)  + strlen("\"\": \"\"");
+                        int itemLength = strlen((char*)&pglobal->in[input_number].in_parameters[i].menuitems[j].name);
+                        tempName = (char*)calloc(itemLength + 1, sizeof(char));  // allocate space for the sanity checking
+                        if (tempName == NULL) {
+                            DBG("Realloc/calloc failed: %s\n", strerror(errno));
+                            return;
+                        }
+
+                        check_JSON_string((char*)&pglobal->in[input_number].in_parameters[i].menuitems[j].name, tempName); // sanity check the string after non printable characters
+
+                        itemLength += strlen("\"\": \"\"");
+
                         if (menuString == NULL) {
                             menuString = calloc(itemLength + 5, sizeof(char));
                         } else {
@@ -1629,11 +1643,12 @@ void send_input_JSON(int fd, int input_number)
                         prevSize = strlen(menuString);
 
                         if(j != pglobal->in[input_number].in_parameters[i].ctrl.maximum) {
-                            sprintf(menuString + prevSize, "\"%d\": \"%s\", ", j , (char*)&pglobal->in[input_number].in_parameters[i].menuitems[j].name);
+                            sprintf(menuString + prevSize, "\"%d\": \"%s\", ", j , tempName);
                         } else {
-                            sprintf(menuString + prevSize, "\"%d\": \"%s\"", j , (char*)&pglobal->in[input_number].in_parameters[i].menuitems[j].name);
+                            sprintf(menuString + prevSize, "\"%d\": \"%s\"", j , tempName);
                         }
                         k++;
+                        free(tempName);
                     }
                 }
             }
@@ -1664,6 +1679,7 @@ void send_input_JSON(int fd, int input_number)
                     pglobal->in[input_number].in_parameters[i].group
                    );
 
+            // append the menu object to the menu typecontrols
             if(pglobal->in[input_number].in_parameters[i].ctrl.type == V4L2_CTRL_TYPE_MENU) {
                 sprintf(buffer + strlen(buffer),
                         ",\n"
@@ -1862,6 +1878,25 @@ void send_program_JSON(int fd)
     /* first transmit HTTP-header, afterwards transmit content of file */
     if(write(fd, buffer, i) < 0) {
         DBG("unable to serve the program JSON file\n");
+    }
+}
+
+/******************************************************************************
+Description.:   checks the source string for non printable characters and replaces them with space
+                the two arguments should be the same size allocated memory areas
+Input Value.:   source
+Return Value:   destination
+******************************************************************************/
+void check_JSON_string(char *source, char *destination)
+{
+    int i = 0;
+    while (source[i] != '\0') {
+        if (isprint(source[i])) {
+            destination[i] = source [i];
+        } else {
+            destination[i] = ' ';
+        }
+        i++;
     }
 }
 

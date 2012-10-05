@@ -77,7 +77,7 @@ int init_videoIn(struct vdIn *vd, char *device, int width,
     vd->height = height;
     vd->fps = fps;
     vd->formatIn = format;
-	 vd->vstd = vstd;
+	vd->vstd = vstd;
     vd->grabmethod = grabmethod;
     vd->soft_framedrop = 0;
     if(init_v4l2(vd) < 0) {
@@ -104,8 +104,8 @@ int init_videoIn(struct vdIn *vd, char *device, int width,
     memset(&currentFormat, 0, sizeof(struct v4l2_format));
     currentFormat.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     if (xioctl(vd->fd, VIDIOC_G_FMT, &currentFormat) == 0) {
-        DBG("Current size: %dx%d\n", 
-             currentFormat.fmt.pix.width, 
+        DBG("Current size: %dx%d\n",
+             currentFormat.fmt.pix.width,
              currentFormat.fmt.pix.height);
     }
 
@@ -282,7 +282,7 @@ static int init_v4l2(struct vdIn *vd)
             if(vd->formatIn == V4L2_PIX_FMT_MJPEG) {
                 fprintf(stderr, "The input device does not supports MJPEG mode\n"
                                 "You may also try the YUV mode (-yuv option), \n"
-                                "or the you can set another supported formats using the -fourcc argument."
+                                "or the you can set another supported formats using the -fourcc argument.\n"
                                 "Note: streaming using uncompressed formats will require much more CPU power on your server\n");
                 goto fatal;
             } else if(vd->formatIn == V4L2_PIX_FMT_YUYV) {
@@ -721,7 +721,7 @@ int v4l2ResetControl(struct vdIn *vd, int control)
     }
 
     return 0;
-};
+}
 
 void control_readed(struct vdIn *vd, struct v4l2_queryctrl *ctrl, globals *pglobal, int id)
 {
@@ -832,7 +832,7 @@ void control_readed(struct vdIn *vd, struct v4l2_queryctrl *ctrl, globals *pglob
     }
 
     pglobal->in[id].parametercount++;
-};
+}
 
 /*  It should set the capture resolution
     Cheated from the openCV cap_libv4l.cpp the method is the following:
@@ -873,6 +873,13 @@ int setResolution(struct vdIn *vd, int width, int height)
     }
     return ret;
 }
+
+/*
+ *
+ * Enumarates all V4L2 controls using various methods.
+ * It places them to the
+ *
+ */
 
 void enumerateControls(struct vdIn *vd, globals *pglobal, int id)
 {
@@ -954,38 +961,4 @@ void enumerateControls(struct vdIn *vd, globals *pglobal, int id)
         DBG("Modifying the setting of the JPEG compression is not supported\n");
         pglobal->in[id].jpegcomp.quality = -1;
     }
-
-    // beginning of the Philips webcam related stuff
-	/*struct pwc_leds pwcl;
-	struct pwc_mpt_range pmr;
-	struct pwc_mpt_angles pma;
-
-	// verify that it IS a Philips Webcam
-	if (xioctl(fd, VIDIOCPWCPROBE, &pwcp) == -1) {
-		DBG("This is not a Philips webcam\n")
-		return;
-	}
-
-    if (xioctl(fd, VIDIOCPWCMPTGRANGE, &pmr) == -1) {
-		DBG("Pan/Tilt is not supported\n");
-		return;
-	} else {
-		DBG("Pan min. : %d, max.: %d\n", pmr.pan_min, pmr.pan_max);
-		DBG(("Tilt min.: %d, max.: %d\n", pmr.tilt_min, pmr.tilt_max);
-	}
-
-	pma.absolute=1;
-	if (ioctl(fd, VIDIOCPWCMPTGANGLE, &pma) == -1) {
-		DBG("Get pan/tilt position is not supported\n");
-	} else {
-		DBG("Pan  (degrees * 100): %d\n", pma.pan);
-		DBG("Tilt (degrees * 100): %d\n", pma.tilt);
-		pglobal->in[id].parametercount += 2;
-        pglobal->in[id].in_parameters = (control*)realloc(pglobal->in[id].in_parameters,(pglobal->in[id].parametercount) * sizeof(control));
-        control panCtr, tiltCtrl;
-        panCtrl.group = IN_CMD_PWC;
-        tiltCtrl.group = IN_CMD_PWC;
-        panCtrl.menuitems = NULL;
-        panCtrl.menuitems = NULL;
-	}*/
 }

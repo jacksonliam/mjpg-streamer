@@ -142,7 +142,7 @@ int input_init(input_parameter *param, int id)
         case 8:
         case 9:
             DBG("case 8,9\n");
-            filename = malloc(strlen(optarg) + 2);
+            filename = malloc(strlen(optarg) + 1);
             strcpy(filename, optarg);
             break;
             /* e, existing */
@@ -328,8 +328,10 @@ void *worker_thread(void *arg)
         pthread_mutex_lock(&pglobal->in[plugin_number].db);
 
         /* allocate memory for frame */
-        if(pglobal->in[plugin_number].buf != NULL) free(pglobal->in[plugin_number].buf);
-            pglobal->in[plugin_number].buf = malloc(filesize + (1 << 16));
+        if(pglobal->in[plugin_number].buf != NULL)
+            free(pglobal->in[plugin_number].buf);
+
+        pglobal->in[plugin_number].buf = malloc(filesize + (1 << 16));
 
         if(pglobal->in[plugin_number].buf == NULL) {
             fprintf(stderr, "could not allocate memory\n");

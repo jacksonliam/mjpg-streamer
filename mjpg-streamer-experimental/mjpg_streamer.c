@@ -92,7 +92,7 @@ Return Value: -
 ******************************************************************************/
 void signal_handler(int sig)
 {
-    int i;
+    int i, j;
 
     /* signal "stop" to threads */
     LOG("setting signal to stop\n");
@@ -103,12 +103,21 @@ void signal_handler(int sig)
     LOG("force cancellation of threads and cleanup resources\n");
     for(i = 0; i < global.incnt; i++) {
         global.in[i].stop(i);
+        /*for (j = 0; j<MAX_PLUGIN_ARGUMENTS; j++) {
+            if (global.in[i].param.argv[j] != NULL) {
+                free(global.in[i].param.argv[j]);
+            }
+        }*/
     }
 
     for(i = 0; i < global.outcnt; i++) {
         global.out[i].stop(global.out[i].param.id);
         pthread_cond_destroy(&global.in[i].db_update);
         pthread_mutex_destroy(&global.in[i].db);
+        /*for (j = 0; j<MAX_PLUGIN_ARGUMENTS; j++) {
+            if (global.out[i].param.argv[j] != NULL)
+                free(global.out[i].param.argv[j]);
+        }*/
     }
     usleep(1000 * 1000);
 
@@ -121,6 +130,7 @@ void signal_handler(int sig)
         int j, skip = 0;
         DBG("about to decrement usage counter for handle of %s, id #%02d, handle: %p\n", \
             global.out[i].plugin, global.out[i].param.id, global.out[i].handle);
+
         for(j=i+1; j<global.outcnt; j++) {
           if ( global.out[i].handle == global.out[j].handle ) {
             DBG("handles are pointing to the same destination (%p == %p)\n", global.out[i].handle, global.out[j].handle);
@@ -168,6 +178,7 @@ int split_parameters(char *parameter_string, int *argc, char **argv)
                 }
             }
         }
+        free(arg);
     }
     *argc = count;
     return 1;
@@ -183,7 +194,7 @@ int main(int argc, char *argv[])
     //char *input  = "input_uvc.so --resolution 640x480 --fps 5 --device /dev/video0";
     char *input[MAX_INPUT_PLUGINS];
     char *output[MAX_OUTPUT_PLUGINS];
-    int daemon = 0, i;
+    int daemon = 0, i, j;
     size_t tmp = 0;
 
     output[0] = "output_http.so --port 8080";
@@ -349,6 +360,11 @@ int main(int argc, char *argv[])
         global.in[i].cmd = dlsym(global.in[i].handle, "input_cmd");
 
         global.in[i].param.parameters = strchr(input[i], ' ');
+
+        for (j = 0; j<MAX_PLUGIN_ARGUMENTS; j++) {
+            global.in[i].param.argv[j] = NULL;
+        }
+
         split_parameters(global.in[i].param.parameters, &global.in[i].param.argc, global.in[i].param.argv);
         global.in[i].param.global = &global;
         global.in[i].param.id = i;
@@ -393,6 +409,10 @@ int main(int argc, char *argv[])
         global.out[i].cmd = dlsym(global.out[i].handle, "output_cmd");
 
         global.out[i].param.parameters = strchr(output[i], ' ');
+
+        for (j = 0; j<MAX_PLUGIN_ARGUMENTS; j++) {
+            global.out[i].param.argv[j] = NULL;
+        }
         split_parameters(global.out[i].param.parameters, &global.out[i].param.argc, global.out[i].param.argv);
 
         global.out[i].param.global = &global;
