@@ -186,7 +186,7 @@ int init_videoIn(struct vdIn *vd, char *device, int width,
         vd->framebuffer =
             (unsigned char *) calloc(1, (size_t) vd->width * (vd->height + 8) * 2);
         break;
-    case V4L2_PIX_FMT_RGB565: // buffer allocation for non variing frame size formats
+    case V4L2_PIX_FMT_RGB565: // buffer allocation for non varies on frame size formats
     case V4L2_PIX_FMT_YUYV:
         vd->framebuffer =
             (unsigned char *) calloc(1, (size_t) vd->framesizeIn);

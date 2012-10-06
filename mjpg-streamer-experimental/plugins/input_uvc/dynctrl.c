@@ -195,7 +195,9 @@ int initDynCtrls(int fd)
     for(i = 0; i < LENGTH_OF_XU_CTR; i++) {
         if((err = xioctl(fd, UVCIOC_CTRL_ADD, &xu_ctrls[i])) < 0) {
             if(errno == EEXIST)
-                perror("Control exists");
+                fprintf(stderr,"Control exists\n");
+            else if (errno != 0)
+                fprintf(stderr, "UVCIOC_CTRL_ADD - Error at %s: %s (%d)\n", xu_mappings[i].name, strerror(errno), errno);
         }
     }
 
@@ -203,7 +205,9 @@ int initDynCtrls(int fd)
     for(i = 0; i < LENGTH_OF_XU_MAP; i++) {
         if((err = xioctl(fd, UVCIOC_CTRL_MAP, &xu_mappings[i])) < 0) {
             if(errno == EEXIST)
-                perror("Mapping exists");
+                fprintf(stderr,"Mapping exists\n");
+            else if (errno != 0)
+                fprintf(stderr, "UVCIOC_CTRL_MAP - Error at %s: %s (%d)\n", xu_mappings[i].name, strerror(errno), errno);
         }
     }
     return 0;
