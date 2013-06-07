@@ -33,7 +33,7 @@ APP_BINARY = mjpg_streamer
 
 # define the names and targets of the plugins
 PLUGINS = input_uvc.so
-#PLUGINS += output_file.so
+PLUGINS += output_file.so
 #PLUGINS += output_udp.so
 PLUGINS += output_http.so
 #PLUGINS += input_testpicture.so
@@ -105,7 +105,7 @@ output_mars2020.so: mjpg_streamer.h utils.h
 	make -C plugins/output_mars2020 all
 	cp plugins/output_mars2020/output_mars2020.so .
 
-input_file.so: mjpg_streamer.h utils.h
+input_file.so:
 	make -C plugins/input_file all
 	cp plugins/input_file/input_file.so .
 
@@ -129,7 +129,8 @@ input_http.so: mjpg_streamer.h utils.h
 	make -C plugins/input_http all
 	cp plugins/input_http/input_http.so .
 
-input_raspicam.so mjpeg_streamer.h utils.h
+input_raspicam.so: mjpg_streamer.h utils.h
+	cd plugins/input_raspicam/build; cmake ..
 	make -C plugins/input_raspicam/build
 	cp plugins/input_raspicam/build/libinput_raspicam.so ./input_raspicam.so
 
@@ -155,6 +156,7 @@ clean:
 #	make -C plugins/output_mars2020 $@
 	make -C plugins/input_http $@
 	rm -f *.a *.o $(APP_BINARY) core *~ *.so *.lo
+	rm -f -r plugins/input_raspicam/build/*
 
 # useful to make a backup "make tgz"
 tgz: clean
