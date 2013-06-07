@@ -1,0 +1,1 @@
+/usr/bin/gcc  -fPIC -DDEBUG   -shared -Wl,-soname,libinput_raspicam.so -o libinput_raspicam.so CMakeFiles/input_raspicam.dir/input_raspicam.c.o -L/opt/vc/lib -lmmal_core -lmmal_util -lmmal_vc_client -lvcos -lbcm_host -Wl,-rpath,/opt/vc/lib 
