@@ -46,6 +46,7 @@ PLUGINS += output_http.so
 # PLUGINS += input_ptp2.so # commented out because it depends on libgphoto
 #PLUGINS += input_http.so 
 # PLUGINS += output_viewer.so # commented out because it depends on SDL
+PLUGINS += input_raspicam.so
 
 # define the names of object files
 OBJECTS=mjpg_streamer.o utils.o
@@ -127,6 +128,10 @@ input_pylon.so: mjpg_streamer.h utils.h
 input_http.so: mjpg_streamer.h utils.h
 	make -C plugins/input_http all
 	cp plugins/input_http/input_http.so .
+
+input_raspicam.so mjpeg_streamer.h utils.h
+	make -C plugins/input_raspicam/build
+	cp plugins/input_raspicam/build/libinput_raspicam.so ./input_raspicam.so
 
 # The viewer plugin requires the SDL library for compilation
 # This is very uncommmon on embedded devices, so it is commented out and will
