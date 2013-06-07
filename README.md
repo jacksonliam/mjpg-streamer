@@ -9,7 +9,7 @@ You might need to install cmake and some dev version of libjpeg.
 you can run from that dir with:
 export LD_LIBRARY_PATH=.
 ./mjpg_streamer -o "output_http.so -w ./www" -i "input_raspicam.so"
-
+```
  ---------------------------------------------------------------
  The following parameters can be passed to this input_raspicam plugin:
 
@@ -33,7 +33,7 @@ export LD_LIBRARY_PATH=.
  -hf : Set horizontal flip
  -vf : Set vertical flip
  ---------------------------------------------------------------
-
+```
 ISO doesn't work due to it not working in raspistill.
 Minimum working delay seems to be about 100ms to give you about 8fps.
 There's no preview output shown on the raspi screen.
