@@ -106,6 +106,7 @@ int input_init(input_parameter *param, int plugin_no)
     }
 
     param->argv[0] = INPUT_PLUGIN_NAME;
+    plugin_number = plugin_no;
 
 	//setup the camera control st
 	raspicamcontrol_set_defaults(&c_params);
