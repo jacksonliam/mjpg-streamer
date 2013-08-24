@@ -531,12 +531,18 @@ void *worker_thread(void *arg)
 	DBG("Host init, starting mmal stuff\n");
 
     status = mmal_component_create(MMAL_COMPONENT_DEFAULT_CAMERA, &camera);
-	
     if (status != MMAL_SUCCESS) {
         fprintf(stderr, "error create camera\n");
         exit(EXIT_FAILURE);
     }
 
+	// No preview required, so create a null sink component to take its place
+    status = mmal_component_create("vc.null_sink", &preview);
+    if (status != MMAL_SUCCESS)
+    {
+        fprintf(stderr, "Unable to create null sink component\n");
+        exit(EXIT_FAILURE);
+    }
 	
    if (!camera->output_num)
    {
@@ -612,12 +618,19 @@ void *worker_thread(void *arg)
 
    /* Enable component */
    status = mmal_component_enable(camera);
-   
    if (status)
    {
       fprintf(stderr, "camera couldn't be enabled\n");
 	  mmal_component_destroy(camera);
       exit(EXIT_FAILURE);
+   }
+   
+   /* Enable component */
+   status = mmal_component_enable(preview);
+   if (status != MMAL_SUCCESS)
+   {
+      fprintf(stderr, "Unable to enable preview/null sink component (%u)\n", status);
+	  exit(EXIT_FAILURE);
    }
    
    DBG("Camera enabled, creating encoder\n");
@@ -717,6 +730,13 @@ void *worker_thread(void *arg)
 		mmal_component_destroy(encoder);
    }
    
+	//Setup the null sink
+	// Note we are lucky that the preview and null sink components use the same input port
+	// so we can do this without conditionals
+	preview_input_port = preview->input[0];
+
+	// Connect camera to preview (which might be a null_sink if no preview required)
+	status = connect_ports(camera_preview_port, preview_input_port, &camera_preview_connection);
    
     // Now connect the camera to the encoder
     status = connect_ports(camera_still_port, encoder->input[0], &encoder_connection);
@@ -729,16 +749,16 @@ void *worker_thread(void *arg)
 	  exit(EXIT_FAILURE);
    }
 		
-	     // Set up our userdata - this is passed though to the callback where we need the information.
-         // Null until we open our filename
-		 PORT_USERDATA callback_data;
-         callback_data.file_handle = NULL;
-         callback_data.pool = pool;
-		 callback_data.offset = 0;
+	 // Set up our userdata - this is passed though to the callback where we need the information.
+	 // Null until we open our filename
+	 PORT_USERDATA callback_data;
+	 callback_data.file_handle = NULL;
+	 callback_data.pool = pool;
+	 callback_data.offset = 0;
 
-         vcos_assert(vcos_semaphore_create(&callback_data.complete_semaphore, "RaspiStill-sem", 0) == VCOS_SUCCESS);
+	 vcos_assert(vcos_semaphore_create(&callback_data.complete_semaphore, "RaspiStill-sem", 0) == VCOS_SUCCESS);
 
-		 encoder->output[0]->userdata = (struct MMAL_PORT_USERDATA_T *)&callback_data;
+	 encoder->output[0]->userdata = (struct MMAL_PORT_USERDATA_T *)&callback_data;
 
 
 	

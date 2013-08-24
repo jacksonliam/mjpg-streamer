@@ -7,8 +7,12 @@ Simply compile with 'make clean all' from within the mjpeg streamer experimental
 Youll need to have cmake and a dev version of libjpeg installed. I used libjpeg62-dev.
 
 you can run from that dir with:
+```
 export LD_LIBRARY_PATH=.
 ./mjpg_streamer -o "output_http.so -w ./www" -i "input_raspicam.so"
+```
+
+Here's some Help:
 ```
  ---------------------------------------------------------------
  The following parameters can be passed to this input_raspicam plugin:
