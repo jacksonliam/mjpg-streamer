@@ -157,6 +157,7 @@ clean:
 	make -C plugins/input_http $@
 	rm -f *.a *.o $(APP_BINARY) core *~ *.so *.lo
 	rm -f -r plugins/input_raspicam/build/*
+	echo "This folder is where the plugin gets built" > plugins/input_raspicam/build/Readme.md
 
 # useful to make a backup "make tgz"
 tgz: clean
