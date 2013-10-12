@@ -15,11 +15,16 @@ export LD_LIBRARY_PATH=.
 Here's some Help:
 ```
  ---------------------------------------------------------------
- The following parameters can be passed to this input_raspicam plugin:
+ Help for input plugin..: raspicam input plugin
+ ---------------------------------------------------------------
+ The following parameters can be passed to this plugin:
 
- [-d | --delay]....: delay in ms between captures, default 1000
+ [-fps | --framerate]...: set video framerate, default 1 frame/sec
  [-x | --width ]........: width of frame capture, default 640
  [-y | --height]....: height of frame capture, default 480
+ [-y | --height]....: height of frame capture, default 480
+ [-quality]....: set JPEG quality 0-100, default 85
+ [-usestills]....: uses stills mode instead of video mode
 
  -sh : Set image sharpness (-100 to 100)
  -co : Set image contrast (-100 to 100)
@@ -37,6 +42,7 @@ Here's some Help:
  -hf : Set horizontal flip
  -vf : Set vertical flip
  ---------------------------------------------------------------
+
 ```
 ISO doesn't work due to it not working in raspistill.
 Minimum working delay seems to be about 100ms to give you about 8fps.

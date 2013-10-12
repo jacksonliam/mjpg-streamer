@@ -71,9 +71,11 @@ void *worker_thread(void *);
 void worker_cleanup(void *);
 void help(void);
 
-static int delay = 1000;
+static int fps = 1;
 static int width = 640;
 static int height = 480;
+static int quality = 85;
+static int usestills = 0;
 static RASPICAM_CAMERA_PARAMETERS c_params;
 
 /** Struct used to pass information in encoder port userdata to callback
@@ -126,8 +128,8 @@ int input_init(input_parameter *param, int plugin_no)
             {"width", required_argument, 0, 0},
             {"y", required_argument, 0, 0},
             {"height", required_argument, 0, 0},
-			{"d", required_argument, 0, 0},
-            {"delay", required_argument, 0, 0},
+			{"fps", required_argument, 0, 0},
+            {"framerate", required_argument, 0, 0},
 			{"sh", required_argument, 0, 0},
 			{"co", required_argument, 0, 0},
 			{"br", required_argument, 0, 0},
@@ -143,6 +145,8 @@ int input_init(input_parameter *param, int plugin_no)
 			{"rot", required_argument, 0, 0},
 			{"hf", no_argument, 0, 0},
 			{"vf", no_argument, 0, 0},
+			{"quality", required_argument, 0, 0},
+			{"usestills", no_argument, 0, 0},
             {0, 0, 0, 0}
         };
 		
@@ -177,11 +181,11 @@ int input_init(input_parameter *param, int plugin_no)
             DBG("case 4,5\n");
             height = atoi(optarg);
             break;
-			/* delay */
+			/* fps */
 		case 6:
 		case 7:
 			DBG("case 6, 7\n");
-			delay = atoi(optarg);
+			fps = atoi(optarg);
 			break;
 		case 8:
 			//sharpness
@@ -244,6 +248,14 @@ int input_init(input_parameter *param, int plugin_no)
 			//vflip
 			c_params.vflip = 1;
 			break;
+		case 23:
+			//quality
+			quality = atoi(optarg);
+			break;
+		case 24:
+			//use stills
+			usestills = 1;
+			break;
         default:
             DBG("default case\n");
             help();
@@ -253,7 +265,7 @@ int input_init(input_parameter *param, int plugin_no)
 	
     pglobal = param->global;
 
-    IPRINT("delay.............: %i\n", delay);
+    IPRINT("fps.............: %i\n", fps);
     IPRINT("resolution........: %i x %i\n", width, height);
 	IPRINT("camera parameters..............:\n\n");
 	raspicamcontrol_dump_parameters(&c_params);
@@ -469,9 +481,13 @@ void help(void)
     " Help for input plugin..: "INPUT_PLUGIN_NAME"\n" \
     " ---------------------------------------------------------------\n" \
     " The following parameters can be passed to this plugin:\n\n" \
-	" [-d | --delay]....: delay in ms between captures, default 1000 \n"\
+	" [-fps | --framerate]...: set video framerate, default 1 frame/sec \n"\
     " [-x | --width ]........: width of frame capture, default 640\n" \
     " [-y | --height]....: height of frame capture, default 480 \n"\
+	" [-y | --height]....: height of frame capture, default 480 \n"\
+	" [-quality]....: set JPEG quality 0-100, default 85 \n"\
+	" [-usestills]....: uses stills mode instead of video mode \n"\
+	
 	" \n"\
 	" -sh : Set image sharpness (-100 to 100)\n"\
 	" -co : Set image contrast (-100 to 100)\n"\
@@ -503,6 +519,12 @@ void *worker_thread(void *arg)
 
     /* set cleanup handler to cleanup allocated ressources */
     pthread_cleanup_push(worker_cleanup, NULL);
+	//Lets not let this thread be cancelled, it needs to clean up mmal on exit
+	if(pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL) != 0){
+		fprintf(stderr, "Unable to set cancel state\n");
+        exit(EXIT_FAILURE);
+	}
+	
 	IPRINT("Starting Camera\n");
 	
 	//Camera variables
@@ -566,13 +588,14 @@ void *worker_thread(void *arg)
        exit(EXIT_FAILURE);
    }
 	
+	
 	{
         MMAL_PARAMETER_CAMERA_CONFIG_T cam_config = {
             { MMAL_PARAMETER_CAMERA_CONFIG, sizeof (cam_config)},
             .max_stills_w = width,
             .max_stills_h = height,
             .stills_yuv422 = 0,
-            .one_shot_stills = 1,
+            .one_shot_stills = (usestills ? 1 : 0),
             .max_preview_video_w = width,
             .max_preview_video_h = height,
             .num_preview_video_frames = 3,
@@ -588,6 +611,28 @@ void *worker_thread(void *arg)
 		fprintf(stderr, "camera parameters couldn't be set\n");
 	}
 	
+	if(! usestills){
+		// Set the encode format on the video port
+		format = camera_video_port->format;
+		format->encoding_variant = MMAL_ENCODING_I420;
+		format->encoding = MMAL_ENCODING_I420;
+		format->es->video.width = width;
+		format->es->video.height = height;
+		format->es->video.crop.x = 0;
+		format->es->video.crop.y = 0;
+		format->es->video.crop.width = width;
+		format->es->video.crop.height = height;
+		format->es->video.frame_rate.num = fps;
+		format->es->video.frame_rate.den = 1;
+		status = mmal_port_format_commit(camera_video_port);
+		if (status)
+		{
+		fprintf(stderr, "camera video format couldn't be set");
+		}
+		// Ensure there are enough buffers to avoid dropping frames
+		if (camera_video_port->buffer_num < VIDEO_OUTPUT_BUFFERS_NUM)
+		camera_video_port->buffer_num = VIDEO_OUTPUT_BUFFERS_NUM;
+	}
 	
    format = camera_still_port->format;
 
@@ -691,7 +736,7 @@ void *worker_thread(void *arg)
    }
 
    // Set the JPEG quality level
-   status = mmal_port_parameter_set_uint32(encoder_output, MMAL_PARAMETER_JPEG_Q_FACTOR, 85);
+   status = mmal_port_parameter_set_uint32(encoder_output, MMAL_PARAMETER_JPEG_Q_FACTOR, quality);
 
    if (status != MMAL_SUCCESS)
    {
@@ -739,7 +784,12 @@ void *worker_thread(void *arg)
 	status = connect_ports(camera_preview_port, preview_input_port, &camera_preview_connection);
    
     // Now connect the camera to the encoder
-    status = connect_ports(camera_still_port, encoder->input[0], &encoder_connection);
+	if(usestills){
+		status = connect_ports(camera_still_port, encoder->input[0], &encoder_connection);
+	} else {
+		status = connect_ports(camera_video_port, encoder->input[0], &encoder_connection);
+	}
+	
 	if (status)
    {
       fprintf(stderr, "Unable to connect components\n");
@@ -772,22 +822,22 @@ void *worker_thread(void *arg)
 	   if (encoder)
 		  mmal_component_destroy(encoder);
    }
-     
-
-	DBG("Starting output\n");
 	
-	//setup fps
-	clock_gettime(CLOCK_MONOTONIC, &t_start);
-	frames = 0;
-	
-    while(!pglobal->stop) {
-	
-		//Wait the delay
-		usleep(1000 * delay);
-	
-		// Send all the buffers to the encoder output port
-		  int num = mmal_queue_length(pool->queue);
-		  int q;
+	if(usestills){
+		DBG("Starting stills output\n");
+		
+		//setup fps
+		clock_gettime(CLOCK_MONOTONIC, &t_start);
+		frames = 0;
+		int delay = (1000 * 1000) / fps;
+		
+		while(!pglobal->stop) {
+			//Wait the delay
+			usleep(delay);
+		
+			// Send all the buffers to the encoder output port
+			int num = mmal_queue_length(pool->queue);
+			int q;
 			for (q=0;q<num;q++)
 			  {
 				 MMAL_BUFFER_HEADER_T *buffer = mmal_queue_get(pool->queue);
@@ -799,37 +849,64 @@ void *worker_thread(void *arg)
 					fprintf(stderr, "Unable to send a buffer to encoder output port");
 			  }
 			  
-		          if (mmal_port_parameter_set_boolean(camera_still_port, MMAL_PARAMETER_CAPTURE, 1) != MMAL_SUCCESS)
-                  {
+				  if (mmal_port_parameter_set_boolean(camera_still_port, MMAL_PARAMETER_CAPTURE, 1) != MMAL_SUCCESS)
+				  {
 						fprintf(stderr, "starting captue failed");
-                  }
-                  else
-                  {
-                     // Wait for capture to complete
-                     // For some reason using vcos_semaphore_wait_timeout sometimes returns immediately with bad parameter error
-                     // even though it appears to be all correct, so reverting to untimed one until figure out why its erratic
-                     vcos_semaphore_wait(&callback_data.complete_semaphore);
+				  }
+				  else
+				  {
+					 // Wait for capture to complete
+					 // For some reason using vcos_semaphore_wait_timeout sometimes returns immediately with bad parameter error
+					 // even though it appears to be all correct, so reverting to untimed one until figure out why its erratic
+					 vcos_semaphore_wait(&callback_data.complete_semaphore);
 					 //DBG("Jpeg Captured\n");
 					 frames++;
-                  }
-		
-		frames++;
-		if(frames == 100){
-			//calculate fps			
-			clock_gettime(CLOCK_MONOTONIC, &t_finish);
-			t_elapsed = (t_finish.tv_sec - t_start.tv_sec);
-			t_elapsed += (t_finish.tv_nsec - t_start.tv_nsec) / 1000000000.0;
-			fprintf(stderr, "%i frames captured in %f seconds (%f fps)\n", frames, t_elapsed, (frames / t_elapsed));
-			frames = 0;
-			clock_gettime(CLOCK_MONOTONIC, &t_start);
+				  }
+			
+			frames++;
+			if(frames == 100){
+				//calculate fps			
+				clock_gettime(CLOCK_MONOTONIC, &t_finish);
+				t_elapsed = (t_finish.tv_sec - t_start.tv_sec);
+				t_elapsed += (t_finish.tv_nsec - t_start.tv_nsec) / 1000000000.0;
+				fprintf(stderr, "%i frames captured in %f seconds (%f fps)\n", frames, t_elapsed, (frames / t_elapsed));
+				frames = 0;
+				clock_gettime(CLOCK_MONOTONIC, &t_start);
+			}
 		}
-    }
+		
+	} else { //if(usestills)
+		//Video Mode
+		DBG("Starting video output\n");
+		 // Send all the buffers to the encoder output port
+		int num = mmal_queue_length(pool->queue);
+		int q;
+		for (q=0;q<num;q++)
+		{
+			MMAL_BUFFER_HEADER_T *buffer = mmal_queue_get(pool->queue);
+			if (!buffer)
+				fprintf(stderr, "Unable to get a required buffer from pool queue");
+			if (mmal_port_send_buffer(encoder->output[0], buffer)!= MMAL_SUCCESS)
+				fprintf(stderr, "Unable to send a buffer to encoder output port");
+		}
+		if (mmal_port_parameter_set_boolean(camera_video_port, MMAL_PARAMETER_CAPTURE, 1) != MMAL_SUCCESS)
+		{
+			fprintf(stderr, "starting capture failed");
+		}
+		
+		while(!pglobal->stop) usleep(1000);
+	}
     
 	vcos_semaphore_delete(&callback_data.complete_semaphore);
 	
 	//Close everything MMAL
-	if (camera_video_port && camera_video_port->is_enabled)
-      mmal_port_disable(camera_video_port);
+	if(usestills){
+		if (camera_video_port && camera_video_port->is_enabled)
+		  mmal_port_disable(camera_video_port);
+	} else {
+		if (camera_still_port && camera_still_port->is_enabled)
+		  mmal_port_disable(camera_still_port);
+	}
 	  
 	if (encoder->output[0] && encoder->output[0]->is_enabled)
       mmal_port_disable(encoder->output[0]);
