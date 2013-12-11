@@ -6,11 +6,29 @@ Simply compile with 'make clean all' from within the mjpeg streamer experimental
 
 Youll need to have cmake and a dev version of libjpeg installed. I used libjpeg62-dev.
 
-you can run from that dir with:
+
+Discussion / Questions / Help
+=============================
+Probably best in this thread
+http://www.raspberrypi.org/phpBB3/viewtopic.php?f=43&t=45178
+
+
+Instructions
+============
+
+you can run from the mjpeg streamer experimental folder with:
 ```
 export LD_LIBRARY_PATH=.
 ./mjpg_streamer -o "output_http.so -w ./www" -i "input_raspicam.so"
 ```
+
+You can specify options, like in raspivid
+```
+export LD_LIBRARY_PATH=.
+./mjpg_streamer -o "output_http.so -w ./www" -i "input_raspicam.so -x 1280 -y 720 -fps 15 -ex night"
+```
+
+It does support upto 1080p 30fps, but the bandwidth produced would be more than the usb bus (and therefore ethernet port / wifi dongle) can provide. 720p 15fps is a good compromise.
 
 Here's some Help:
 ```
@@ -44,8 +62,11 @@ Here's some Help:
  ---------------------------------------------------------------
 
 ```
-ISO doesn't work due to it not working in raspistill.
-Minimum working delay seems to be about 100ms to give you about 8fps.
+Some of the camera options like ISO may not work due to it not working in the mmal-libs.
+
+Video mode is the default as it allows much smoother video (higher framerates).
+Stills mode allows you to use the full-frame of the sensor, but has a max framerate of around 8fps, probably less.
+
 There's no preview output shown on the raspi screen.
 
 This should run indefinately. 
