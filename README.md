@@ -42,6 +42,7 @@ Output plugins:
 * ~output_rtsp~ (not functional)
 * output_udp
 * output_viewer ([documentation](mjpg-streamer-experimental/plugins/output_viewer/README.md))
+* output_zmqserver ([documentation](mjpg-streamer-experimental/plugins/output_zmqserver/README.md))
 
 Building & Installation
 =======================
