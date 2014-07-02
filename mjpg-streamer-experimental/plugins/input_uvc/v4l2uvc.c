@@ -69,7 +69,7 @@ int init_videoIn(struct vdIn *vd, char *device, int width,
     vd->videodevice = (char *) calloc(1, 16 * sizeof(char));
     vd->status = (char *) calloc(1, 100 * sizeof(char));
     vd->pictName = (char *) calloc(1, 80 * sizeof(char));
-    snprintf(vd->videodevice, 12, "%s", device);
+    snprintf(vd->videodevice, (16 - 1), "%s", device);
     vd->toggleAvi = 0;
     vd->getPict = 0;
     vd->signalquit = 1;
