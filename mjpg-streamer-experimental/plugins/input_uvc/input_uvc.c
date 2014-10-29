@@ -56,22 +56,25 @@
 #define INPUT_PLUGIN_NAME "UVC webcam grabber"
 
 /*
- * UVC resolutions mentioned at: (at least for some webcams)
- * http://www.quickcamteam.net/hcl/frame-format-matrix/
+ * Common webcam resolutions with information from
+ * http://en.wikipedia.org/wiki/Graphics_display_resolution
  */
 static const struct {
     const char *string;
     const int width, height;
 } resolutions[] = {
-    { "QSIF", 160,  120  },
-    { "QCIF", 176,  144  },
-    { "CGA",  320,  200  },
-    { "QVGA", 320,  240  },
-    { "CIF",  352,  288  },
-    { "VGA",  640,  480  },
-    { "SVGA", 800,  600  },
-    { "XGA",  1024, 768  },
-    { "SXGA", 1280, 1024 }
+    { "QQVGA", 160,  120  },
+    { "QCIF",  176,  144  },
+    { "CGA",   320,  200  },
+    { "QVGA",  320,  240  },
+    { "CIF",   352,  288  },
+    { "VGA",   640,  480  },
+    { "SVGA",  800,  600  },
+    { "XGA",   1024, 768  },
+    { "HD",    1280, 720  },
+    { "SXGA",  1280, 1024 },
+    { "UXGA",  1600, 1280 },
+    { "FHD",   1920, 1280 },
 };
 
 static const struct {
