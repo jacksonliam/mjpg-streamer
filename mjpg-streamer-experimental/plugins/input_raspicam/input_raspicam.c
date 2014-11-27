@@ -61,6 +61,12 @@
 
 #define INPUT_PLUGIN_NAME "raspicam input plugin"
 
+// Layer that preview window should be displayed on
+#define PREVIEW_LAYER      2
+// Frames rates of 0 implies variable, but denominator needs to be 1 to prevent div by 0
+#define PREVIEW_FRAME_RATE_NUM 0
+#define PREVIEW_FRAME_RATE_DEN 1
+
 /* private functions and variables to this plugin */
 static pthread_t   worker;
 static globals     *pglobal;
@@ -76,6 +82,7 @@ static int width = 640;
 static int height = 480;
 static int quality = 85;
 static int usestills = 0;
+static int wantPreview = 0;
 static RASPICAM_CAMERA_PARAMETERS c_params;
 
 /** Struct used to pass information in encoder port userdata to callback
@@ -145,6 +152,7 @@ int input_init(input_parameter *param, int plugin_no)
       {"vf", no_argument, 0, 0},
       {"quality", required_argument, 0, 0},
       {"usestills", no_argument, 0, 0},
+      {"preview", no_argument, 0, 0},
       {0, 0, 0, 0}
     };
 
@@ -253,6 +261,10 @@ int input_init(input_parameter *param, int plugin_no)
       case 24:
         //use stills
         usestills = 1;
+        break;
+      case 25:
+        //display preview
+        wantPreview = 1;
         break;
       default:
         DBG("default case\n");
@@ -483,6 +495,7 @@ void help(void)
       " [-y | --height]....: height of frame capture, default 480 \n"\
       " [-quality]....: set JPEG quality 0-100, default 85 \n"\
       " [-usestills]....: uses stills mode instead of video mode \n"\
+      " [-preview].............: Enable full screen preview\n"\
 
       " \n"\
       " -sh : Set image sharpness (-100 to 100)\n"\
@@ -528,14 +541,17 @@ void *worker_thread(void *arg)
   MMAL_COMPONENT_T *preview = 0;
   MMAL_ES_FORMAT_T *format;
   MMAL_STATUS_T status;
-  MMAL_PORT_T *camera_preview_port = NULL, *camera_video_port = NULL, *camera_still_port = NULL;
+  MMAL_PORT_T *camera_preview_port = NULL;
+  MMAL_PORT_T *camera_video_port = NULL;
+  MMAL_PORT_T *camera_still_port = NULL;
   MMAL_PORT_T *preview_input_port = NULL;
 
   MMAL_CONNECTION_T *camera_preview_connection = 0;
 
   //Encoder variables
   MMAL_COMPONENT_T *encoder = 0;
-  MMAL_PORT_T *encoder_input = NULL, *encoder_output = NULL;
+  MMAL_PORT_T *encoder_input = NULL;
+  MMAL_PORT_T *encoder_output = NULL;
   MMAL_POOL_T *pool;
   MMAL_CONNECTION_T *encoder_connection;
 
@@ -551,14 +567,6 @@ void *worker_thread(void *arg)
   status = mmal_component_create(MMAL_COMPONENT_DEFAULT_CAMERA, &camera);
   if (status != MMAL_SUCCESS) {
     fprintf(stderr, "error create camera\n");
-    exit(EXIT_FAILURE);
-  }
-
-  // No preview required, so create a null sink component to take its place
-  status = mmal_component_create("vc.null_sink", &preview);
-  if (status != MMAL_SUCCESS)
-  {
-    fprintf(stderr, "Unable to create null sink component\n");
     exit(EXIT_FAILURE);
   }
 
@@ -605,6 +613,60 @@ void *worker_thread(void *arg)
   //Set camera parameters
   if(raspicamcontrol_set_all_parameters(camera, &c_params)){
     fprintf(stderr, "camera parameters couldn't be set\n");
+  }
+
+  // Set the encode format on the Preview port
+
+  format = camera_preview_port->format;
+  format->encoding = MMAL_ENCODING_OPAQUE;
+  format->es->video.width = VCOS_ALIGN_UP(width, 32);
+  format->es->video.height = VCOS_ALIGN_UP(height, 16);
+  format->es->video.crop.x = 0;
+  format->es->video.crop.y = 0;
+  format->es->video.crop.width = width;
+  format->es->video.crop.height = height;
+  format->es->video.frame_rate.num = PREVIEW_FRAME_RATE_NUM;
+  format->es->video.frame_rate.den = PREVIEW_FRAME_RATE_DEN;
+
+  status = mmal_port_format_commit(camera_preview_port);
+
+  // Create preview component
+  status = mmal_component_create(MMAL_COMPONENT_DEFAULT_VIDEO_RENDERER, &preview);
+
+  if (status != MMAL_SUCCESS)
+  {
+    fprintf(stderr, "Unable to create preview component\n");
+    exit(EXIT_FAILURE);
+  }
+
+  if (!preview->input_num)
+  {
+    status = MMAL_ENOSYS;
+    fprintf(stderr, "No input ports found on preview component");
+    exit(EXIT_FAILURE);
+  }
+
+  preview_input_port = preview->input[0];
+
+  MMAL_DISPLAYREGION_T param;
+  param.hdr.id = MMAL_PARAMETER_DISPLAYREGION;
+  param.hdr.size = sizeof(MMAL_DISPLAYREGION_T);
+
+  param.set = MMAL_DISPLAY_SET_LAYER;
+  param.layer = PREVIEW_LAYER;
+
+  param.set |= MMAL_DISPLAY_SET_ALPHA;
+  param.alpha = 255;
+
+  param.set |= MMAL_DISPLAY_SET_FULLSCREEN;
+  param.fullscreen = 1;
+
+  status = mmal_port_parameter_set(preview_input_port, &param.hdr);
+
+  if (status != MMAL_SUCCESS && status != MMAL_ENOSYS)
+  {
+   fprintf(stderr, "unable to set preview port parameters (%u)", status);
+   exit(EXIT_FAILURE);
   }
 
   if(! usestills){
@@ -671,6 +733,8 @@ void *worker_thread(void *arg)
   if (status != MMAL_SUCCESS)
   {
     fprintf(stderr, "Unable to enable preview/null sink component (%u)\n", status);
+    mmal_component_destroy(preview);
+    mmal_component_destroy(camera);
     exit(EXIT_FAILURE);
   }
 
@@ -771,13 +835,14 @@ void *worker_thread(void *arg)
       mmal_component_destroy(encoder);
   }
 
-  //Setup the null sink
-  // Note we are lucky that the preview and null sink components use the same input port
-  // so we can do this without conditionals
-  preview_input_port = preview->input[0];
+  if (wantPreview)
+  {
+    // Connect camera to preview
+    status = connect_ports(camera_preview_port, preview_input_port, &camera_preview_connection);
 
-  // Connect camera to preview (which might be a null_sink if no preview required)
-  status = connect_ports(camera_preview_port, preview_input_port, &camera_preview_connection);
+    if (status != MMAL_SUCCESS)
+      camera_preview_connection = NULL;
+  }
 
   // Now connect the camera to the encoder
   if(usestills){
@@ -789,6 +854,10 @@ void *worker_thread(void *arg)
   if (status)
   {
     fprintf(stderr, "Unable to connect components\n");
+    if (camera_preview_connection)
+      mmal_connection_destroy(camera_preview_connection);
+    if (preview)
+      mmal_component_destroy(preview);
     mmal_component_destroy(camera);
     if (encoder)
       mmal_component_destroy(encoder);
@@ -814,9 +883,9 @@ void *worker_thread(void *arg)
   {
     fprintf(stderr, "Unable to enable encoder component\n");
     mmal_component_destroy(camera);
-    exit(EXIT_FAILURE);
     if (encoder)
       mmal_component_destroy(encoder);
+    exit(EXIT_FAILURE);
   }
 
   if(usestills){
@@ -903,6 +972,8 @@ void *worker_thread(void *arg)
     if (camera_still_port && camera_still_port->is_enabled)
       mmal_port_disable(camera_still_port);
   }
+  if (camera_preview_connection)
+    mmal_connection_destroy(camera_preview_connection);
 
   if (encoder->output[0] && encoder->output[0]->is_enabled)
     mmal_port_disable(encoder->output[0]);
@@ -912,7 +983,8 @@ void *worker_thread(void *arg)
   // Disable components
   if (encoder)
     mmal_component_disable(encoder);
-
+  if (preview)
+    mmal_component_disable(preview);
   if (camera)
     mmal_component_disable(camera);
 
