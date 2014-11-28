@@ -39,11 +39,12 @@ Here's some Help:
 
  [-fps | --framerate]...: set video framerate, default 1 frame/sec
  [-x | --width ]........: width of frame capture, default 640
- [-y | --height]....: height of frame capture, default 480
- [-y | --height]....: height of frame capture, default 480
- [-quality]....: set JPEG quality 0-100, default 85
- [-usestills]....: uses stills mode instead of video mode
-
+ [-y | --height]........: height of frame capture, default 480
+ [-y | --height]........: height of frame capture, default 480
+ [-quality].............: set JPEG quality 0-100, default 85
+ [-usestills]...........: uses stills mode instead of video mode
+ [-preview].............: enable full screen preview
+ 
  -sh : Set image sharpness (-100 to 100)
  -co : Set image contrast (-100 to 100)
  -br : Set image brightness (0 to 100)
@@ -67,7 +68,7 @@ Some of the camera options like ISO may not work due to it not working in the mm
 Video mode is the default as it allows much smoother video (higher framerates).
 Stills mode allows you to use the full-frame of the sensor, but has a max framerate of around 8fps, probably less.
 
-There's no preview output shown on the raspi screen.
+In order to have preview output shown on the raspi screen add the -preview option.
 
 This should run indefinately. 
 ctrl-c closes mjpeg streamer and raspicam gracefully.
