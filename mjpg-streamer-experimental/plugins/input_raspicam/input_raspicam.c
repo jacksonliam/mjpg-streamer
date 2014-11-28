@@ -107,7 +107,8 @@ typedef struct
 int input_init(input_parameter *param, int plugin_no)
 {
   int i;
-  if(pthread_mutex_init(&controls_mutex, NULL) != 0) {
+  if (pthread_mutex_init(&controls_mutex, NULL) != 0)
+  {
     IPRINT("could not initialize mutex variable\n");
     exit(EXIT_FAILURE);
   }
@@ -119,7 +120,8 @@ int input_init(input_parameter *param, int plugin_no)
   raspicamcontrol_set_defaults(&c_params);
 
   /* show all parameters for DBG purposes */
-  for(i = 0; i < param->argc; i++) {
+  for (i = 0; i < param->argc; i++)
+  {
     DBG("argv[%d]=%s\n", i, param->argv[i]);
   }
 
@@ -159,10 +161,12 @@ int input_init(input_parameter *param, int plugin_no)
     c = getopt_long_only(param->argc, param->argv, "", long_options, &option_index);
 
     /* no more options to parse */
-    if(c == -1) break;
+    if(c == -1)
+      break;
 
     /* unrecognized option */
-    if(c == '?') {
+    if (c == '?')
+    {
       help();
       return 1;
     }
@@ -399,9 +403,8 @@ static void encoder_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buf
 
   }
 
-  if (complete){
+  if (complete)
     vcos_semaphore_post(&(pData->complete_semaphore));
-  }
 
 }
 
@@ -434,12 +437,14 @@ static void camera_control_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buf
 int input_run(int id)
 {
   pglobal->in[id].buf = malloc(width * height * 3);
-  if(pglobal->in[id].buf == NULL) {
+  if (pglobal->in[id].buf == NULL)
+  {
     fprintf(stderr, "could not allocate memory\n");
     exit(EXIT_FAILURE);
   }
 
-  if(pthread_create(&worker, 0, worker_thread, NULL) != 0) {
+  if (pthread_create(&worker, 0, worker_thread, NULL) != 0)
+  {
     free(pglobal->in[id].buf);
     fprintf(stderr, "could not start worker thread\n");
     exit(EXIT_FAILURE);
@@ -467,7 +472,8 @@ static MMAL_STATUS_T connect_ports(MMAL_PORT_T *output_port, MMAL_PORT_T *input_
   if (status == MMAL_SUCCESS)
   {
     status = mmal_connection_enable(*connection);
-    if (status != MMAL_SUCCESS){
+    if (status != MMAL_SUCCESS)
+    {
       mmal_connection_destroy(*connection);
       DBG("Error enabling mmal connection\n");
     }
@@ -566,7 +572,8 @@ void *worker_thread(void *arg)
   DBG("Host init, starting mmal stuff\n");
 
   status = mmal_component_create(MMAL_COMPONENT_DEFAULT_CAMERA, &camera);
-  if (status != MMAL_SUCCESS) {
+  if (status != MMAL_SUCCESS)
+  {
     fprintf(stderr, "error create camera\n");
     exit(EXIT_FAILURE);
   }
@@ -685,9 +692,8 @@ void *worker_thread(void *arg)
     format->es->video.frame_rate.den = 1;
     status = mmal_port_format_commit(camera_video_port);
     if (status)
-    {
       fprintf(stderr, "camera video format couldn't be set");
-    }
+
     // Ensure there are enough buffers to avoid dropping frames
     if (camera_video_port->buffer_num < VIDEO_OUTPUT_BUFFERS_NUM)
       camera_video_port->buffer_num = VIDEO_OUTPUT_BUFFERS_NUM;
@@ -791,9 +797,9 @@ void *worker_thread(void *arg)
   {
     fprintf(stderr, "Unable to set video format output ports\n");
     mmal_component_destroy(camera);
-    exit(EXIT_FAILURE);
     if (encoder)
       mmal_component_destroy(encoder);
+    exit(EXIT_FAILURE);
   }
 
   // Set the JPEG quality level
@@ -803,9 +809,9 @@ void *worker_thread(void *arg)
   {
     fprintf(stderr, "Unable to set JPEG quality\n");
     mmal_component_destroy(camera);
-    exit(EXIT_FAILURE);
     if (encoder)
       mmal_component_destroy(encoder);
+    exit(EXIT_FAILURE);
   }
 
 
@@ -816,9 +822,9 @@ void *worker_thread(void *arg)
   {
     fprintf(stderr, "Unable to enable encoder component\n");
     mmal_component_destroy(camera);
-    exit(EXIT_FAILURE);
     if (encoder)
       mmal_component_destroy(encoder);
+    exit(EXIT_FAILURE);
   }
 
 
@@ -831,9 +837,9 @@ void *worker_thread(void *arg)
   {
     fprintf(stderr, "Failed to create buffer header pool for encoder output port\n");
     mmal_component_destroy(camera);
-    exit(EXIT_FAILURE);
     if (encoder)
       mmal_component_destroy(encoder);
+    exit(EXIT_FAILURE);
   }
 
   if (wantPreview)
@@ -1041,7 +1047,8 @@ void worker_cleanup(void *arg)
   first_run = 0;
   DBG("cleaning up resources allocated by input thread\n");
 
-  if(pglobal->in[plugin_number].buf != NULL) free(pglobal->in[plugin_number].buf);
+  if(pglobal->in[plugin_number].buf != NULL)
+    free(pglobal->in[plugin_number].buf);
 }
 
 
