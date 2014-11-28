@@ -492,27 +492,27 @@ void help(void)
       " The following parameters can be passed to this plugin:\n\n" \
       " [-fps | --framerate]...: set video framerate, default 1 frame/sec \n"\
       " [-x | --width ]........: width of frame capture, default 640\n" \
-      " [-y | --height]....: height of frame capture, default 480 \n"\
-      " [-quality]....: set JPEG quality 0-100, default 85 \n"\
-      " [-usestills]....: uses stills mode instead of video mode \n"\
+      " [-y | --height]........: height of frame capture, default 480 \n"\
+      " [-quality].............: set JPEG quality 0-100, default 85 \n"\
+      " [-usestills]...........: uses stills mode instead of video mode \n"\
       " [-preview].............: Enable full screen preview\n"\
 
       " \n"\
-      " -sh : Set image sharpness (-100 to 100)\n"\
-      " -co : Set image contrast (-100 to 100)\n"\
-      " -br : Set image brightness (0 to 100)\n"\
-      " -sa : Set image saturation (-100 to 100)\n"\
+      " -sh  : Set image sharpness (-100 to 100)\n"\
+      " -co  : Set image contrast (-100 to 100)\n"\
+      " -br  : Set image brightness (0 to 100)\n"\
+      " -sa  : Set image saturation (-100 to 100)\n"\
       " -ISO : Set capture ISO\n"\
-      " -vs : Turn on video stablisation\n"\
-      " -ev : Set EV compensation\n"\
-      " -ex : Set exposure mode (see raspistill notes)\n"\
+      " -vs  : Turn on video stablisation\n"\
+      " -ev  : Set EV compensation\n"\
+      " -ex  : Set exposure mode (see raspistill notes)\n"\
       " -awb : Set AWB mode (see raspistill notes)\n"\
       " -ifx : Set image effect (see raspistill notes)\n"\
       " -cfx : Set colour effect (U:V)\n"\
-      " -mm : Set metering mode (see raspistill notes)\n"\
+      " -mm  : Set metering mode (see raspistill notes)\n"\
       " -rot : Set image rotation (0-359)\n"\
-      " -hf : Set horizontal flip\n"\
-      " -vf : Set vertical flip\n"\
+      " -hf  : Set horizontal flip\n"\
+      " -vf  : Set vertical flip\n"\
       " ---------------------------------------------------------------\n");
 
 }
@@ -529,7 +529,8 @@ void *worker_thread(void *arg)
   /* set cleanup handler to cleanup allocated ressources */
   pthread_cleanup_push(worker_cleanup, NULL);
   //Lets not let this thread be cancelled, it needs to clean up mmal on exit
-  if(pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL) != 0){
+  if (pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL) != 0)
+  {
     fprintf(stderr, "Unable to set cancel state\n");
     exit(EXIT_FAILURE);
   }
@@ -611,9 +612,8 @@ void *worker_thread(void *arg)
   }
 
   //Set camera parameters
-  if(raspicamcontrol_set_all_parameters(camera, &c_params)){
+  if (raspicamcontrol_set_all_parameters(camera, &c_params))
     fprintf(stderr, "camera parameters couldn't be set\n");
-  }
 
   // Set the encode format on the Preview port
 
@@ -669,7 +669,8 @@ void *worker_thread(void *arg)
    exit(EXIT_FAILURE);
   }
 
-  if(! usestills){
+  if (!usestills)
+  {
     // Set the encode format on the video port
     format = camera_video_port->format;
     format->encoding_variant = MMAL_ENCODING_I420;
@@ -929,7 +930,8 @@ void *worker_thread(void *arg)
       }
 
       frames++;
-      if(frames == 100){
+      if (frames == 100)
+      {
         //calculate fps      
         clock_gettime(CLOCK_MONOTONIC, &t_finish);
         t_elapsed = (t_finish.tv_sec - t_start.tv_sec);
@@ -940,7 +942,9 @@ void *worker_thread(void *arg)
       }
     }
 
-  } else { //if(usestills)
+  } 
+  else
+  { //if(usestills)
     //Video Mode
     DBG("Starting video output\n");
     // Send all the buffers to the encoder output port
@@ -955,9 +959,7 @@ void *worker_thread(void *arg)
         fprintf(stderr, "Unable to send a buffer to encoder output port");
     }
     if (mmal_port_parameter_set_boolean(camera_video_port, MMAL_PARAMETER_CAPTURE, 1) != MMAL_SUCCESS)
-    {
       fprintf(stderr, "starting capture failed");
-    }
 
     while(!pglobal->stop) usleep(1000);
   }
@@ -965,10 +967,13 @@ void *worker_thread(void *arg)
   vcos_semaphore_delete(&callback_data.complete_semaphore);
 
   //Close everything MMAL
-  if(usestills){
+  if (usestills)
+  {
     if (camera_video_port && camera_video_port->is_enabled)
       mmal_port_disable(camera_video_port);
-  } else {
+  }
+  else
+  {
     if (camera_still_port && camera_still_port->is_enabled)
       mmal_port_disable(camera_still_port);
   }
@@ -1000,6 +1005,11 @@ void *worker_thread(void *arg)
     mmal_component_destroy(encoder);
     encoder = NULL;
   }
+  if (preview)
+  {
+    mmal_component_destroy(preview);
+    preview = NULL;
+  }
   //destroy camera component
   if (camera)
   {
@@ -1014,7 +1024,7 @@ void *worker_thread(void *arg)
 }
 
 /******************************************************************************
-  Description.: this functions cleans up allocated ressources
+  Description.: this functions cleans up allocated resources
   Input Value.: arg is unused
   Return Value: -
  ******************************************************************************/
@@ -1022,13 +1032,14 @@ void worker_cleanup(void *arg)
 {
   static unsigned char first_run = 1;
 
-  if(!first_run) {
-    DBG("already cleaned up ressources\n");
+  if (!first_run)
+  {
+    DBG("already cleaned up resources\n");
     return;
   }
 
   first_run = 0;
-  DBG("cleaning up ressources allocated by input thread\n");
+  DBG("cleaning up resources allocated by input thread\n");
 
   if(pglobal->in[plugin_number].buf != NULL) free(pglobal->in[plugin_number].buf);
 }
