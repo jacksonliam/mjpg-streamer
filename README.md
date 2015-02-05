@@ -1,10 +1,11 @@
 mjpg-streamer
 =============
+
 MJPEG Streamer with raspicam input plugin (based on raspistill mmal source code)
 
-Simply compile with 'make clean all' from within the mjpeg streamer experimental folder
+Simply compile with 'make clean all' from within the mjpeg streamer experimental folder.
 
-Youll need to have cmake and a dev version of libjpeg installed. I used libjpeg62-dev.
+You'll need to have cmake and a dev version of libjpeg installed. I used libjpeg62-dev.
 
 
 Discussion / Questions / Help
@@ -16,13 +17,13 @@ http://www.raspberrypi.org/phpBB3/viewtopic.php?f=43&t=45178
 Instructions
 ============
 
-you can run from the mjpeg streamer experimental folder with:
+You can run from the mjpeg streamer experimental folder with:
 ```
 export LD_LIBRARY_PATH=.
 ./mjpg_streamer -o "output_http.so -w ./www" -i "input_raspicam.so"
 ```
 
-You can specify options, like in raspivid
+You can specify options, like in raspivid:
 ```
 export LD_LIBRARY_PATH=.
 ./mjpg_streamer -o "output_http.so -w ./www" -i "input_raspicam.so -x 1280 -y 720 -fps 15 -ex night"
@@ -39,7 +40,6 @@ Here's some Help:
 
  [-fps | --framerate]...: set video framerate, default 1 frame/sec
  [-x | --width ]........: width of frame capture, default 640
- [-y | --height]........: height of frame capture, default 480
  [-y | --height]........: height of frame capture, default 480
  [-quality].............: set JPEG quality 0-100, default 85
  [-usestills]...........: uses stills mode instead of video mode
