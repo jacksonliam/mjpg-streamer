@@ -497,6 +497,7 @@ int uvcGrab(struct vdIn *vd)
 {
 #define HEADERFRAME1 0xaf
     int ret;
+    int32_t bytesused;
 
     if(vd->streamingState == STREAMING_OFF) {
         if(video_enable(vd))
@@ -511,6 +512,7 @@ int uvcGrab(struct vdIn *vd)
         perror("Unable to dequeue buffer");
         goto err;
     }
+    bytesused = vd->buf.bytesused;
 
     switch(vd->formatIn) {
     case V4L2_PIX_FMT_MJPEG:
@@ -529,6 +531,8 @@ int uvcGrab(struct vdIn *vd)
         */
 
         memcpy(vd->tmpbuffer, vd->mem[vd->buf.index], vd->buf.bytesused);
+        vd->tmpbytesused = vd->buf.bytesused;
+        vd->tmptimestamp = vd->buf.timestamp;
 
         if(debug)
             fprintf(stderr, "bytes in used %d \n", vd->buf.bytesused);
@@ -547,6 +551,7 @@ int uvcGrab(struct vdIn *vd)
     }
 
     ret = xioctl(vd->fd, VIDIOC_QBUF, &vd->buf);
+    vd->buf.bytesused = bytesused;
     if(ret < 0) {
         perror("Unable to requeue buffer");
         goto err;
