@@ -28,7 +28,6 @@
 
 
 #include <stdio.h>
-#include <stdint.h>
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -109,8 +108,6 @@ struct vdIn {
     int framecount;
     int recordstart;
     int recordtime;
-    uint32_t tmpbytesused;
-    struct timeval tmptimestamp;
     v4l2_std_id vstd;
     unsigned long frame_period_time; // in ms
     unsigned char soft_framedrop;
