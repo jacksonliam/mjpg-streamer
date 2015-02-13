@@ -529,6 +529,8 @@ int uvcGrab(struct vdIn *vd)
         */
 
         memcpy(vd->tmpbuffer, vd->mem[vd->buf.index], vd->buf.bytesused);
+        vd->tmpbytesused = vd->buf.bytesused;
+        vd->tmptimestamp = vd->buf.timestamp;
 
         if(debug)
             fprintf(stderr, "bytes in used %d \n", vd->buf.bytesused);
