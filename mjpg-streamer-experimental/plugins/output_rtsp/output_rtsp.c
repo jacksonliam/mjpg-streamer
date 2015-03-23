@@ -311,7 +311,7 @@ int output_init(output_parameter *param)
     }
 
     OPRINT("input plugin.....: %d: %s\n", input_number, pglobal->in[input_number].plugin);
-    OPRINT("UDP port..........: %s\n", "disabled");
+    OPRINT("UDP port..........: %d\n", port);
     return 0;
 }
 
