@@ -159,7 +159,7 @@ void *worker_thread(void *arg)
 
 
         DBG("waiting for fresh frame\n");
-        pthread_mutex_lock(&pglobal->in[plugin_number].db);
+        pthread_mutex_lock(&pglobal->in[input_number].db);
         pthread_cond_wait(&pglobal->in[input_number].db_update, &pglobal->in[input_number].db);
 
         /* read buffer */
