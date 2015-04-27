@@ -89,6 +89,7 @@ static globals *pglobal;
 static int gquality = 80;
 static unsigned int minimum_size = 0;
 static int dynctrls = 1;
+static unsigned int every = 1;
 
 void *cam_thread(void *);
 void cam_cleanup(void *);
@@ -161,6 +162,8 @@ int input_init(input_parameter *param, int id)
             {"fourcc", required_argument, 0, 0},
             {"t", required_argument, 0, 0 },
 	        {"tvnorm", required_argument, 0, 0 },
+            {"e", required_argument, 0, 0},
+            {"every_frame", required_argument, 0, 0},
             {0, 0, 0, 0}
         };
 
@@ -288,6 +291,12 @@ int input_init(input_parameter *param, int id)
             } else if ( strcasecmp("secam",optarg) == 0 ) {
 	             tvnorm = V4L2_STD_SECAM;
             }
+            break;
+        case 21:
+        /* e, every */
+        case 22:
+            DBG("case 21,22\n");
+            every = MAX(atoi(optarg), 1);
             break;
         default:
             DBG("default case\n");
@@ -425,6 +434,7 @@ void help(void)
     " [-m | --minimum_size ].: drop frames smaller then this limit, useful\n" \
     "                          if the webcam produces small-sized garbage frames\n" \
     "                          may happen under low light conditions\n" \
+    " [-e | --every_frame ]..: drop all frames except numbered\n" \
     " [-n | --no_dynctrl ]...: do not initalize dynctrls of Linux-UVC driver\n" \
     " [-l | --led ]..........: switch the LED \"on\", \"off\", let it \"blink\" or leave\n" \
     "                          it up to the driver using the value \"auto\"\n" \
@@ -437,6 +447,7 @@ void help(void)
     " [-m | --minimum_size ].: drop frames smaller then this limit, useful\n" \
     "                          if the webcam produces small-sized garbage frames\n" \
     "                          may happen under low light conditions\n" \
+    " [-e | --every_frame ]..: drop all frames except numbered\n" \
     " [-n | --no_dynctrl ]...: do not initalize dynctrls of Linux-UVC driver\n" \
     " [-l | --led ]..........: switch the LED \"on\", \"off\", let it \"blink\" or leave\n" \
     "                          it up to the driver using the value \"auto\"\n" \
@@ -452,6 +463,7 @@ Return Value: unused, always NULL
 ******************************************************************************/
 void *cam_thread(void *arg)
 {
+    unsigned int every_count = 0;
 
     context *pcontext = arg;
     pglobal = pcontext->pglobal;
@@ -468,6 +480,14 @@ void *cam_thread(void *arg)
         if(uvcGrab(pcontext->videoIn) < 0) {
             IPRINT("Error grabbing frames\n");
             exit(EXIT_FAILURE);
+        }
+
+        if ( every_count < every - 1 ) {
+            DBG("dropping %d frame for every=%d\n", every_count + 1, every);
+            ++every_count;
+            continue;
+        } else {
+            every_count = 0;
         }
 
         //DBG("received frame of size: %d from plugin: %d\n", pcontext->videoIn->buf.bytesused, pcontext->id);
