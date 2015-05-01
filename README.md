@@ -38,7 +38,7 @@ Here's some Help:
  ---------------------------------------------------------------
  The following parameters can be passed to this plugin:
 
- [-fps | --framerate]...: set video framerate, default 1 frame/sec
+ [-fps | --framerate]...: set video framerate, default 5 frame/sec
  [-x | --width ]........: width of frame capture, default 640
  [-y | --height]........: height of frame capture, default 480
  [-quality].............: set JPEG quality 0-100, default 85
@@ -67,6 +67,7 @@ Some of the camera options like ISO may not work due to it not working in the mm
 
 Video mode is the default as it allows much smoother video (higher framerates).
 Stills mode allows you to use the full-frame of the sensor, but has a max framerate of around 8fps, probably less.
+Use stills mode with low FPS (e.g. 1 or 2).
 
 In order to have preview output shown on the raspi screen add the -preview option.
 

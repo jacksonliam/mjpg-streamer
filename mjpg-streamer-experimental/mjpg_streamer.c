@@ -92,7 +92,7 @@ Return Value: -
 ******************************************************************************/
 void signal_handler(int sig)
 {
-    int i, j;
+    int i;
 
     /* signal "stop" to threads */
     LOG("setting signal to stop\n");

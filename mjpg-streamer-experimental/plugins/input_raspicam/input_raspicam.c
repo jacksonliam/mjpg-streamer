@@ -77,7 +77,7 @@ void *worker_thread(void *);
 void worker_cleanup(void *);
 void help(void);
 
-static int fps = 1;
+static int fps = 5;
 static int width = 640;
 static int height = 480;
 static int quality = 85;
@@ -496,7 +496,7 @@ void help(void)
       " Help for input plugin..: "INPUT_PLUGIN_NAME"\n" \
       " ---------------------------------------------------------------\n" \
       " The following parameters can be passed to this plugin:\n\n" \
-      " [-fps | --framerate]...: set video framerate, default 1 frame/sec \n"\
+      " [-fps | --framerate]...: set video framerate, default 5 frame/sec \n"\
       " [-x | --width ]........: width of frame capture, default 640\n" \
       " [-y | --height]........: height of frame capture, default 480 \n"\
       " [-quality].............: set JPEG quality 0-100, default 85 \n"\
