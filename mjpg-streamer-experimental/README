@@ -9,6 +9,11 @@ Currently no issues are known, but since this software is quite young and not us
 To view the stream use VLC or Firefox and open the URL:
 http://127.0.0.1:8080/?action=stream
 
+@kosso added : To do the same as the GET request above using NSURLSession in Objective, a POST request seems to work: 
+
+POST http://127.0.0.1:8080/stream 
+
+
 To view a single JPEG just call:
 http://127.0.0.1:8080/?action=snapshot
 
