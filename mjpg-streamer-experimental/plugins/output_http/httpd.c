@@ -1079,6 +1079,22 @@ void *client_thread(void *arg)
         }
         #endif
 	#endif
+        else if(strstr(buffer, "POST /stream") != NULL) {
+            /* 
+                For some reason NSURLSession in Objective-C doesn't play nicely when using GET. 
+                So, adding a simple POST /stream endpoint here. This enables the NSURLSession dataTask to read/detect the MJPG bytestream and update a UIImage.
+                : @kosso
+             */
+            req.type = A_STREAM;
+            query_suffixed = 255;
+            #ifdef MANAGMENT
+            if (check_client_status(lcfd.client)) {
+                req.type = A_UNKNOWN;
+                lcfd.client->last_take_time.tv_sec += piggy_fine;
+                send_error(lcfd.fd, 403, "frame already sent");
+                query_suffixed = 0;
+            }
+            #endif
     } else if(strstr(buffer, "GET /?action=stream") != NULL) {
         req.type = A_STREAM;
         query_suffixed = 255;
