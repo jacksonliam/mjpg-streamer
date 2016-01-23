@@ -1066,7 +1066,7 @@ void *client_thread(void *arg)
             query_suffixed = 0;
         }
         #endif
-	#ifdef WXP_COMPAT
+    #ifdef WXP_COMPAT
     } else if((strstr(buffer, "GET /cam") != NULL) && (strstr(buffer, ".jpg") != NULL)) {
         req.type = A_SNAPSHOT_WXP;
         query_suffixed = 255;
@@ -1078,23 +1078,18 @@ void *client_thread(void *arg)
             query_suffixed = 0;
         }
         #endif
-	#endif
-        else if(strstr(buffer, "POST /stream") != NULL) {
-            /* 
-                For some reason NSURLSession in Objective-C doesn't play nicely when using GET. 
-                So, adding a simple POST /stream endpoint here. This enables the NSURLSession dataTask to read/detect the MJPG bytestream and update a UIImage.
-                : @kosso
-             */
-            req.type = A_STREAM;
-            query_suffixed = 255;
-            #ifdef MANAGMENT
-            if (check_client_status(lcfd.client)) {
-                req.type = A_UNKNOWN;
-                lcfd.client->last_take_time.tv_sec += piggy_fine;
-                send_error(lcfd.fd, 403, "frame already sent");
-                query_suffixed = 0;
-            }
-            #endif
+    #endif
+    } else if(strstr(buffer, "POST /stream") != NULL) {
+        req.type = A_STREAM;
+        query_suffixed = 255;
+        #ifdef MANAGMENT
+        if (check_client_status(lcfd.client)) {
+            req.type = A_UNKNOWN;
+            lcfd.client->last_take_time.tv_sec += piggy_fine;
+            send_error(lcfd.fd, 403, "frame already sent");
+            query_suffixed = 0;
+        }
+        #endif
     } else if(strstr(buffer, "GET /?action=stream") != NULL) {
         req.type = A_STREAM;
         query_suffixed = 255;
@@ -1106,7 +1101,7 @@ void *client_thread(void *arg)
             query_suffixed = 0;
         }
         #endif
-	#ifdef WXP_COMPAT
+    #ifdef WXP_COMPAT
     } else if((strstr(buffer, "GET /cam") != NULL) && (strstr(buffer, ".mjpg") != NULL)) {
         req.type = A_STREAM_WXP;
         query_suffixed = 255;
@@ -1118,7 +1113,7 @@ void *client_thread(void *arg)
             query_suffixed = 0;
         }
         #endif
-	#endif
+    #endif
     } else if(strstr(buffer, "GET /?action=take") != NULL) {
         int len;
         req.type = A_TAKE;
@@ -1396,7 +1391,7 @@ void *client_thread(void *arg)
         }
 
         if (found == 0) {
-            DBG("FILE output plugin not loaded\n");
+            LOG("FILE CHANGE TEST output plugin not loaded\n");
             send_error(lcfd.fd, 404, "FILE output plugin not loaded, taking snapshot not possible");
         } else {
             if (ret == 0) {
