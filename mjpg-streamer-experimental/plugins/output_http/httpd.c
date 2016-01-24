@@ -464,6 +464,7 @@ void send_stream(cfd *context_fd, int input_number)
 
     DBG("preparing header\n");
     sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
+            "Access-Control-Allow-Origin: *\r\n" \
             STD_HEADER \
             "Content-Type: multipart/x-mixed-replace;boundary=" BOUNDARY "\r\n" \
             "\r\n" \
