@@ -91,6 +91,41 @@ static unsigned int minimum_size = 0;
 static int dynctrls = 1;
 static unsigned int every = 1;
 
+/* optional settings */
+int sh_set = 0, sh = 0,
+    co_set = 0, co = 0,
+    br_set = 0, br_auto = 0, br = 0,
+    sa_set = 0, sa = 0,
+    wb_set = 0, wb_auto = 0, wb = 0,
+    ex_set = 0, ex_auto = 0, ex = 0,
+    bk_set = 0, bk = 0,
+    rot_set = 0, rot = 0,
+    hf_set = 0, hf = 0,
+    vf_set = 0, vf = 0,
+    pl_set = 0, pl = -1,
+    gain_set = 0, gain_auto = 0, gain = 0,
+    cagc_set = 0, cagc_auto = 0, cagc = 0,
+    cb_set = 0, cb_auto = 0, cb = 0;
+
+static const struct {
+  const char * k;
+  const int v;
+} exposures[] = {
+  { "auto", V4L2_EXPOSURE_AUTO },
+  { "shutter-priority", V4L2_EXPOSURE_SHUTTER_PRIORITY },
+  { "aperature-priority", V4L2_EXPOSURE_APERTURE_PRIORITY }
+};
+
+static const struct {
+  const char * k;
+  const int v;
+} power_line[] = {
+  { "disabled", V4L2_CID_POWER_LINE_FREQUENCY_DISABLED },
+  { "50hz", V4L2_CID_POWER_LINE_FREQUENCY_50HZ },
+  { "60hz", V4L2_CID_POWER_LINE_FREQUENCY_60HZ },
+  { "auto", V4L2_CID_POWER_LINE_FREQUENCY_AUTO }
+};
+
 void *cam_thread(void *);
 void cam_cleanup(void *);
 void help(void);
@@ -105,6 +140,77 @@ const char *get_name_by_tvnorm(v4l2_std_id vstd) {
 	}
 	return norms[0].string;
 }
+
+#define OPTION_INT(idx, v) \
+  case idx: \
+    DBG("case " #idx); \
+    if (sscanf(optarg, "%d", &v) != 1) { \
+        fprintf(stderr, "Invalid value for -" #v " (integer required)\n"); \
+        exit(EXIT_FAILURE); \
+    } \
+    v##_set = 1; \
+    break;
+    
+#define OPTION_INT_AUTO(idx, v) \
+  case idx: \
+    DBG("case " #idx); \
+    if (strcasecmp("auto", optarg) == 0) { \
+        v##_auto = 1; \
+    } else if (sscanf(optarg, "%d", &v) != 1) { \
+        fprintf(stderr, "Invalid value for -" #v " (auto or integer required)\n"); \
+        exit(EXIT_FAILURE); \
+    } \
+    v##_set = 1; \
+    break;
+    
+#define OPTION_BOOL(idx, v) \
+  case idx: \
+    DBG("case " #idx); \
+    if (strcasecmp("true", optarg) == 0) { \
+        v = 1; \
+    } else if (strcasecmp("false", optarg) == 0) { \
+        v = 0; \
+        fprintf(stderr, "Invalid value for -" #v " (true/false accepted)\n"); \
+        exit(EXIT_FAILURE); \
+    } \
+    v##_set = 1; \
+    break;
+    
+#define OPTION_MULTI(idx, var, table) \
+  case idx: \
+    DBG("case " #idx); \
+    for(i = 0; i < LENGTH_OF(table); i++) { \
+        if(strcasecmp(table[i].k, optarg) == 0) { \
+            var = table[i].v; \
+            break; \
+        } \
+    } \
+    if (var == -1) { \
+        fprintf(stderr, "Invalid value for -" #var "\n"); \
+        exit(EXIT_FAILURE); \
+    } \
+    var##_set = 1; \
+    break;
+    
+#define OPTION_MULTI_OR_INT(idx, var1, var1_default, var2, table) \
+  case idx: \
+    DBG("case " #idx); \
+    var1 = var1_default; \
+    for(i = 0; i < LENGTH_OF(table); i++) { \
+        if(strcasecmp(table[i].k, optarg) == 0) { \
+              printf("Hm, %d\n", table[i].v); \
+            var1 = table[i].v; \
+            break; \
+        } \
+    } \
+    if (var1 == var1_default) { \
+        if (sscanf(optarg, "%d", &var2) != 1) { \
+            fprintf(stderr, "Invalid value for -" #var2 "\n"); \
+            exit(EXIT_FAILURE); \
+        } \
+    } \
+    var2##_set = 1; \
+    break;
 
 /*** plugin interface functions ***/
 /******************************************************************************
@@ -164,6 +270,20 @@ int input_init(input_parameter *param, int id)
 	        {"tvnorm", required_argument, 0, 0 },
             {"e", required_argument, 0, 0},
             {"every_frame", required_argument, 0, 0},
+            {"sh", required_argument, 0, 0},
+            {"co", required_argument, 0, 0},
+            {"br", required_argument, 0, 0},
+            {"sa", required_argument, 0, 0},
+            {"wb", required_argument, 0, 0},
+            {"ex", required_argument, 0, 0},
+            {"bk", required_argument, 0, 0},
+            {"rot", required_argument, 0, 0},
+            {"hf", required_argument, 0, 0},
+            {"vf", required_argument, 0, 0},
+            {"pl", required_argument, 0, 0},
+            {"gain", required_argument, 0, 0},
+            {"cagc", required_argument, 0, 0},
+            {"cb", required_argument, 0, 0},
             {0, 0, 0, 0}
         };
 
@@ -298,6 +418,23 @@ int input_init(input_parameter *param, int id)
             DBG("case 21,22\n");
             every = MAX(atoi(optarg), 1);
             break;
+
+        /* options */
+        OPTION_INT(23, sh)
+        OPTION_INT(24, co)
+        OPTION_INT_AUTO(25, br)
+        OPTION_INT(26, sa)
+        OPTION_INT_AUTO(27, wb)
+        OPTION_MULTI_OR_INT(28, ex_auto, V4L2_EXPOSURE_MANUAL, ex, exposures)
+        OPTION_INT(29, bk)
+        OPTION_INT(30, rot)
+        OPTION_BOOL(31, hf)
+        OPTION_BOOL(32, vf)
+        OPTION_MULTI(33, pl, power_line)
+        OPTION_INT_AUTO(34, gain)
+        OPTION_INT_AUTO(35, cagc)
+        OPTION_INT_AUTO(36, cb)
+    
         default:
             DBG("default case\n");
             help();
@@ -363,9 +500,9 @@ int input_init(input_parameter *param, int id)
      */
     if(dynctrls)
         initDynCtrls(cams[id].videoIn->fd);
-
+    
     enumerateControls(cams[id].videoIn, cams[id].pglobal, id); // enumerate V4L2 controls after UVC extended mapping
-
+    
     return 0;
 }
 
@@ -440,7 +577,7 @@ void help(void)
     "                          it up to the driver using the value \"auto\"\n" \
     " ---------------------------------------------------------------\n\n"
     " [-t | --tvnorm ] ......: set TV-Norm pal, ntsc or secam\n"
-    " ---------------------------------------------------------------\n\n");
+    " ---------------------------------------------------------------\n");
 #else
     fprintf(stderr, " [-f | --fps ]..........: frames per second\n" \
     "                          (activates YUYV format, disables MJPEG)\n" \
@@ -452,8 +589,27 @@ void help(void)
     " [-l | --led ]..........: switch the LED \"on\", \"off\", let it \"blink\" or leave\n" \
     "                          it up to the driver using the value \"auto\"\n" \
     " [-t | --tvnorm ] ......: set TV-Norm pal, ntsc or secam\n"
-    " ---------------------------------------------------------------\n\n");
+    " ---------------------------------------------------------------\n");
 #endif
+
+    fprintf(stderr, "\n"\
+    " Optional parameters (may not be supported by all cameras):\n\n"
+    " [-br ].................: Set image brightness (auto or integer)\n"\
+    " [-co ].................: Set image contrast (integer)\n"\
+    " [-sh ].................: Set image sharpness (integer)\n"\
+    " [-sa ].................: Set image saturation (integer)\n"\
+    " [-cb ].................: Set color balance (auto or integer)\n"\
+    " [-wb ].................: Set white balance (auto or integer)\n"\
+    " [-ex ].................: Set exposure (auto, shutter-priority, aperature-priority, or integer)\n"\
+    " [-bk ].................: Set backlight compensation (integer)\n"\
+    " [-rot ]................: Set image rotation (0-359)\n"\
+    " [-hf ].................: Set horizontal flip (true/false)\n"\
+    " [-vf ].................: Set vertical flip (true/false)\n"\
+    " [-pl ].................: Set power line filter (disabled, 50hz, 60hz, auto)\n"\
+    " [-gain ]...............: Set gain (auto or integer)\n"\
+    " [-cagc ]...............: Set chroma gain control (auto or integer)\n"\
+    " ---------------------------------------------------------------\n\n"\
+    );
 }
 
 /******************************************************************************
@@ -470,6 +626,75 @@ void *cam_thread(void *arg)
 
     /* set cleanup handler to cleanup allocated ressources */
     pthread_cleanup_push(cam_cleanup, pcontext);
+    
+    #define V4L_OPT_SET(vid, var, desc) \
+      if (input_cmd(pcontext->id, vid, IN_CMD_V4L2, var, NULL) != 0) {\
+          fprintf(stderr, "Failed to set " desc "\n"); \
+      } else { \
+          printf(" i: %-18s: %d\n", desc, var); \
+      }
+    
+    #define V4L_INT_OPT(vid, var, desc) \
+      if (var##_set) { \
+          V4L_OPT_SET(vid, var, desc) \
+      }
+    
+    /* V4L options */
+    V4L_INT_OPT(V4L2_CID_SHARPNESS, sh, "sharpness")
+    V4L_INT_OPT(V4L2_CID_CONTRAST, co, "contrast")
+    V4L_INT_OPT(V4L2_CID_SATURATION, sa, "saturation")
+    V4L_INT_OPT(V4L2_CID_BACKLIGHT_COMPENSATION, bk, "backlight compensation")
+    V4L_INT_OPT(V4L2_CID_ROTATE, rot, "rotation")
+    V4L_INT_OPT(V4L2_CID_HFLIP, hf, "hflip")
+    V4L_INT_OPT(V4L2_CID_VFLIP, vf, "vflip")
+    V4L_INT_OPT(V4L2_CID_VFLIP, pl, "power line filter")
+    
+    if (br_set) {
+        V4L_OPT_SET(V4L2_CID_AUTOBRIGHTNESS, br_auto, "auto brightness mode")
+        
+        if (br_auto == 0) {
+            V4L_OPT_SET(V4L2_CID_BRIGHTNESS, br, "brightness")
+        }
+    }
+    
+    if (wb_set) {
+        V4L_OPT_SET(V4L2_CID_AUTO_WHITE_BALANCE, wb_auto, "auto white balance mode")
+        
+        if (wb_auto == 0) {
+            V4L_OPT_SET(V4L2_CID_WHITE_BALANCE_TEMPERATURE, wb, "white balance temperature")
+        }
+    }
+    
+    if (ex_set) {
+        V4L_OPT_SET(V4L2_CID_EXPOSURE_AUTO, ex_auto, "exposure mode")
+        if (ex_auto == V4L2_EXPOSURE_MANUAL) {
+            V4L_OPT_SET(V4L2_CID_EXPOSURE_ABSOLUTE, ex, "absolute exposure")
+        }
+    }
+    
+    if (gain_set) {
+        V4L_OPT_SET(V4L2_CID_AUTOGAIN, gain_auto, "auto gain mode")
+        
+        if (gain_auto == 0) {
+            V4L_OPT_SET(V4L2_CID_GAIN, gain, "gain")
+        }
+    }
+    
+    if (cagc_set) {
+        V4L_OPT_SET(V4L2_CID_AUTO_WHITE_BALANCE, cagc_auto, "chroma gain mode")
+        
+        if (cagc_auto == 0) {
+            V4L_OPT_SET(V4L2_CID_WHITE_BALANCE_TEMPERATURE, cagc, "chroma gain")
+        }
+    }
+    
+    if (cb_set) {
+        V4L_OPT_SET(V4L2_CID_HUE_AUTO, cb_auto, "color balance mode")
+        
+        if (cb_auto == 0) {
+            V4L_OPT_SET(V4L2_CID_HUE, cagc, "color balance")
+        }
+    }
 
     while(!pglobal->stop) {
         while(pcontext->videoIn->streamingState == STREAMING_PAUSED) {

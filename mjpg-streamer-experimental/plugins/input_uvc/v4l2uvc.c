@@ -126,7 +126,7 @@ int init_videoIn(struct vdIn *vd, char *device, int width,
         }
 
         if (pglobal->in[id].in_formats == NULL) {
-            DBG("Calloc/realloc failed: %s\n", strerror(errno));
+            LOG("Calloc/realloc failed: %s\n", strerror(errno));
             return -1;
         }
 
@@ -158,7 +158,7 @@ int init_videoIn(struct vdIn *vd, char *device, int width,
                 }
 
                 if (pglobal->in[id].in_formats[pglobal->in[id].formatCount].supportedResolutions == NULL) {
-                    DBG("Calloc/realloc failed\n");
+                    LOG("Calloc/realloc failed\n");
                     return -1;
                 }
 
@@ -634,7 +634,7 @@ int v4l2SetControl(struct vdIn *vd, int control_id, int value, int plugin_number
     int err;
     int i;
     int got = -1;
-    DBG("Looking for the %d V4L2 control\n", control_id);
+    DBG("Looking for the 0x%08x V4L2 control\n", control_id);
     for (i = 0; i<pglobal->in[plugin_number].parametercount; i++) {
         if (pglobal->in[plugin_number].in_parameters[i].ctrl.id == control_id) {
             got = 0;
@@ -643,7 +643,7 @@ int v4l2SetControl(struct vdIn *vd, int control_id, int value, int plugin_number
     }
 
     if (got == 0) { // we have found the control with the specified id
-        DBG("V4L2 ctrl %d found\n", control_id);
+        DBG("V4L2 ctrl 0x%08x found\n", control_id);
         if (pglobal->in[plugin_number].in_parameters[i].class_id == V4L2_CTRL_CLASS_USER) {
             DBG("Control type: USER\n");
             min = pglobal->in[plugin_number].in_parameters[i].ctrl.minimum;
@@ -656,11 +656,11 @@ int v4l2SetControl(struct vdIn *vd, int control_id, int value, int plugin_number
                     DBG("VIDIOC_S_CTRL failed\n");
                     return -1;
                 } else {
-                    DBG("V4L2 ctrl %d new value: %d\n", control_id, value);
+                    DBG("V4L2 ctrl 0x%08x new value: %d\n", control_id, value);
                     pglobal->in[plugin_number].in_parameters[i].value = value;
                 }
             } else {
-                DBG("Value (%d) out of range (%d .. %d)\n", value, min, max);
+                LOG("Value (%d) out of range (%d .. %d)\n", value, min, max);
             }
             return 0;
         } else { // not user class controls
@@ -691,15 +691,15 @@ int v4l2SetControl(struct vdIn *vd, int control_id, int value, int plugin_number
             ext_ctrls.controls = &ext_ctrl;
             ret = xioctl(vd->fd, VIDIOC_S_EXT_CTRLS, &ext_ctrls);
             if(ret) {
-                DBG("control id: 0x%08x failed to set value (error %i)\n", ext_ctrl.id, ret);
+                LOG("control id: 0x%08x failed to set value (error %i)\n", ext_ctrl.id, ret);
                 return -1;
             } else {
-                DBG("control id: %d new value: %d\n", ext_ctrl.id, ext_ctrl.value);
+                DBG("control id: 0x%08x new value: %d\n", ext_ctrl.id, ext_ctrl.value);
             }
             return 0;
         }
     } else {
-        DBG("Invalid V4L2_set_control request for the id: %d. Control cannot be found in the list\n", control_id);
+        LOG("Invalid V4L2_set_control request for the id: 0x%08x. Control cannot be found in the list\n", control_id);
         return -1;
     }
 }
