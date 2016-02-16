@@ -307,7 +307,7 @@ void *worker_thread(void *arg)
 
             /*
              * maintain ringbuffer
-             * do not maintain ringbuffer for each picture, this saves ressources since
+             * do not maintain ringbuffer for each picture, this saves resources since
              * each run of the maintainance function involves sorting/malloc/free operations
              */
             if(ringbuffer_exceed <= 0) {
