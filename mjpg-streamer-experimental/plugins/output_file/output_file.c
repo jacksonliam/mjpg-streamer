@@ -50,7 +50,7 @@
 static pthread_t worker;
 static globals *pglobal;
 static int fd, delay, ringbuffer_size = -1, ringbuffer_exceed = 0, max_frame_size;
-static char *folder = "/tmp";
+static char *folder = "/";
 static unsigned char *frame = NULL;
 static char *command = NULL;
 static int input_number = 0;
