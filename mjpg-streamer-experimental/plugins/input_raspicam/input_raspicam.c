@@ -532,7 +532,7 @@ void *worker_thread(void *arg)
 {
   int i = 0;
 
-  /* set cleanup handler to cleanup allocated ressources */
+  /* set cleanup handler to cleanup allocated resources */
   pthread_cleanup_push(worker_cleanup, NULL);
   //Lets not let this thread be cancelled, it needs to clean up mmal on exit
   if (pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL) != 0)

@@ -231,7 +231,7 @@ void *worker_thread(void *arg)
 {
     int i = 0;
 
-    /* set cleanup handler to cleanup allocated ressources */
+    /* set cleanup handler to cleanup allocated resources */
     pthread_cleanup_push(worker_cleanup, NULL);
 
     while(!pglobal->stop) {
@@ -257,7 +257,7 @@ void *worker_thread(void *arg)
 }
 
 /******************************************************************************
-Description.: this functions cleans up allocated ressources
+Description.: this functions cleans up allocated resources
 Input Value.: arg is unused
 Return Value: -
 ******************************************************************************/
@@ -266,12 +266,12 @@ void worker_cleanup(void *arg)
     static unsigned char first_run = 1;
 
     if(!first_run) {
-        DBG("already cleaned up ressources\n");
+        DBG("already cleaned up resources\n");
         return;
     }
 
     first_run = 0;
-    DBG("cleaning up ressources allocated by input thread\n");
+    DBG("cleaning up resources allocated by input thread\n");
 
     if(pglobal->in[plugin_number].buf != NULL) free(pglobal->in[plugin_number].buf);
 }

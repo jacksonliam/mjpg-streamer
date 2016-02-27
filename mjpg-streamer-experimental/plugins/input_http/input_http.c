@@ -158,7 +158,7 @@ void *worker_thread(void *arg)
 }
 
 /******************************************************************************
-Description.: this functions cleans up allocated ressources
+Description.: this functions cleans up allocated resources
 Input Value.: arg is unused
 Return Value: -
 ******************************************************************************/

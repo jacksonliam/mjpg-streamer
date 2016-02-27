@@ -624,7 +624,7 @@ void *cam_thread(void *arg)
     context *pcontext = arg;
     pglobal = pcontext->pglobal;
 
-    /* set cleanup handler to cleanup allocated ressources */
+    /* set cleanup handler to cleanup allocated resources */
     pthread_cleanup_push(cam_cleanup, pcontext);
     
     #define V4L_OPT_SET(vid, var, desc) \
@@ -800,12 +800,12 @@ void cam_cleanup(void *arg)
     context *pcontext = arg;
     pglobal = pcontext->pglobal;
     if(!first_run) {
-        DBG("already cleaned up ressources\n");
+        DBG("already cleaned up resources\n");
         return;
     }
 
     first_run = 0;
-    IPRINT("cleaning up ressources allocated by input thread\n");
+    IPRINT("cleaning up resources allocated by input thread\n");
 
     close_v4l2(pcontext->videoIn);
     if(pcontext->videoIn->tmpbuffer != NULL) free(pcontext->videoIn->tmpbuffer);
