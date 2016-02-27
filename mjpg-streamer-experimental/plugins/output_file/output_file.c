@@ -79,7 +79,7 @@ void help(void)
 }
 
 /******************************************************************************
-Description.: clean up allocated ressources
+Description.: clean up allocated resources
 Input Value.: unused argument
 Return Value: -
 ******************************************************************************/
@@ -92,12 +92,12 @@ void worker_cleanup(void *arg)
     }
 
     if(!first_run) {
-        DBG("already cleaned up ressources\n");
+        DBG("already cleaned up resources\n");
         return;
     }
 
     first_run = 0;
-    OPRINT("cleaning up ressources allocated by worker thread\n");
+    OPRINT("cleaning up resources allocated by worker thread\n");
 
     if(frame != NULL) {
         free(frame);
@@ -192,7 +192,7 @@ void maintain_ringbuffer(int size)
         free(namelist[i]);
     }
 
-    /* free last just allocated ressources */
+    /* free last just allocated resources */
     free(namelist);
 }
 
@@ -211,7 +211,7 @@ void *worker_thread(void *arg)
     struct tm *now;
     unsigned char *tmp_framebuffer = NULL;
 
-    /* set cleanup handler to cleanup allocated ressources */
+    /* set cleanup handler to cleanup allocated resources */
     pthread_cleanup_push(worker_cleanup, NULL);
 
     while(ok >= 0 && !pglobal->stop) {
@@ -307,7 +307,7 @@ void *worker_thread(void *arg)
 
             /*
              * maintain ringbuffer
-             * do not maintain ringbuffer for each picture, this saves ressources since
+             * do not maintain ringbuffer for each picture, this saves resources since
              * each run of the maintainance function involves sorting/malloc/free operations
              */
             if(ringbuffer_exceed <= 0) {

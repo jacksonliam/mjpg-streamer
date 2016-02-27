@@ -1407,7 +1407,7 @@ void *client_thread(void *arg)
 }
 
 /******************************************************************************
-Description.: This function cleans up ressources allocated by the server_thread
+Description.: This function cleans up resources allocated by the server_thread
 Input Value.: arg is not used
 Return Value: -
 ******************************************************************************/
@@ -1416,7 +1416,7 @@ void server_cleanup(void *arg)
     context *pcontext = arg;
     int i;
 
-    OPRINT("cleaning up ressources allocated by server thread #%02d\n", pcontext->id);
+    OPRINT("cleaning up resources allocated by server thread #%02d\n", pcontext->id);
 
     for(i = 0; i < MAX_SD_LEN; i++)
         close(pcontext->sd[i]);
@@ -1445,7 +1445,7 @@ void *server_thread(void *arg)
     context *pcontext = arg;
     pglobal = pcontext->pglobal;
 
-    /* set cleanup handler to cleanup ressources */
+    /* set cleanup handler to cleanup resources */
     pthread_cleanup_push(server_cleanup, pcontext);
 
     bzero(&hints, sizeof(hints));

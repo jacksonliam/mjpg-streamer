@@ -424,7 +424,7 @@ Return Value: unused, always NULL
 ******************************************************************************/
 void *cam_thread(void *arg)
 {
-    /* set cleanup handler to cleanup allocated ressources */
+    /* set cleanup handler to cleanup allocated resources */
     pthread_cleanup_push(cam_cleanup, NULL);
 
     while(!pglobal->stop) {
@@ -450,7 +450,7 @@ void cam_cleanup(void *arg)
     static unsigned char first_run = 1;
 
     if(!first_run) {
-        DBG("already cleaned up ressources\n");
+        DBG("already cleaned up resources\n");
         return;
     }
 
