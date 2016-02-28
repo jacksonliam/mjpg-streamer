@@ -313,7 +313,7 @@ int input_init(input_parameter *param, int id)
         case 2:
         case 3:
             DBG("case 2,3\n");
-            dev = strdup(optarg);
+            dev = canonicalize_file_name(optarg);
             break;
 
         /* r, resolution */
