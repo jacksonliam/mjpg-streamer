@@ -37,9 +37,6 @@
 #include <syslog.h>
 #include <dirent.h>
 
-#include <linux/types.h>          /* for videodev2.h */
-#include <linux/videodev2.h>
-
 #include "output_file.h"
 
 #include "../../utils.h"

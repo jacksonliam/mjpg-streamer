@@ -23,18 +23,13 @@ To compile and start the tool:
 # export LD_LIBRARY_PATH=.
 # ./mjpg_streamer -o "output_http.so -w ./www"
 
-If you have libv4l2 library you could compile it using it. 
-There are some cameras which has extra controls using it, and you can set much more resolutions.
-# tar xzvf mjpg-streamer.tgz
-# cd mjpg-streamer
-# make USE_LIBV4L2=true clean all
-# export LD_LIBRARY_PATH=.
-# ./mjpg_streamer -o "output_http.so -w ./www"
-
 If you would like to replace a WebcamXP based system with an mjpg-streamer based you may use the 
-WXP_COMPAT make argument. If you compile with this argument the mjpg stream will be available as cam_1.mjpg and the
+WXP_COMPAT argument to cmake. If you compile with this argument the mjpg stream will be available as cam_1.mjpg and the
 still jpg snapshot as cam_1.jpg. 
-# make WXP_COMPAT=true
+
+# mkdir _build
+# cd _build && cmake -DWXP_COMPAT=ON ..
+# make
 
 
 More examples can be found in the start.sh bash script.

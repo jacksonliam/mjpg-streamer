@@ -3,11 +3,34 @@ mjpg-streamer
 
 MJPEG Streamer with raspicam input plugin (based on raspistill mmal source code)
 
-Simply compile with 'make clean all' from within the mjpeg streamer experimental folder.
+Compilation
+===========
 
-You'll need to have cmake and a dev version of libjpeg installed. I used libjpeg62-dev.
+You must have cmake installed. You will also probably want to have a development
+version of libjpeg installed. I used libjpeg62-dev.
 
+Simple compilation
+------------------
 
+This will build and install all plugins that can be compiled.
+
+    cd mjpg-streamer-experimental
+    make
+    sudo make install
+    
+Advanced compilation (via CMake)
+--------------------------------
+
+There are options available to enable/disable plugins, setup options, etc. This
+shows the basic steps.
+
+    cd mjpg-streamer-experimental
+    mkdir _build
+    cd _build
+    cmake ..
+    make
+    sudo make install
+    
 Discussion / Questions / Help
 =============================
 Probably best in this thread
@@ -17,7 +40,8 @@ http://www.raspberrypi.org/phpBB3/viewtopic.php?f=43&t=45178
 Instructions
 ============
 
-You can run from the mjpeg streamer experimental folder with:
+If you ran the basic build, you can run from the mjpeg streamer experimental
+folder with:
 ```
 export LD_LIBRARY_PATH=.
 ./mjpg_streamer -o "output_http.so -w ./www" -i "input_raspicam.so"

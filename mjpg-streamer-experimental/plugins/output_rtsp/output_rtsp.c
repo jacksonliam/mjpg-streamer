@@ -50,8 +50,6 @@
 
 #include <dirent.h>
 
-#include <linux/types.h>          /* for videodev2.h */
-#include <linux/videodev2.h>
 
 #include "../../utils.h"
 #include "../../mjpg_streamer.h"

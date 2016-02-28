@@ -1,6 +1,0 @@
-This branch can contains experimental code. 
-Please test it and report, if something goes wrong.
-
-By default all debugging outputs are turned on. 
-You can turn off the debug output for every plugins separetly in the Makefiles.
-Just put a # before the CFLAGS += -DDEBUG line. 
