@@ -10,3 +10,6 @@
 *.lai
 *.la
 *.a
+
+/mjpg-streamer-experimental/mjpg_streamer
+/mjpg-streamer-experimental/_build
