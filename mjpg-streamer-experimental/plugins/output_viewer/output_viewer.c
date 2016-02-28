@@ -39,6 +39,7 @@
 static pthread_t worker;
 static globals *pglobal;
 static unsigned char *frame = NULL;
+static int input_number = 0;
 
 /******************************************************************************
 Description.: print a help message
@@ -277,14 +278,14 @@ void *worker_thread(void *arg)
 
     while(!pglobal->stop) {
         DBG("waiting for fresh frame\n");
-        pthread_mutex_lock(&pglobal->db);
-        pthread_cond_wait(&pglobal->db_update, &pglobal->db);
+        pthread_mutex_lock(&pglobal->in[input_number].db);
+        pthread_cond_wait(&pglobal->in[input_number].db_update, &pglobal->in[input_number].db);
 
         /* read buffer */
-        frame_size = pglobal->size;
-        memcpy(frame, pglobal->buf, frame_size);
+        frame_size = pglobal->in[input_number].size;
+        memcpy(frame, pglobal->in[input_number].buf, frame_size);
 
-        pthread_mutex_unlock(&pglobal->db);
+        pthread_mutex_unlock(&pglobal->in[input_number].db);
 
         /* decompress the JPEG and store results in memory */
         if(decompress_jpeg(frame, frame_size, &rgbimage)) {
@@ -353,10 +354,12 @@ int output_init(output_parameter *param)
     reset_getopt();
     while(1) {
         int option_index = 0, c = 0;
-        static struct option long_options[] = \ {
+        static struct option long_options[] = {
             {"h", no_argument, 0, 0
             },
             {"help", no_argument, 0, 0},
+            {"i", required_argument, 0, 0},
+            {"input", required_argument, 0, 0},
             {0, 0, 0, 0}
         };
 
@@ -379,10 +382,21 @@ int output_init(output_parameter *param)
             help();
             return 1;
             break;
+            /* i, input */
+        case 2:
+        case 3:
+            DBG("case 2,3\n");
+            input_number = atoi(optarg);
+            break;
         }
     }
 
     pglobal = param->global;
+    if(!(input_number < pglobal->incnt)) {
+        OPRINT("ERROR: the %d input_plugin number is too much only %d plugins loaded\n", input_number, pglobal->incnt);
+        return 1;
+    }
+    OPRINT("input plugin.....: %d: %s\n", input_number, pglobal->in[input_number].plugin);
 
     return 0;
 }
