@@ -50,20 +50,10 @@
 
 #include <dirent.h>
 
-#include <linux/types.h>          /* for videodev2.h */
-#include <linux/videodev2.h>
-
 #include "../../utils.h"
 #include "../../mjpg_streamer.h"
 
 #define OUTPUT_PLUGIN_NAME "UDP output plugin"
-
-enum RTSP_State {
-    RTSP_State_Setup,
-    RTSP_State_Playing,
-    RTSP_State_Paused,
-    RTSP_State_Teardown,
-};
 
 static pthread_t worker;
 static globals *pglobal;
