@@ -50,7 +50,7 @@ Description.: Display a help message
 Input Value.: argv[0] is the program name and the parameter progname
 Return Value: -
 ******************************************************************************/
-void help(char *progname)
+static void help(char *progname)
 {
     fprintf(stderr, "-----------------------------------------------------------------------\n");
     fprintf(stderr, "Usage: %s\n" \
@@ -90,7 +90,7 @@ Description.: pressing CTRL+C sends signals to this process instead of just
 Input Value.: sig tells us which signal was received
 Return Value: -
 ******************************************************************************/
-void signal_handler(int sig)
+static void signal_handler(int sig)
 {
     int i;
 
@@ -154,7 +154,7 @@ void signal_handler(int sig)
     return;
 }
 
-int split_parameters(char *parameter_string, int *argc, char **argv)
+static int split_parameters(char *parameter_string, int *argc, char **argv)
 {
     int count = 1;
     argv[0] = NULL; // the plugin may set it to 'INPUT_PLUGIN_NAME'
