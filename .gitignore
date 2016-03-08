@@ -11,5 +11,9 @@
 *.la
 *.a
 
+# Python
+__pycache__
+*.pyc
+
 /mjpg-streamer-experimental/mjpg_streamer
 /mjpg-streamer-experimental/_build

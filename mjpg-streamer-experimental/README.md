@@ -26,6 +26,7 @@ Input plugins:
 
 * input_file
 * input_http
+* input_opencv ([documentation](plugins/input_opencv/README.md))
 * input_ptp2
 * input_raspicam ([documentation](plugins/input_raspicam/README.md))
 * input_uvc ([documentation](plugins/input_uvc/README.md))
