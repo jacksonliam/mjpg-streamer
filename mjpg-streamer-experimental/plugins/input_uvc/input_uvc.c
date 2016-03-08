@@ -55,28 +55,6 @@
 
 #define INPUT_PLUGIN_NAME "UVC webcam grabber"
 
-/*
- * Common webcam resolutions with information from
- * http://en.wikipedia.org/wiki/Graphics_display_resolution
- */
-static const struct {
-    const char *string;
-    const int width, height;
-} resolutions[] = {
-    { "QQVGA", 160,  120  },
-    { "QCIF",  176,  144  },
-    { "CGA",   320,  200  },
-    { "QVGA",  320,  240  },
-    { "CIF",   352,  288  },
-    { "VGA",   640,  480  },
-    { "SVGA",  800,  600  },
-    { "XGA",   1024, 768  },
-    { "HD",    1280, 720  },
-    { "SXGA",  1280, 1024 },
-    { "UXGA",  1600, 1200 },
-    { "FHD",   1920, 1280 },
-};
-
 static const struct {
     const char *string;
     const v4l2_std_id vstd;
@@ -89,26 +67,9 @@ static const struct {
 
 /* private functions and variables to this plugin */
 static globals *pglobal;
-static int gquality = 80;
 static unsigned int minimum_size = 0;
 static int dynctrls = 1;
 static unsigned int every = 1;
-
-/* optional settings */
-int sh_set = 0, sh = 0,
-    co_set = 0, co = 0,
-    br_set = 0, br_auto = 0, br = 0,
-    sa_set = 0, sa = 0,
-    wb_set = 0, wb_auto = 0, wb = 0,
-    ex_set = 0, ex_auto = 0, ex = 0,
-    bk_set = 0, bk = 0,
-    rot_set = 0, rot = 0,
-    hf_set = 0, hf = 0,
-    vf_set = 0, vf = 0,
-    pl_set = 0, pl = -1,
-    gain_set = 0, gain_auto = 0, gain = 0,
-    cagc_set = 0, cagc_auto = 0, cagc = 0,
-    cb_set = 0, cb_auto = 0, cb = 0;
 
 static const struct {
   const char * k;
@@ -144,76 +105,19 @@ const char *get_name_by_tvnorm(v4l2_std_id vstd) {
 	return norms[0].string;
 }
 
-#define OPTION_INT(idx, v) \
-  case idx: \
-    DBG("case " #idx); \
-    if (sscanf(optarg, "%d", &v) != 1) { \
-        fprintf(stderr, "Invalid value for -" #v " (integer required)\n"); \
-        exit(EXIT_FAILURE); \
-    } \
-    v##_set = 1; \
-    break;
+static context_settings * init_settings() {
+    context_settings *settings;
     
-#define OPTION_INT_AUTO(idx, v) \
-  case idx: \
-    DBG("case " #idx); \
-    if (strcasecmp("auto", optarg) == 0) { \
-        v##_auto = 1; \
-    } else if (sscanf(optarg, "%d", &v) != 1) { \
-        fprintf(stderr, "Invalid value for -" #v " (auto or integer required)\n"); \
-        exit(EXIT_FAILURE); \
-    } \
-    v##_set = 1; \
-    break;
+    settings = calloc(1, sizeof(context_settings));
+    if (settings == NULL) {
+        IPRINT("error allocating context");
+        exit(EXIT_FAILURE);
+    }
     
-#define OPTION_BOOL(idx, v) \
-  case idx: \
-    DBG("case " #idx); \
-    if (strcasecmp("true", optarg) == 0) { \
-        v = 1; \
-    } else if (strcasecmp("false", optarg) == 0) { \
-        v = 0; \
-        fprintf(stderr, "Invalid value for -" #v " (true/false accepted)\n"); \
-        exit(EXIT_FAILURE); \
-    } \
-    v##_set = 1; \
-    break;
-    
-#define OPTION_MULTI(idx, var, table) \
-  case idx: \
-    DBG("case " #idx); \
-    for(i = 0; i < LENGTH_OF(table); i++) { \
-        if(strcasecmp(table[i].k, optarg) == 0) { \
-            var = table[i].v; \
-            break; \
-        } \
-    } \
-    if (var == -1) { \
-        fprintf(stderr, "Invalid value for -" #var "\n"); \
-        exit(EXIT_FAILURE); \
-    } \
-    var##_set = 1; \
-    break;
-    
-#define OPTION_MULTI_OR_INT(idx, var1, var1_default, var2, table) \
-  case idx: \
-    DBG("case " #idx); \
-    var1 = var1_default; \
-    for(i = 0; i < LENGTH_OF(table); i++) { \
-        if(strcasecmp(table[i].k, optarg) == 0) { \
-              printf("Hm, %d\n", table[i].v); \
-            var1 = table[i].v; \
-            break; \
-        } \
-    } \
-    if (var1 == var1_default) { \
-        if (sscanf(optarg, "%d", &var2) != 1) { \
-            fprintf(stderr, "Invalid value for -" #var2 "\n"); \
-            exit(EXIT_FAILURE); \
-        } \
-    } \
-    var2##_set = 1; \
-    break;
+    settings->quality = 80;
+    return settings;
+}
+
 
 /*** plugin interface functions ***/
 /******************************************************************************
@@ -230,9 +134,21 @@ int input_init(input_parameter *param, int id)
     char *dev = "/dev/video0", *s;
     int width = 640, height = 480, fps = -1, format = V4L2_PIX_FMT_MJPEG, i;
     v4l2_std_id tvnorm = V4L2_STD_UNKNOWN;
+    context *pctx;
+    context_settings *settings;
+    
+    pctx = calloc(1, sizeof(context));
+    if (pctx == NULL) {
+        IPRINT("error allocating context");
+        exit(EXIT_FAILURE);
+    }
+    
+    settings = pctx->init_settings = init_settings();
+    pglobal = param->global;
+    pglobal->in[id].context = pctx;
 
     /* initialize the mutes variable */
-    if(pthread_mutex_init(&cams[id].controls_mutex, NULL) != 0) {
+    if(pthread_mutex_init(&pctx->controls_mutex, NULL) != 0) {
         IPRINT("could not initialize mutex variable\n");
         exit(EXIT_FAILURE);
     }
@@ -323,22 +239,7 @@ int input_init(input_parameter *param, int id)
         case 4:
         case 5:
             DBG("case 4,5\n");
-            width = -1;
-            height = -1;
-
-            /* try to find the resolution in lookup table "resolutions" */
-            for(i = 0; i < LENGTH_OF(resolutions); i++) {
-                if(strcmp(resolutions[i].string, optarg) == 0) {
-                    width  = resolutions[i].width;
-                    height = resolutions[i].height;
-                }
-            }
-            /* done if width and height were set */
-            if(width != -1 && height != -1)
-                break;
-            /* parse value as decimal value */
-            width  = strtol(optarg, &s, 10);
-            height = strtol(s + 1, NULL, 10);
+            parse_resolution_opt(optarg, &width, &height);
             break;
 
         /* f, fps */
@@ -359,9 +260,8 @@ int input_init(input_parameter *param, int id)
         /* q, quality */
         #ifndef NO_LIBJPEG
         case 10:
-        case 11:
-            DBG("case 10,11\n");
-            gquality = MIN(MAX(atoi(optarg), 0), 100);
+        OPTION_INT(11, quality)
+            settings->quality = MIN(MAX(settings->quality, 0), 100);
             break;
         #endif
         /* m, minimum_size */
@@ -424,19 +324,33 @@ int input_init(input_parameter *param, int id)
 
         /* options */
         OPTION_INT(23, sh)
+            break;
         OPTION_INT(24, co)
+            break;
         OPTION_INT_AUTO(25, br)
+            break;
         OPTION_INT(26, sa)
+            break;
         OPTION_INT_AUTO(27, wb)
+            break;
         OPTION_MULTI_OR_INT(28, ex_auto, V4L2_EXPOSURE_MANUAL, ex, exposures)
+            break;
         OPTION_INT(29, bk)
+            break;
         OPTION_INT(30, rot)
+            break;
         OPTION_BOOL(31, hf)
+            break;
         OPTION_BOOL(32, vf)
+            break;
         OPTION_MULTI(33, pl, power_line)
+            break;
         OPTION_INT_AUTO(34, gain)
+            break;
         OPTION_INT_AUTO(35, cagc)
+            break;
         OPTION_INT_AUTO(36, cb)
+            break;
     
         default:
             DBG("default case\n");
@@ -445,17 +359,16 @@ int input_init(input_parameter *param, int id)
         }
     }
     DBG("input id: %d\n", id);
-    cams[id].id = id;
-    cams[id].pglobal = param->global;
+    pctx->id = id;
+    pctx->pglobal = param->global;
 
     /* allocate webcam datastructure */
-    cams[id].videoIn = malloc(sizeof(struct vdIn));
-    if(cams[id].videoIn == NULL) {
+    pctx->videoIn = calloc(1, sizeof(struct vdIn));
+    if(pctx->videoIn == NULL) {
         IPRINT("not enough memory for videoIn\n");
         exit(EXIT_FAILURE);
     }
-    memset(cams[id].videoIn, 0, sizeof(struct vdIn));
-
+    
     /* display the parsed values */
     IPRINT("Using V4L2 device.: %s\n", dev);
     IPRINT("Desired Resolution: %i x %i\n", width, height);
@@ -480,7 +393,7 @@ int input_init(input_parameter *param, int id)
     IPRINT("Format............: %s\n", fmtString);
     #ifndef NO_LIBJPEG
         if(format != V4L2_PIX_FMT_MJPEG)
-            IPRINT("JPEG Quality......: %d\n", gquality);
+            IPRINT("JPEG Quality......: %d\n", settings->quality);
     #endif
 
     if (tvnorm != V4L2_STD_UNKNOWN) {
@@ -491,7 +404,7 @@ int input_init(input_parameter *param, int id)
 
     DBG("vdIn pn: %d\n", id);
     /* open video device and prepare data structure */
-    if(init_videoIn(cams[id].videoIn, dev, width, height, fps, format, 1, cams[id].pglobal, id, tvnorm) < 0) {
+    if(init_videoIn(pctx->videoIn, dev, width, height, fps, format, 1, pctx->pglobal, id, tvnorm) < 0) {
         IPRINT("init_VideoIn failed\n");
         closelog();
         exit(EXIT_FAILURE);
@@ -502,9 +415,9 @@ int input_init(input_parameter *param, int id)
      * dynctrls must get initialized
      */
     if(dynctrls)
-        initDynCtrls(cams[id].videoIn->fd);
+        initDynCtrls(pctx->videoIn->fd);
     
-    enumerateControls(cams[id].videoIn, cams[id].pglobal, id); // enumerate V4L2 controls after UVC extended mapping
+    enumerateControls(pctx->videoIn, pctx->pglobal, id); // enumerate V4L2 controls after UVC extended mapping
     
     return 0;
 }
@@ -516,8 +429,11 @@ Return Value: always 0
 ******************************************************************************/
 int input_stop(int id)
 {
+    input * in = &pglobal->in[id];
+    context *pctx = (context*)in->context;
+    
     DBG("will cancel camera thread #%02d\n", id);
-    pthread_cancel(cams[id].threadID);
+    pthread_cancel(pctx->threadID);
     return 0;
 }
 
@@ -528,16 +444,19 @@ Return Value: always 0
 ******************************************************************************/
 int input_run(int id)
 {
-    cams[id].pglobal->in[id].buf = malloc(cams[id].videoIn->framesizeIn);
-    if(cams[id].pglobal->in[id].buf == NULL) {
+    input * in = &pglobal->in[id];
+    context *pctx = (context*)in->context;
+    
+    in->buf = malloc(pctx->videoIn->framesizeIn);
+    if(in->buf == NULL) {
         fprintf(stderr, "could not allocate memory\n");
         exit(EXIT_FAILURE);
     }
 
     DBG("launching camera thread #%02d\n", id);
     /* create thread and pass context to thread function */
-    pthread_create(&(cams[id].threadID), NULL, cam_thread, &(cams[id]));
-    pthread_detach(cams[id].threadID);
+    pthread_create(&(pctx->threadID), NULL, cam_thread, in);
+    pthread_detach(pctx->threadID);
     return 0;
 }
 
@@ -559,31 +478,13 @@ void help(void)
     " [-r | --resolution ]...: the resolution of the video device,\n" \
     "                          can be one of the following strings:\n" \
     "                          ");
+    
+    resolutions_help("                          ");
 
-    for(i = 0; i < LENGTH_OF(resolutions); i++) {
-        fprintf(stderr, "%s ", resolutions[i].string);
-        if((i + 1) % 6 == 0)
-            fprintf(stderr, "\n                          ");
-    }
-    fprintf(stderr, "\n                          or a custom value like the following" \
-    "\n                          example: 640x480\n");
-
-#ifndef NO_LIBJPEG
-    fprintf(stderr, " [-f | --fps ]..........: frames per second\n" \
+    fprintf(stderr,
+    " [-f | --fps ]..........: frames per second\n" \
     "                          (activates YUYV format, disables MJPEG)\n" \
-    " [-m | --minimum_size ].: drop frames smaller then this limit, useful\n" \
-    "                          if the webcam produces small-sized garbage frames\n" \
-    "                          may happen under low light conditions\n" \
-    " [-e | --every_frame ]..: drop all frames except numbered\n" \
-    " [-n | --no_dynctrl ]...: do not initalize dynctrls of Linux-UVC driver\n" \
-    " [-l | --led ]..........: switch the LED \"on\", \"off\", let it \"blink\" or leave\n" \
-    "                          it up to the driver using the value \"auto\"\n" \
-    " ---------------------------------------------------------------\n\n"
-    " [-t | --tvnorm ] ......: set TV-Norm pal, ntsc or secam\n"
-    " ---------------------------------------------------------------\n");
-#else
-    fprintf(stderr, " [-f | --fps ]..........: frames per second\n" \
-    "                          (activates YUYV format, disables MJPEG)\n" \
+    " [-q | --quality ] .....: set quality of JPEG encoding\n" \
     " [-m | --minimum_size ].: drop frames smaller then this limit, useful\n" \
     "                          if the webcam produces small-sized garbage frames\n" \
     "                          may happen under low light conditions\n" \
@@ -593,7 +494,6 @@ void help(void)
     "                          it up to the driver using the value \"auto\"\n" \
     " [-t | --tvnorm ] ......: set TV-Norm pal, ntsc or secam\n"
     " ---------------------------------------------------------------\n");
-#endif
 
     fprintf(stderr, "\n"\
     " Optional parameters (may not be supported by all cameras):\n\n"
@@ -622,23 +522,25 @@ Return Value: unused, always NULL
 ******************************************************************************/
 void *cam_thread(void *arg)
 {
+    input * in = (input*)arg;
+    context *pcontext = (context*)in->context;
+    context_settings *settings = pcontext->init_settings;
+    
     unsigned int every_count = 0;
-
-    context *pcontext = arg;
-    pglobal = pcontext->pglobal;
-
+    int quality = settings->quality;
+    
     /* set cleanup handler to cleanup allocated resources */
-    pthread_cleanup_push(cam_cleanup, pcontext);
+    pthread_cleanup_push(cam_cleanup, in);
     
     #define V4L_OPT_SET(vid, var, desc) \
-      if (input_cmd(pcontext->id, vid, IN_CMD_V4L2, var, NULL) != 0) {\
+      if (input_cmd(pcontext->id, vid, IN_CMD_V4L2, settings->var, NULL) != 0) {\
           fprintf(stderr, "Failed to set " desc "\n"); \
       } else { \
-          printf(" i: %-18s: %d\n", desc, var); \
+          printf(" i: %-18s: %d\n", desc, settings->var); \
       }
     
     #define V4L_INT_OPT(vid, var, desc) \
-      if (var##_set) { \
+      if (settings->var##_set) { \
           V4L_OPT_SET(vid, var, desc) \
       }
     
@@ -652,52 +554,56 @@ void *cam_thread(void *arg)
     V4L_INT_OPT(V4L2_CID_VFLIP, vf, "vflip")
     V4L_INT_OPT(V4L2_CID_VFLIP, pl, "power line filter")
     
-    if (br_set) {
+    if (settings->br_set) {
         V4L_OPT_SET(V4L2_CID_AUTOBRIGHTNESS, br_auto, "auto brightness mode")
         
-        if (br_auto == 0) {
+        if (settings->br_auto == 0) {
             V4L_OPT_SET(V4L2_CID_BRIGHTNESS, br, "brightness")
         }
     }
     
-    if (wb_set) {
+    if (settings->wb_set) {
         V4L_OPT_SET(V4L2_CID_AUTO_WHITE_BALANCE, wb_auto, "auto white balance mode")
         
-        if (wb_auto == 0) {
+        if (settings->wb_auto == 0) {
             V4L_OPT_SET(V4L2_CID_WHITE_BALANCE_TEMPERATURE, wb, "white balance temperature")
         }
     }
     
-    if (ex_set) {
+    if (settings->ex_set) {
         V4L_OPT_SET(V4L2_CID_EXPOSURE_AUTO, ex_auto, "exposure mode")
-        if (ex_auto == V4L2_EXPOSURE_MANUAL) {
+        if (settings->ex_auto == V4L2_EXPOSURE_MANUAL) {
             V4L_OPT_SET(V4L2_CID_EXPOSURE_ABSOLUTE, ex, "absolute exposure")
         }
     }
     
-    if (gain_set) {
+    if (settings->gain_set) {
         V4L_OPT_SET(V4L2_CID_AUTOGAIN, gain_auto, "auto gain mode")
         
-        if (gain_auto == 0) {
+        if (settings->gain_auto == 0) {
             V4L_OPT_SET(V4L2_CID_GAIN, gain, "gain")
         }
     }
     
-    if (cagc_set) {
+    if (settings->cagc_set) {
         V4L_OPT_SET(V4L2_CID_AUTO_WHITE_BALANCE, cagc_auto, "chroma gain mode")
         
-        if (cagc_auto == 0) {
+        if (settings->cagc_auto == 0) {
             V4L_OPT_SET(V4L2_CID_WHITE_BALANCE_TEMPERATURE, cagc, "chroma gain")
         }
     }
     
-    if (cb_set) {
+    if (settings->cb_set) {
         V4L_OPT_SET(V4L2_CID_HUE_AUTO, cb_auto, "color balance mode")
         
-        if (cb_auto == 0) {
+        if (settings->cb_auto == 0) {
             V4L_OPT_SET(V4L2_CID_HUE, cagc, "color balance")
         }
     }
+    
+    free(settings);
+    settings = NULL;
+    pcontext->init_settings = NULL;
 
     while(!pglobal->stop) {
         while(pcontext->videoIn->streamingState == STREAMING_PAUSED) {
@@ -759,7 +665,7 @@ void *cam_thread(void *arg)
         #ifndef NO_LIBJPEG
         if ((pcontext->videoIn->formatIn == V4L2_PIX_FMT_YUYV) || (pcontext->videoIn->formatIn == V4L2_PIX_FMT_RGB565)) {
             DBG("compressing frame from input: %d\n", (int)pcontext->id);
-            pglobal->in[pcontext->id].size = compress_image_to_jpeg(pcontext->videoIn, pglobal->in[pcontext->id].buf, pcontext->videoIn->framesizeIn, gquality);
+            pglobal->in[pcontext->id].size = compress_image_to_jpeg(pcontext->videoIn, pglobal->in[pcontext->id].buf, pcontext->videoIn->framesizeIn, quality);
             /* copy this frame's timestamp to user space */
             pglobal->in[pcontext->id].timestamp = pcontext->videoIn->buf.timestamp;
         } else {
@@ -799,22 +705,21 @@ Return Value:
 ******************************************************************************/
 void cam_cleanup(void *arg)
 {
-    static unsigned char first_run = 1;
-    context *pcontext = arg;
-    pglobal = pcontext->pglobal;
-    if(!first_run) {
-        DBG("already cleaned up resources\n");
-        return;
-    }
-
-    first_run = 0;
+    input * in = (input*)arg;
+    context *pctx = (context*)in->context;
+    
     IPRINT("cleaning up resources allocated by input thread\n");
 
-    close_v4l2(pcontext->videoIn);
-    if(pcontext->videoIn->tmpbuffer != NULL) free(pcontext->videoIn->tmpbuffer);
-    if(pcontext->videoIn != NULL) free(pcontext->videoIn);
-    if(pglobal->in[pcontext->id].buf != NULL)
-        free(pglobal->in[pcontext->id].buf);
+    if (pctx->videoIn != NULL) {
+        close_v4l2(pctx->videoIn);
+        free(pctx->videoIn->tmpbuffer);
+        free(pctx->videoIn);
+        pctx->videoIn = NULL;
+    }
+    
+    free(in->buf);
+    in->buf = NULL;
+    in->size = 0;
 }
 
 /******************************************************************************
@@ -827,17 +732,20 @@ Return Value: depends in the command, for most cases 0 means no errors and
 ******************************************************************************/
 int input_cmd(int plugin_number, unsigned int control_id, unsigned int group, int value, char *value_string)
 {
+    input * in = &pglobal->in[plugin_number];
+    context *pctx = (context*)in->context;
+    
     int ret = -1;
     int i = 0;
     DBG("Requested cmd (id: %d) for the %d plugin. Group: %d value: %d\n", control_id, plugin_number, group, value);
     switch(group) {
     case IN_CMD_GENERIC: {
             int i;
-            for (i = 0; i<pglobal->in[plugin_number].parametercount; i++) {
-                if ((pglobal->in[plugin_number].in_parameters[i].ctrl.id == control_id) &&
-                    (pglobal->in[plugin_number].in_parameters[i].group == IN_CMD_GENERIC)){
-                    DBG("Generic control found (id: %d): %s\n", control_id, pglobal->in[plugin_number].in_parameters[i].ctrl.name);
-                    DBG("New %s value: %d\n", pglobal->in[plugin_number].in_parameters[i].ctrl.name, value);
+            for (i = 0; i<in->parametercount; i++) {
+                if ((in->in_parameters[i].ctrl.id == control_id) &&
+                    (in->in_parameters[i].group == IN_CMD_GENERIC)){
+                    DBG("Generic control found (id: %d): %s\n", control_id, in->in_parameters[i].ctrl.name);
+                    DBG("New %s value: %d\n", in->in_parameters[i].ctrl.name, value);
                     return 0;
                 }
             }
@@ -845,9 +753,9 @@ int input_cmd(int plugin_number, unsigned int control_id, unsigned int group, in
             return -1;
         } break;
     case IN_CMD_V4L2: {
-            ret = v4l2SetControl(cams[plugin_number].videoIn, control_id, value, plugin_number, pglobal);
+            ret = v4l2SetControl(pctx->videoIn, control_id, value, plugin_number, pglobal);
             if(ret == 0) {
-                pglobal->in[plugin_number].in_parameters[i].value = value;
+                in->in_parameters[i].value = value;
             } else {
                 DBG("v4l2SetControl failed: %d\n", ret);
             }
@@ -855,22 +763,22 @@ int input_cmd(int plugin_number, unsigned int control_id, unsigned int group, in
         } break;
     case IN_CMD_RESOLUTION: {
         // the value points to the current formats nth resolution
-        if(value > (pglobal->in[plugin_number].in_formats[pglobal->in[plugin_number].currentFormat].resolutionCount - 1)) {
+        if(value > (in->in_formats[in->currentFormat].resolutionCount - 1)) {
             DBG("The value is out of range");
             return -1;
         }
-        int height = pglobal->in[plugin_number].in_formats[pglobal->in[plugin_number].currentFormat].supportedResolutions[value].height;
-        int width = pglobal->in[plugin_number].in_formats[pglobal->in[plugin_number].currentFormat].supportedResolutions[value].width;
-        ret = setResolution(cams[plugin_number].videoIn, width, height);
+        int height = in->in_formats[in->currentFormat].supportedResolutions[value].height;
+        int width = in->in_formats[in->currentFormat].supportedResolutions[value].width;
+        ret = setResolution(pctx->videoIn, width, height);
         if(ret == 0) {
-            pglobal->in[plugin_number].in_formats[pglobal->in[plugin_number].currentFormat].currentResolution = value;
+            in->in_formats[in->currentFormat].currentResolution = value;
         }
         return ret;
     } break;
     case IN_CMD_JPEG_QUALITY:
         if((value >= 0) && (value < 101)) {
-            pglobal->in[plugin_number].jpegcomp.quality = value;
-            if(IOCTL_VIDEO(cams[plugin_number].videoIn->fd, VIDIOC_S_JPEGCOMP, &pglobal->in[plugin_number].jpegcomp) != EINVAL) {
+            in->jpegcomp.quality = value;
+            if(IOCTL_VIDEO(pctx->videoIn->fd, VIDIOC_S_JPEGCOMP, &in->jpegcomp) != EINVAL) {
                 DBG("JPEG quality is set to %d\n", value);
                 ret = 0;
             } else {
