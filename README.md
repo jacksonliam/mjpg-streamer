@@ -55,14 +55,14 @@ Simple compilation
 This will build and install all plugins that can be compiled.
 
     cd mjpg-streamer-experimental
-    make CMAKE_BUILD_TYPE=Debug
+    make
     sudo make install
     
 By default, everything will be compiled in "release" mode. If you wish to compile
 with debugging symbols enabled, you can do this:
 
     cd mjpg-streamer-experimental
-    make 
+    make CMAKE_BUILD_TYPE=Debug
     sudo make install
     
 Advanced compilation (via CMake)
