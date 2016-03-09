@@ -30,6 +30,7 @@ Input plugins:
 
 * input_file
 * input_http
+* input_opencv ([documentation](mjpg-streamer-experimental/plugins/input_opencv/README.md))
 * input_ptp2
 * input_raspicam ([documentation](mjpg-streamer-experimental/plugins/input_raspicam/README.md))
 * input_uvc ([documentation](mjpg-streamer-experimental/plugins/input_uvc/README.md))
@@ -54,7 +55,14 @@ Simple compilation
 This will build and install all plugins that can be compiled.
 
     cd mjpg-streamer-experimental
-    make
+    make CMAKE_BUILD_TYPE=Debug
+    sudo make install
+    
+By default, everything will be compiled in "release" mode. If you wish to compile
+with debugging symbols enabled, you can do this:
+
+    cd mjpg-streamer-experimental
+    make 
     sudo make install
     
 Advanced compilation (via CMake)
