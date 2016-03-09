@@ -79,6 +79,8 @@ struct _input {
     input_format *in_formats;
     int formatCount;
     int currentFormat; // holds the current format number
+    
+    void *context; // private data for the plugin
 
     int (*init)(input_parameter *, int id);
     int (*stop)(int);

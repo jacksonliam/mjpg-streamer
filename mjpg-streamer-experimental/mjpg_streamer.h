@@ -54,7 +54,7 @@ typedef enum {
 } command_dest;
 
 /* commands which can be send to the input plugin */
-typedef enum _cmd_group cmd_group;
+//typedef enum _cmd_group cmd_group;
 enum _cmd_group {
     IN_CMD_GENERIC =        0, // if you use non V4L2 input plugin you not need to deal the groups.
     IN_CMD_V4L2 =           1,
