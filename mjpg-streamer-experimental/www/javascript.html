@@ -30,7 +30,7 @@
         img.onclick = imageOnclick;
         img.width = 512;
         img.height = 384;
-        img.src = "/?action=snapshot&n=" + (++imageNr);
+        img.src = "./?action=snapshot&n=" + (++imageNr);
         var webcam = document.getElementById("webcam");
 		window.info = document.getElementById('info').firstChild;
 		window.ravgFps = document.getElementById('ravgfps').firstChild;
@@ -143,7 +143,7 @@
       <h3>Hints</h3>
         <p>This example shows the stream by using java script. It works with most browsers. To see a simple example click <a href="javascript_simple.html">here</a>.</p>
 
-        <div id="webcam" style="width:512px;height:394px"><noscript><img src="/?action=snapshot" width="512px" height="384px" /></noscript></div>
+        <div id="webcam" style="width:512px;height:394px"><noscript><img src="./?action=snapshot" width="512px" height="384px" /></noscript></div>
 
       <p>&copy; The <a href="http://mjpg-streamer.sf.net">MJPG-streamer team</a> | Design by <a href="http://andreasviklund.com">Andreas Viklund</a></p>
     </div>

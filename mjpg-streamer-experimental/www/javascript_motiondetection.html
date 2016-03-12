@@ -6,7 +6,7 @@
     <meta http-equiv="refresh" content="60" />
   </head>
 
-<script language="javascript" type="text/javascript" src="/functions.js"></script>
+<script language="javascript" type="text/javascript" src="functions.js"></script>
 <script type="text/javascript">
 
 /*******************************************************************************
@@ -101,7 +101,7 @@ function newPictureComplete() {
 
     // send server our finding that there was some movement
     if ( res > 5 ) {
-      AJAX_get('/?action=command&command=store')
+      AJAX_get('./?action=command&command=store')
     }
   }
 
@@ -116,7 +116,7 @@ function newPictureComplete() {
   // the server blocks anyway until a fresh picture has arrived, so it can never be faster
   // than the framerate. This timeout is intended to have the option
   // to lower the required processing power at client side.
-  window.setTimeout("img1.src='/?action=snapshot&unique='+Math.random();", 1);
+  window.setTimeout("img1.src='./?action=snapshot&unique='+Math.random();", 1);
 }
 
 /*
@@ -137,7 +137,7 @@ function run() {
 
   img1 = new Image();
   img1.onload=newPictureComplete;
-  img1.src = "/?action=snapshot";
+  img1.src = "./?action=snapshot";
 
   if ( window.name.indexOf('paused') != -1 )
     play_pause(document.getElementById("stream"));
@@ -160,8 +160,8 @@ function AJAX_response(text) {
   input.: 'img' is the Image() object displaying the stream/picture
 */
 function play_pause(img) {
-  if ( img.src.indexOf('/?action=stream') != -1 ) {
-    img.src = "/?action=snapshot&unique="+Math.random();
+  if ( img.src.indexOf('./?action=stream') != -1 ) {
+    img.src = "./?action=snapshot&unique="+Math.random();
 
     // to keep the play/pause state over a page reload
     // this persistent property of the window can be (mis)used
@@ -170,7 +170,7 @@ function play_pause(img) {
     // pass information from one page to the other (reload)
     window.name = 'paused';
   } else {
-    img.src = "/?action=stream";
+    img.src = "./?action=stream";
     window.name = 'streaming';
   }
 }
@@ -185,7 +185,7 @@ function play_pause(img) {
 
   <fieldset style="background-color: silver; width: 50%">
     <legend style="background-color: silver; border: 1px solid black">Lifestream</legend>
-    <img id="stream" src="/?action=stream" width="100%" onclick="play_pause(this)" />
+    <img id="stream" src="./?action=stream" width="100%" onclick="play_pause(this)" />
   </fieldset>
 
 </body>

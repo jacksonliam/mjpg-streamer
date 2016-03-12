@@ -25,7 +25,7 @@
     <script type="text/javascript"> 
     		
 		function setControl(dest, plugin, id, group, value) {
-          $.get('/?action=command&dest=' +		dest +
+          $.get('./?action=command&dest=' +		dest +
           						'&plugin=' +	plugin+
           						'&id='+ 		id + 
           						'&group='+ 		group + 
@@ -44,7 +44,7 @@
             alert("The input string has to be least"+minlength+" characters!");
             return;
           }
-          $.get('/?action=command&dest=' +		dest +
+          $.get('./?action=command&dest=' +		dest +
           						'&plugin=' +	plugin+
           						'&id='+ 		id + 
           						'&group='+ 		group + 
@@ -55,7 +55,7 @@
         }
                         
         function setResolution(plugin, controlId, group, value) {
-	        $.get('/?action=command&dest=0'	+		// resolution command always goes to the input plugin
+	        $.get('./?action=command&dest=0'	+		// resolution command always goes to the input plugin
 					'&plugin=' +	plugin+
 					'&id'+ 			controlId + 
 					'&group=1'	+					// IN_CMD_RESOLUTION == 1,		
