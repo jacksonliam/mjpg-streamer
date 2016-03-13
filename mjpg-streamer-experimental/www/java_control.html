@@ -1,12 +1,12 @@
 <html>
   <head>
     <title>My webcams</title>
-    <script language="javascript" type="text/javascript" src="/functions.js"></script>
+    <script language="javascript" type="text/javascript" src="functions.js"></script>
     <script language="javascript">
 
       function send_command(cmd) {
         document.getElementById('hints').firstChild.nodeValue = "Send command: " + cmd;
-        AJAX_get('/?action=command&command='+ cmd)
+        AJAX_get('./?action=command&command='+ cmd)
       }
 
       function AJAX_response(text) {
@@ -36,8 +36,8 @@
         <tr>
           <td height="40%">&nbsp;</td>
           <td width="640" rowspan="3">
-            <applet code="com.charliemouse.cambozola.Viewer" archive="/cambozola.jar" width="640" height="480">
-              <param name="url" value="/?action=stream"/>
+            <applet code="com.charliemouse.cambozola.Viewer" archive="cambozola.jar" width="640" height="480">
+              <param name="url" value="./?action=stream"/>
             </applet>
           </td>
           <td colspan="3" valign="top">

@@ -11,6 +11,9 @@
   </head>
 
   <script type="text/javascript">
+    var href = window.location.href;
+    var root = href.substr(0, href.lastIndexOf('/'));
+
     function playlist(link, hint) {
       var res = true;
 
@@ -22,13 +25,13 @@
         return false;
       }
 
-      var m3u = "data:playlist/mjpgstreamer,#EXTM3U%0A%0A#EXTINF:-1,Webcam%20MJPG-Stream%0Ahttp://"+ window.location.host +"/?action=stream";
+      var m3u = "data:playlist/mjpgstreamer,#EXTM3U%0A%0A#EXTINF:-1,Webcam%20MJPG-Stream%0A" + root + "/?action=stream";
       link.href = m3u;
       return true;
     }
     
     function run() {
-      document.getElementById("stream").firstChild.nodeValue = "http://"+ window.location.host +"/?action=stream";
+      document.getElementById("stream").firstChild.nodeValue = root + "/?action=stream";
     }
   </script>
 
