@@ -20,6 +20,16 @@ struct Tmp {
 Tmp info("return value");
 
 bool NDArrayConverter::init_numpy() {
+    // bug: import_array will hide the inner exception if something fails, so 
+    //      go ahead and import the numpy module first
+    PyObject * np_module = PyImport_ImportModule("numpy.core.multiarray");
+    if (np_module == NULL) {
+        PyErr_Print();
+        return false;
+    }
+    
+    Py_DECREF(np_module);
+    
     // this has to be in this file, since PyArray_API is defined as static
     import_array1(false);
     return true;
