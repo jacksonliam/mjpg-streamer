@@ -6,6 +6,9 @@ git pull
 # find out the current revision
 GITVERSION="$(export LANG=C && export LC_ALL=C && echo $(git show -s --format=%at-%H))"
 
+# run cmake before our checkinstall run
+cmake -DCMAKE_INSTALL_PREFIX:PATH=/usr .
+
 # use checkinstall to create the DEB package
 sudo checkinstall -D \
                   --pkgname "mjpg-streamer" \
