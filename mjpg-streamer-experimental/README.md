@@ -3,6 +3,11 @@ mjpg-streamer
 
 Currently no issues are known, but since this software is quite young and not used widely it may cause problems. You must really know what you are doing, if you use this software. If you want to use the software you are obliged to check if the sourcecode does what you expect it to do and take the risk yourself to use it.
 
+Build
+=====
+To build mjpg-streamer on Raspbian Jessie, run the build.sh script with sudo. The script has been tested on Raspberry Pi 2 and 3 running the latest Jessie release from March 2016.
+
+sudo ./build.sh
 
 Usage
 =====
