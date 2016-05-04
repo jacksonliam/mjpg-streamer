@@ -47,7 +47,7 @@ Here's some help for this input plugin:
  -br : Set image brightness (0 to 100)
  -sa : Set image saturation (-100 to 100)
  -ISO : Set capture ISO
- -vs : Turn on video stablisation
+ -vs : Turn on video stabilisation
  -ev : Set EV compensation
  -ex : Set exposure mode (see raspistill notes)
  -awb : Set AWB mode (see raspistill notes)
@@ -55,6 +55,8 @@ Here's some help for this input plugin:
  -cfx : Set colour effect (U:V)
  -mm : Set metering mode (see raspistill notes)
  -rot : Set image rotation (0-359)
+-stats : Compute image stats for each picture (reduces noise)
+ -drc : Dynamic range compensation level (see raspistill notes)
  -hf : Set horizontal flip
  -vf : Set vertical flip
  ---------------------------------------------------------------
@@ -68,7 +70,7 @@ Use stills mode with low FPS (e.g. 1 or 2).
 
 In order to have preview output shown on the raspi screen add the -preview option.
 
-This should run indefinately. ctrl-c closes mjpeg streamer and raspicam gracefully.
+This should run indefinitely. ctrl-c closes mjpeg streamer and raspicam gracefully.
 
 Based on https://github.com/raspberrypi/userland/blob/master/host_applications/linux/apps/raspicam/RaspiStill.c
 modified mmal header and source files from https://github.com/raspberrypi/userland/tree/master/interface/mmal
