@@ -29,8 +29,8 @@ To view the stream use VLC or Firefox/Chrome and open the URL:
 
 If there are multiple input plugins, you can access each stream individually:
 
-    http://127.0.0.1:8080/?action=stream0
-    http://127.0.0.1:8080/?action=stream1
+    http://127.0.0.1:8080/?action=stream_0
+    http://127.0.0.1:8080/?action=stream_1
 
 To do the same as the GET request above using NSURLSession in Objective-C, a POST request seems to work: 
 
