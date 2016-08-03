@@ -31,6 +31,40 @@
 
 static int debug = 0;
 
+/* fcc2s - convert pixelformat to string
+* (Obtained from vtl-utils: v4l2-ctl.cpp)
+* args:
+* fmsString - char* to hold string
+* size - size of allocated memory for string
+* pixelformat - v4l2 pixel format identidifier
+*/
+void fcc2s(char* fmtString, unsigned int size, unsigned int pixelformat)
+{
+  if ( size < 8 )
+  {
+    fmtString[0] = '\0';
+    return;
+  }
+  
+
+  fmtString[0] = pixelformat & 0x7f;
+  fmtString[1] = (pixelformat >>  8 ) & 0x7f;
+  fmtString[2] = (pixelformat >>  16 ) & 0x7f;
+  fmtString[3] = (pixelformat >> 24 ) & 0x7f;
+  if (pixelformat & (1 << 31))
+  {
+    fmtString[4] = '-';
+    fmtString[5] = 'B';
+    fmtString[6] = 'E';
+    fmtString[7] = '\0';
+  }
+  else
+  {
+    fmtString[4] = '\0';
+  }
+  return;
+}
+
 /* ioctl with a number of retries in the case of failure
 * args:
 * fd - device descriptor
@@ -284,17 +318,28 @@ static int init_v4l2(struct vdIn *vd)
      * Check format
      */
     if(vd->formatIn != vd->fmt.fmt.pix.pixelformat) {
-      fprintf(stderr, " i: Could not obtain the requested pixelformat, got: %s\n","Test");
+      char fmtStringRequested[8];
+      char fmtStringObtained[8];
+      fcc2s(fmtStringObtained,8,vd->fmt.fmt.pix.pixelformat);
+      fcc2s(fmtStringRequested,8,vd->formatIn);
+      fprintf(stderr, " i: Could not obtain the requested pixelformat: %s , driver gave us: %s\n",fmtStringRequested,fmtStringObtained);
+      fprintf(stderr, "    ... will try to handle this by checking against supported formats. \n");
       
       switch(vd->fmt.fmt.pix.pixelformat){
       case V4L2_PIX_FMT_MJPEG:
-	fprintf(stderr, " i: The input device does not support the specified YUV or UYVY mode. Falling back to the faster MJPEG mode\n");
+	fprintf(stderr, "    ... Falling back to the faster MJPG mode (consider changing cmd line options).\n");
 	vd->formatIn = vd->fmt.fmt.pix.pixelformat;
 	break;
       case V4L2_PIX_FMT_YUYV:
+	fprintf(stderr, "    ... Falling back to YUV mode (consider using -yuv option). Note that this requires much more CPU power\n");
+	vd->formatIn = vd->fmt.fmt.pix.pixelformat;
+        break;
       case V4L2_PIX_FMT_UYVY:
+	fprintf(stderr, "    ... Falling back to UYVY mode (consider using -uyvy option). Note that this requires much more CPU power\n");
+	vd->formatIn = vd->fmt.fmt.pix.pixelformat;
+        break;
       case V4L2_PIX_FMT_RGB565:
-	fprintf(stderr, " i: The inpout device does not support MJPEG mode\n    Falling back to YUV/UYVY mode (-yuv/-uyvy option). Note that this requires much more CPU power\n");
+	fprintf(stderr, "    ... Falling back to RGB565 mode (consider using -fourcc option). Note that this requires much more CPU power\n");
 	vd->formatIn = vd->fmt.fmt.pix.pixelformat;
 	break;
       default:
