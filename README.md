@@ -47,7 +47,9 @@ Building & Installation
 =======================
 
 You must have cmake installed. You will also probably want to have a development
-version of libjpeg installed. I used libjpeg62-dev.
+version of libjpeg installed. I used libjpeg8-dev. e.g.
+
+    sudo apt-get install cmake libjpeg8-dev
 
 Simple compilation
 ------------------
