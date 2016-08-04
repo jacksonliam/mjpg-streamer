@@ -89,6 +89,11 @@ export LD_LIBRARY_PATH=.
 
 See [README.md](mjpg-streamer-experimental/README.md) or the individual plugin's documentation for more details.
 
+Discussion / Questions / Help
+=============================
+
+Probably best in this thread
+http://www.raspberrypi.org/phpBB3/viewtopic.php?f=43&t=45178
 
 Authors
 =======
