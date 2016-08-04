@@ -129,6 +129,25 @@ static XREF_T metering_mode_map[] =
 
 static const int metering_mode_map_size = sizeof(metering_mode_map)/sizeof(metering_mode_map[0]);
 
+static XREF_T drc_mode_map[] =
+{
+   {"off",           MMAL_PARAMETER_DRC_STRENGTH_OFF},
+   {"low",           MMAL_PARAMETER_DRC_STRENGTH_LOW},
+   {"med",           MMAL_PARAMETER_DRC_STRENGTH_MEDIUM},
+   {"high",          MMAL_PARAMETER_DRC_STRENGTH_HIGH}
+};
+
+static const int drc_mode_map_size = sizeof(drc_mode_map)/sizeof(drc_mode_map[0]);
+
+static XREF_T stereo_mode_map[] =
+{
+   {"off",           MMAL_STEREOSCOPIC_MODE_NONE},
+   {"sbs",           MMAL_STEREOSCOPIC_MODE_SIDE_BY_SIDE},
+   {"tb",            MMAL_STEREOSCOPIC_MODE_TOP_BOTTOM},
+};
+
+static const int stereo_mode_map_size = sizeof(stereo_mode_map)/sizeof(stereo_mode_map[0]);
+
 
 #define CommandSharpness   0
 #define CommandContrast    1
@@ -137,7 +156,7 @@ static const int metering_mode_map_size = sizeof(metering_mode_map)/sizeof(meter
 #define CommandISO         4
 #define CommandVideoStab   5
 #define CommandEVComp      6
-#define CommandExposure  7
+#define CommandExposure    7
 #define CommandAWB         8
 #define CommandImageFX     9
 #define CommandColourFX    10
@@ -145,6 +164,16 @@ static const int metering_mode_map_size = sizeof(metering_mode_map)/sizeof(meter
 #define CommandRotation    12
 #define CommandHFlip       13
 #define CommandVFlip       14
+#define CommandROI         15
+#define CommandShutterSpeed 16
+#define CommandAwbGains    17
+#define CommandDRCLevel    18
+#define CommandStatsPass   19
+#define CommandAnnotate    20
+#define CommandStereoMode  21
+#define CommandStereoDecimate 22
+#define CommandStereoSwap  23
+#define CommandAnnotateExtras 24
 
 static COMMAND_LIST  cmdline_commands[] =
 {
@@ -153,8 +182,8 @@ static COMMAND_LIST  cmdline_commands[] =
    {CommandBrightness,  "-brightness","br", "Set image brightness (0 to 100)",  1},
    {CommandSaturation,  "-saturation","sa", "Set image saturation (-100 to 100)", 1},
    {CommandISO,         "-ISO",       "ISO","Set capture ISO",  1},
-   {CommandVideoStab,   "-vstab",     "vs", "Turn on video stablisation", 0},
-   {CommandEVComp,      "-ev",        "ev", "Set EV compensation",  1},
+   {CommandVideoStab,   "-vstab",     "vs", "Turn on video stabilisation", 0},
+   {CommandEVComp,      "-ev",        "ev", "Set EV compensation - steps of 1/6 stop",  1},
    {CommandExposure,    "-exposure",  "ex", "Set exposure mode (see Notes)", 1},
    {CommandAWB,         "-awb",       "awb","Set AWB mode (see Notes)", 1},
    {CommandImageFX,     "-imxfx",     "ifx","Set image effect (see Notes)", 1},
@@ -162,7 +191,17 @@ static COMMAND_LIST  cmdline_commands[] =
    {CommandMeterMode,   "-metering",  "mm", "Set metering mode (see Notes)", 1},
    {CommandRotation,    "-rotation",  "rot","Set image rotation (0-359)", 1},
    {CommandHFlip,       "-hflip",     "hf", "Set horizontal flip", 0},
-   {CommandVFlip,       "-vflip",     "vf", "Set vertical flip", 0}
+   {CommandVFlip,       "-vflip",     "vf", "Set vertical flip", 0},
+   {CommandROI,         "-roi",       "roi","Set region of interest (x,y,w,d as normalised coordinates [0.0-1.0])", 1},
+   {CommandShutterSpeed,"-shutter",   "ss", "Set shutter speed in microseconds", 1},
+   {CommandAwbGains,    "-awbgains",  "awbg", "Set AWB gains - AWB mode must be off", 1},
+   {CommandDRCLevel,    "-drc",       "drc", "Set DRC Level", 1},
+   {CommandStatsPass,   "-stats",     "st", "Force recomputation of statistics on stills capture pass"},
+   {CommandAnnotate,    "-annotate",  "a",  "Enable/Set annotate flags or text", 1},
+   {CommandStereoMode,  "-stereo",    "3d", "Select stereoscopic mode", 1},
+   {CommandStereoDecimate,"-decimate","dec", "Half width/height of stereo image"},
+   {CommandStereoSwap,  "-3dswap",    "3dswap", "Swap camera order for stereoscopic"},
+   {CommandAnnotateExtras,"-annotateex","ae",  "Set extra annotation parameters (text size, text colour(hex YUV), bg colour(hex YUV))", 2},
 };
 
 static int cmdline_commands_size = sizeof(cmdline_commands) / sizeof(cmdline_commands[0]);
@@ -502,8 +541,47 @@ static MMAL_PARAM_EXPOSUREMETERINGMODE_T metering_mode_from_string(const char *s
    return MMAL_PARAM_EXPOSUREMETERINGMODE_AVERAGE;
 }
 
+ /**
+ * Convert string to the MMAL parameter for DRC level
+ * @param str Incoming string to match
+ * @return MMAL parameter matching the string, or the AUTO option if no match found
+ */
+static MMAL_PARAMETER_DRC_STRENGTH_T drc_mode_from_string(const char *str)
+{
+   int i = map_xref(str, drc_mode_map, drc_mode_map_size);
+
+   if( i != -1)
+      return (MMAL_PARAMETER_DRC_STRENGTH_T)i;
+
+   fprintf(stderr,"Unknown DRC level: %s", str);
+   return MMAL_PARAMETER_DRC_STRENGTH_OFF;
+}
+
 /**
- * Dump contents of camera parameter structure to stdout for debugging/verbose logging
+ * Convert string to the MMAL parameter for exposure metering mode
+ * @param str Incoming string to match
+ * @return MMAL parameter matching the string, or the AUTO option if no match found
+ */
+static MMAL_STEREOSCOPIC_MODE_T stereo_mode_from_string(const char *str)
+{
+   int i = map_xref(str, stereo_mode_map, stereo_mode_map_size);
+
+   if( i != -1)
+      return (MMAL_STEREOSCOPIC_MODE_T)i;
+
+   fprintf(stderr,"Unknown metering mode: %s", str);
+   return MMAL_STEREOSCOPIC_MODE_NONE;
+}
+
+
+
+
+
+
+
+
+/**
+ * Dump contents of camera parameter structure to stderr for debugging/verbose logging
  *
  * @param params Const pointer to parameters structure to dump
  */
@@ -519,6 +597,7 @@ void raspicamcontrol_dump_parameters(const RASPICAM_CAMERA_PARAMETERS *params)
    fprintf(stderr, "Exposure Mode '%s', AWB Mode '%s', Image Effect '%s'\n", exp_mode, awb_mode, image_effect);
    fprintf(stderr, "Metering Mode '%s', Colour Effect Enabled %s with U = %d, V = %d\n", metering_mode, params->colourEffects.enable ? "Yes":"No", params->colourEffects.u, params->colourEffects.v);
    fprintf(stderr, "Rotation %d, hflip %s, vflip %s\n", params->rotation, params->hflip ? "Yes":"No",params->vflip ? "Yes":"No");
+   fprintf(stderr, "ROI x %lf, y %f, w %f h %f\n", params->roi.x, params->roi.y, params->roi.w, params->roi.h);
 }
 
 /**
@@ -526,7 +605,7 @@ void raspicamcontrol_dump_parameters(const RASPICAM_CAMERA_PARAMETERS *params)
  * ALso displays a fault if code is not success
  *
  * @param status The error code to convert
- * @return 0 if status is sucess, 1 otherwise
+ * @return 0 if status is success, 1 otherwise
  */
 int mmal_status_to_int(MMAL_STATUS_T status)
 {
@@ -570,7 +649,7 @@ void raspicamcontrol_set_defaults(RASPICAM_CAMERA_PARAMETERS *params)
    params->contrast = 0;
    params->brightness = 50;
    params->saturation = 0;
-   params->ISO = 400;
+   params->ISO = 0;                    // 0 = auto
    params->videoStabilisation = 0;
    params->exposureCompensation = 0;
    params->exposureMode = MMAL_PARAM_EXPOSUREMODE_AUTO;
@@ -582,6 +661,21 @@ void raspicamcontrol_set_defaults(RASPICAM_CAMERA_PARAMETERS *params)
    params->colourEffects.v = 128;
    params->rotation = 0;
    params->hflip = params->vflip = 0;
+   params->roi.x = params->roi.y = 0.0;
+   params->roi.w = params->roi.h = 1.0;
+   params->shutter_speed = 0;          // 0 = auto
+   params->awb_gains_r = 0;      // Only have any function if AWB OFF is used.
+   params->awb_gains_b = 0;
+   params->drc_level = MMAL_PARAMETER_DRC_STRENGTH_OFF;
+   params->stats_pass = MMAL_FALSE;
+   params->enable_annotate = 0;
+   params->annotate_string[0] = '\0';
+   params->annotate_text_size = 0;	//Use firmware default
+   params->annotate_text_colour = -1;   //Use firmware default
+   params->annotate_bg_colour = -1;     //Use firmware default
+   params->stereo_mode.mode = MMAL_STEREOSCOPIC_MODE_NONE;
+   params->stereo_mode.decimate = MMAL_FALSE;
+   params->stereo_mode.swap_eyes = MMAL_FALSE;
 }
 
 /**
@@ -629,17 +723,22 @@ int raspicamcontrol_set_all_parameters(MMAL_COMPONENT_T *camera, const RASPICAM_
    result += raspicamcontrol_set_sharpness(camera, params->sharpness);
    result += raspicamcontrol_set_contrast(camera, params->contrast);
    result += raspicamcontrol_set_brightness(camera, params->brightness);
-   //result += raspicamcontrol_set_ISO(camera, params->ISO); TODO Not working for some reason
+   result += raspicamcontrol_set_ISO(camera, params->ISO);
    result += raspicamcontrol_set_video_stabilisation(camera, params->videoStabilisation);
    result += raspicamcontrol_set_exposure_compensation(camera, params->exposureCompensation);
    result += raspicamcontrol_set_exposure_mode(camera, params->exposureMode);
    result += raspicamcontrol_set_metering_mode(camera, params->exposureMeterMode);
    result += raspicamcontrol_set_awb_mode(camera, params->awbMode);
+   result += raspicamcontrol_set_awb_gains(camera, params->awb_gains_r, params->awb_gains_b);
    result += raspicamcontrol_set_imageFX(camera, params->imageEffect);
    result += raspicamcontrol_set_colourFX(camera, &params->colourEffects);
    //result += raspicamcontrol_set_thumbnail_parameters(camera, &params->thumbnailConfig);  TODO Not working for some reason
    result += raspicamcontrol_set_rotation(camera, params->rotation);
    result += raspicamcontrol_set_flips(camera, params->hflip, params->vflip);
+   result += raspicamcontrol_set_ROI(camera, params->roi);
+   result += raspicamcontrol_set_shutter_speed(camera, params->shutter_speed);
+   result += raspicamcontrol_set_DRC(camera, params->drc_level);
+   result += raspicamcontrol_set_stats_pass(camera, params->stats_pass);
 
    return result;
 }
@@ -872,6 +971,22 @@ int raspicamcontrol_set_awb_mode(MMAL_COMPONENT_T *camera, MMAL_PARAM_AWBMODE_T 
    return mmal_status_to_int(mmal_port_parameter_set(camera->control, &param.hdr));
 }
 
+int raspicamcontrol_set_awb_gains(MMAL_COMPONENT_T *camera, float r_gain, float b_gain)
+{
+   MMAL_PARAMETER_AWB_GAINS_T param = {{MMAL_PARAMETER_CUSTOM_AWB_GAINS,sizeof(param)}, {0,0}, {0,0}};
+
+   if (!camera)
+      return 1;
+
+   if (!r_gain || !b_gain)
+      return 0;
+
+   param.r_gain.num = (unsigned int)(r_gain * 65536);
+   param.b_gain.num = (unsigned int)(b_gain * 65536);
+   param.r_gain.den = param.b_gain.den = 65536;
+   return mmal_status_to_int(mmal_port_parameter_set(camera->control, &param.hdr));
+}
+
 /**
  * Set the image effect for the images
  * @param camera Pointer to camera component
@@ -983,6 +1098,88 @@ int raspicamcontrol_set_flips(MMAL_COMPONENT_T *camera, int hflip, int vflip)
    return mmal_port_parameter_set(camera->output[2], &mirror.hdr);
 }
 
+/**
+ * Set the ROI of the sensor to use for captures/preview
+ * @param camera Pointer to camera component
+ * @param rect   Normalised coordinates of ROI rectangle
+ *
+ * @return 0 if successful, non-zero if any parameters out of range
+ */
+int raspicamcontrol_set_ROI(MMAL_COMPONENT_T *camera, PARAM_FLOAT_RECT_T rect)
+{
+   MMAL_PARAMETER_INPUT_CROP_T crop = {{MMAL_PARAMETER_INPUT_CROP, sizeof(MMAL_PARAMETER_INPUT_CROP_T)}};
+
+   crop.rect.x = (65536 * rect.x);
+   crop.rect.y = (65536 * rect.y);
+   crop.rect.width = (65536 * rect.w);
+   crop.rect.height = (65536 * rect.h);
+
+   return mmal_port_parameter_set(camera->control, &crop.hdr);
+}
+
+/**
+ * Adjust the exposure time used for images
+ * @param camera Pointer to camera component
+ * @param shutter speed in microseconds
+ * @return 0 if successful, non-zero if any parameters out of range
+ */
+int raspicamcontrol_set_shutter_speed(MMAL_COMPONENT_T *camera, int speed)
+{
+   if (!camera)
+      return 1;
+
+   return mmal_status_to_int(mmal_port_parameter_set_uint32(camera->control, MMAL_PARAMETER_SHUTTER_SPEED, speed));
+}
+
+/**
+ * Adjust the Dynamic range compression level
+ * @param camera Pointer to camera component
+ * @param strength Strength of DRC to apply
+ *        MMAL_PARAMETER_DRC_STRENGTH_OFF
+ *        MMAL_PARAMETER_DRC_STRENGTH_LOW
+ *        MMAL_PARAMETER_DRC_STRENGTH_MEDIUM
+ *        MMAL_PARAMETER_DRC_STRENGTH_HIGH
+ *
+ * @return 0 if successful, non-zero if any parameters out of range
+ */
+int raspicamcontrol_set_DRC(MMAL_COMPONENT_T *camera, MMAL_PARAMETER_DRC_STRENGTH_T strength)
+{
+   MMAL_PARAMETER_DRC_T drc = {{MMAL_PARAMETER_DYNAMIC_RANGE_COMPRESSION, sizeof(MMAL_PARAMETER_DRC_T)}, strength};
+
+   if (!camera)
+      return 1;
+
+   return mmal_status_to_int(mmal_port_parameter_set(camera->control, &drc.hdr));
+}
+
+int raspicamcontrol_set_stats_pass(MMAL_COMPONENT_T *camera, int stats_pass)
+{
+   if (!camera)
+      return 1;
+
+   return mmal_status_to_int(mmal_port_parameter_set_boolean(camera->control, MMAL_PARAMETER_CAPTURE_STATS_PASS, stats_pass));
+}
+
+
+
+int raspicamcontrol_set_stereo_mode(MMAL_PORT_T *port, MMAL_PARAMETER_STEREOSCOPIC_MODE_T *stereo_mode)
+{
+   MMAL_PARAMETER_STEREOSCOPIC_MODE_T stereo = { {MMAL_PARAMETER_STEREOSCOPIC_MODE, sizeof(stereo)},
+                               MMAL_STEREOSCOPIC_MODE_NONE, MMAL_FALSE, MMAL_FALSE };
+   if (stereo_mode->mode != MMAL_STEREOSCOPIC_MODE_NONE)
+   {
+      stereo.mode = stereo_mode->mode;
+      stereo.decimate = stereo_mode->decimate;
+      stereo.swap_eyes = stereo_mode->swap_eyes;
+   }
+   return mmal_status_to_int(mmal_port_parameter_set(port, &stereo.hdr));
+}
+
+/**
+ * Asked GPU how much memory it has allocated
+ *
+ * @return amount of memory in MB
+ */
 static int raspicamcontrol_get_mem_gpu(void)
 {
    char response[80] = "";
@@ -992,6 +1189,11 @@ static int raspicamcontrol_get_mem_gpu(void)
    return gpu_mem;
 }
 
+/**
+ * Ask GPU about its camera abilities
+ * @param supported None-zero if software supports the camera 
+ * @param detected  None-zero if a camera has been detected
+ */
 static void raspicamcontrol_get_camera(int *supported, int *detected)
 {
    char response[80] = "";
@@ -1004,6 +1206,11 @@ static void raspicamcontrol_get_camera(int *supported, int *detected)
    }
 }
 
+/**
+ * Check to see if camera is supported, and we have allocated enough meooryAsk GPU about its camera abilities
+ * @param supported None-zero if software supports the camera 
+ * @param detected  None-zero if a camera has been detected
+ */
 void raspicamcontrol_check_configuration(int min_gpu_mem)
 {
    int gpu_mem = raspicamcontrol_get_mem_gpu();
@@ -1018,5 +1225,4 @@ void raspicamcontrol_check_configuration(int min_gpu_mem)
    else
       fprintf(stderr,"Failed to run camera app. Please check for firmware updates\n");
 }
-
 
