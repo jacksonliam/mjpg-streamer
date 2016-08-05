@@ -83,7 +83,10 @@ static int height = 480;
 static int quality = 85;
 static int usestills = 0;
 static int wantPreview = 0;
+static int wantTimestamp = 0;
 static RASPICAM_CAMERA_PARAMETERS c_params;
+
+static struct timeval timestamp;
 
 /** Struct used to pass information in encoder port userdata to callback
  */
@@ -155,8 +158,9 @@ int input_init(input_parameter *param, int plugin_no)
       {"quality", required_argument, 0, 0},           // 23
       {"usestills", no_argument, 0, 0},               // 24
       {"preview", no_argument, 0, 0},                 // 25
-      {"stats", no_argument, 0, 0},                   // 26
-      {"drc", required_argument, 0, 0},               // 27
+      {"timestamp", no_argument, 0, 0},             // 26
+      {"stats", no_argument, 0, 0},                   // 27
+      {"drc", required_argument, 0, 0},               // 28
       {0, 0, 0, 0}
     };
 
@@ -273,10 +277,14 @@ int input_init(input_parameter *param, int plugin_no)
         wantPreview = 1;
         break;
       case 26:
+        //timestamp
+        wantTimestamp = 1;
+        break;
+      case 27:
         // use stats
         c_params.stats_pass = MMAL_TRUE;
         break;
-      case 27:
+      case 28:
         // Dynamic Range Compensation DRC
         c_params.drc_level = drc_mode_from_string(optarg);
         break;
@@ -371,8 +379,19 @@ static void encoder_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buf
     // Now flag if we have completed
     if (buffer->flags & (MMAL_BUFFER_HEADER_FLAG_FRAME_END | MMAL_BUFFER_HEADER_FLAG_TRANSMISSION_FAILED))
     {
-      complete = 1;
+      //set frame size
       pglobal->in[plugin_number].size = pData->offset;
+
+      //Set frame timestamp
+      if(wantTimestamp)
+      {
+        gettimeofday(&timestamp, NULL);
+        pglobal->in[plugin_number].timestamp = timestamp;
+      }
+
+      //mark frame complete
+      complete = 1;
+
       pData->offset = 0;
       /* signal fresh_frame */
       pthread_cond_broadcast(&pglobal->in[plugin_number].db_update);
@@ -512,7 +531,7 @@ void help(void)
       " [-quality].............: set JPEG quality 0-100, default 85 \n"\
       " [-usestills]...........: uses stills mode instead of video mode \n"\
       " [-preview].............: Enable full screen preview\n"\
-
+      " [-timestamp]...........: Get timestamp for each frame\n"
       " \n"\
       " -sh  : Set image sharpness (-100 to 100)\n"\
       " -co  : Set image contrast (-100 to 100)\n"\
