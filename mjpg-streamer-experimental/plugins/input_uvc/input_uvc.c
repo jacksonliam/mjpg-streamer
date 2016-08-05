@@ -188,7 +188,7 @@ int input_init(input_parameter *param, int id)
             {"led", required_argument, 0, 0},
             {"fourcc", required_argument, 0, 0},
             {"t", required_argument, 0, 0 },
-	        {"tvnorm", required_argument, 0, 0 },
+            {"tvnorm", required_argument, 0, 0 },
             {"e", required_argument, 0, 0},
             {"every_frame", required_argument, 0, 0},
             {"sh", required_argument, 0, 0},
@@ -309,7 +309,7 @@ int input_init(input_parameter *param, int id)
             if (strcmp(optarg, "RGBP") == 0) {
                 format = V4L2_PIX_FMT_RGB565;
             } else {
-                DBG("FOURCC %s not supported\n", optarg);
+              fprintf(stderr," i: FOURCC codec '%s' not supported\n", optarg);
             }
             break;
         #endif
@@ -388,7 +388,7 @@ int input_init(input_parameter *param, int id)
         case V4L2_PIX_FMT_MJPEG:
             fmtString = "JPEG";
             break;
-        #ifndef NI_LIBJPG
+        #ifndef NO_LIBJPG
             case V4L2_PIX_FMT_YUYV:
                 fmtString = "YUYV";
                 break;
@@ -505,10 +505,14 @@ void help(void)
     " [-n | --no_dynctrl ]...: do not initalize dynctrls of Linux-UVC driver\n" \
     " [-l | --led ]..........: switch the LED \"on\", \"off\", let it \"blink\" or leave\n" \
     "                          it up to the driver using the value \"auto\"\n" \
-    " [-t | --tvnorm ] ......: set TV-Norm pal, ntsc or secam\n"
+    " [-t | --tvnorm ] ......: set TV-Norm pal, ntsc or secam\n" \
+    " [-u | --uyvy ] ........: Use UYVY format, default: MJPEG (uses more cpu power)\n" \
+    " [-y | --yuv  ] ........: Use YUV format, default: MJPEG (uses more cpu power)\n" \
+    " [-fourcc ] ............: Use FOURCC codec 'argopt', \n" \
+    "                          currently supported codecs are: RGBP \n" \
     " ---------------------------------------------------------------\n");
 
-    fprintf(stderr, "\n"\
+    fprintf(stderr, "\n"                                                \
     " Optional parameters (may not be supported by all cameras):\n\n"
     " [-br ].................: Set image brightness (auto or integer)\n"\
     " [-co ].................: Set image contrast (integer)\n"\
