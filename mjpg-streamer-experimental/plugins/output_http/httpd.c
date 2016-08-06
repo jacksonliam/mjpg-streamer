@@ -435,6 +435,7 @@ void send_snapshot(cfd *context_fd, int input_number)
 
     /* write the response */
     sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
+            "Access-Control-Allow-Origin: *\r\n" \
             STD_HEADER \
             "Content-type: image/jpeg\r\n" \
             "X-Timestamp: %d.%06d\r\n" \
