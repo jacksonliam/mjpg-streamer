@@ -158,9 +158,12 @@ int input_init(input_parameter *param, int plugin_no)
       {"quality", required_argument, 0, 0},           // 23
       {"usestills", no_argument, 0, 0},               // 24
       {"preview", no_argument, 0, 0},                 // 25
-      {"timestamp", no_argument, 0, 0},             // 26
+      {"timestamp", no_argument, 0, 0},               // 26
       {"stats", no_argument, 0, 0},                   // 27
       {"drc", required_argument, 0, 0},               // 28
+      {"shutter", required_argument, 0, 0},           // 29
+      {"awbgainR", required_argument, 0, 0},          // 30
+      {"awbgainB", required_argument, 0, 0},          // 31
       {0, 0, 0, 0}
     };
 
@@ -287,6 +290,18 @@ int input_init(input_parameter *param, int plugin_no)
       case 28:
         // Dynamic Range Compensation DRC
         c_params.drc_level = drc_mode_from_string(optarg);
+        break;
+      case 29:
+        // shutter speed in microseconds
+        sscanf(optarg, "%d", &c_params.shutter_speed);
+        break;
+      case 30:
+        // awb gain red
+        sscanf(optarg, "%f", &c_params.awb_gains_r);
+        break;
+      case 31:
+        // awb gain blue
+        sscanf(optarg, "%f", &c_params.awb_gains_b);
         break;
       default:
         DBG("default case\n");
