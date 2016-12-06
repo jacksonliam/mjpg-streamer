@@ -164,8 +164,8 @@ int init_videoIn(struct vdIn *vd, char *device, int width,
             return -1;
         }
 
-        memcpy(&pglobal->in[id].in_formats[pglobal->in[id].formatCount], &fmtdesc, sizeof(input_format));
-
+	memcpy(&pglobal->in[id].in_formats[pglobal->in[id].formatCount], &fmtdesc, sizeof(struct v4l2_fmtdesc));
+	    
         if(fmtdesc.pixelformat == format)
             pglobal->in[id].currentFormat = pglobal->in[id].formatCount;
 
