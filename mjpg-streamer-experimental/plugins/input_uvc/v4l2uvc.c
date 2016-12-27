@@ -621,6 +621,7 @@ int close_v4l2(struct vdIn *vd)
     if(vd->tmpbuffer)
         free(vd->tmpbuffer);
     vd->tmpbuffer = NULL;
+    vd->tmpbytesused = 0;
     free(vd->framebuffer);
     vd->framebuffer = NULL;
     free(vd->videodevice);
