@@ -386,11 +386,16 @@ static int init_v4l2(struct vdIn *vd)
                         vd->frame_period_time = 1000/vd->fps; // calcualate frame period time in ms
                         IPRINT("Frame period time ......: %ld ms\n", vd->frame_period_time);
 
-                        // set FPS to maximum in order to minimize the lagging
                         memset(setfps, 0, sizeof(struct v4l2_streamparm));
                         setfps->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
                         setfps->parm.capture.timeperframe.numerator = 1;
-                        setfps->parm.capture.timeperframe.denominator = 255;
+                        if (vd->formatIn == V4L2_PIX_FMT_MJPEG) {
+                            // set FPS to maximum in order to minimize the lagging
+                            setfps->parm.capture.timeperframe.denominator = 255;
+                        } else {
+                            setfps->parm.capture.timeperframe.denominator = vid-fps;
+                        }
+
                         ret = xioctl(vd->fd, VIDIOC_S_PARM, setfps);
                         if (ret) {
                             perror("Unable to set the FPS\n");

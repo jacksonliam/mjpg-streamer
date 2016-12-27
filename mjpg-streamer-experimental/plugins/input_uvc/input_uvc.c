@@ -378,7 +378,12 @@ int input_init(input_parameter *param, int id)
         IPRINT("not enough memory for videoIn\n");
         exit(EXIT_FAILURE);
     }
-    
+
+    /* Non-MJPEG formats seem to fail with unlimited FPS */
+    if ((format != V4L2_PIX_FMT_MJPEG) && (fps == -1)) {
+        fps = 15;
+    }
+
     /* display the parsed values */
     IPRINT("Using V4L2 device.: %s\n", dev);
     IPRINT("Desired Resolution: %i x %i\n", width, height);
