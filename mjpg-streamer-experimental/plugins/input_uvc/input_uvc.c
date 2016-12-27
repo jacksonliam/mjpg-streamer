@@ -659,8 +659,8 @@ void *cam_thread(void *arg)
         if (pcontext->videoIn->soft_framedrop == 1) {
             unsigned long last = pglobal->in[pcontext->id].timestamp.tv_sec * 1000 +
                                 (pglobal->in[pcontext->id].timestamp.tv_usec/1000); // convert to ms
-            unsigned long current = pcontext->videoIn->buf.timestamp.tv_sec * 1000 +
-                                    pcontext->videoIn->buf.timestamp.tv_usec/1000; // convert to ms
+            unsigned long current = pcontext->videoIn->tmptimestamp.tv_sec * 1000 +
+                                    pcontext->videoIn->tmptimestamp.tv_usec/1000; // convert to ms
 
             // if the requested time did not esplashed skip the frame
             if ((current - last) < pcontext->videoIn->frame_period_time) {
@@ -686,7 +686,7 @@ void *cam_thread(void *arg)
             DBG("compressing frame from input: %d\n", (int)pcontext->id);
             pglobal->in[pcontext->id].size = compress_image_to_jpeg(pcontext->videoIn, pglobal->in[pcontext->id].buf, pcontext->videoIn->framesizeIn, quality);
             /* copy this frame's timestamp to user space */
-            pglobal->in[pcontext->id].timestamp = pcontext->videoIn->buf.timestamp;
+            pglobal->in[pcontext->id].timestamp = pcontext->videoIn->tmptimestamp;
         } else {
         #endif
             DBG("copying frame from input: %d\n", (int)pcontext->id);
