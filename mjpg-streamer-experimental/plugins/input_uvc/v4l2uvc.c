@@ -393,7 +393,7 @@ static int init_v4l2(struct vdIn *vd)
                             // set FPS to maximum in order to minimize the lagging
                             setfps->parm.capture.timeperframe.denominator = 255;
                         } else {
-                            setfps->parm.capture.timeperframe.denominator = vid-fps;
+                            setfps->parm.capture.timeperframe.denominator = vd->fps;
                         }
 
                         ret = xioctl(vd->fd, VIDIOC_S_PARM, setfps);
