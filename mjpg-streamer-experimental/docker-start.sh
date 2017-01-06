@@ -11,5 +11,5 @@ if [ "$1" = 'postgres' ]; then
     exec gosu postgres "$@"
 fi
 
-export LD_LIBRARY_PATH=.
-./mjpg_streamer "$@" 
+export LD_LIBRARY_PATH="$(pwd)"
+./mjpg_streamer -o "$1" -i "$2"
