@@ -12,6 +12,6 @@ RUN make \
 
 EXPOSE 8080/TCP
 
-ENTRYPOINT ["/mjpg-streamer/mjpg-streamer-experimental/docker-start.sh", "-o output_http.so -w ./www"]
+ENTRYPOINT ["/mjpg-streamer/mjpg-streamer-experimental/docker-start.sh", "output_http.so -w ./www"]
 
-CMD ["-i input_uvc.so"]
+CMD ["input_uvc.so"]
