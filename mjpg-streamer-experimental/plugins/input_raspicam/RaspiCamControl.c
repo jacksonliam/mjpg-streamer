@@ -434,7 +434,6 @@ int raspicamcontrol_cycle_test(MMAL_COMPONENT_T *camera)
    return 1;
 }
 
-
 /**
  * Function to take a string, a mapping, and return the int equivalent
  * @param str Incoming string to match
@@ -489,7 +488,7 @@ static MMAL_PARAM_EXPOSUREMODE_T exposure_mode_from_string(const char *str)
    if( i != -1)
       return (MMAL_PARAM_EXPOSUREMODE_T)i;
 
-   fprintf(stderr,"Unknown exposure mode: %s", str);
+   fprintf(stderr, "Unknown exposure mode: %s", str);
    return MMAL_PARAM_EXPOSUREMODE_AUTO;
 }
 
@@ -505,7 +504,7 @@ static MMAL_PARAM_AWBMODE_T awb_mode_from_string(const char *str)
    if( i != -1)
       return (MMAL_PARAM_AWBMODE_T)i;
 
-   fprintf(stderr,"Unknown awb mode: %s", str);
+   fprintf(stderr, "Unknown awb mode: %s", str);
    return MMAL_PARAM_AWBMODE_AUTO;
 }
 
@@ -521,7 +520,7 @@ MMAL_PARAM_IMAGEFX_T imagefx_mode_from_string(const char *str)
    if( i != -1)
      return (MMAL_PARAM_IMAGEFX_T)i;
 
-   fprintf(stderr,"Unknown image fx: %s", str);
+   fprintf(stderr, "Unknown image fx: %s", str);
    return MMAL_PARAM_IMAGEFX_NONE;
 }
 
@@ -537,11 +536,11 @@ static MMAL_PARAM_EXPOSUREMETERINGMODE_T metering_mode_from_string(const char *s
    if( i != -1)
       return (MMAL_PARAM_EXPOSUREMETERINGMODE_T)i;
 
-   fprintf(stderr,"Unknown metering mode: %s", str);
+   fprintf(stderr, "Unknown metering mode: %s", str);
    return MMAL_PARAM_EXPOSUREMETERINGMODE_AVERAGE;
 }
 
- /**
+/**
  * Convert string to the MMAL parameter for DRC level
  * @param str Incoming string to match
  * @return MMAL parameter matching the string, or the AUTO option if no match found
@@ -553,7 +552,7 @@ static MMAL_PARAMETER_DRC_STRENGTH_T drc_mode_from_string(const char *str)
    if( i != -1)
       return (MMAL_PARAMETER_DRC_STRENGTH_T)i;
 
-   fprintf(stderr,"Unknown DRC level: %s", str);
+   fprintf(stderr, "Unknown DRC level: %s", str);
    return MMAL_PARAMETER_DRC_STRENGTH_OFF;
 }
 
@@ -569,16 +568,9 @@ static MMAL_STEREOSCOPIC_MODE_T stereo_mode_from_string(const char *str)
    if( i != -1)
       return (MMAL_STEREOSCOPIC_MODE_T)i;
 
-   fprintf(stderr,"Unknown metering mode: %s", str);
+   fprintf(stderr, "Unknown metering mode: %s", str);
    return MMAL_STEREOSCOPIC_MODE_NONE;
 }
-
-
-
-
-
-
-
 
 /**
  * Dump contents of camera parameter structure to stderr for debugging/verbose logging
@@ -615,22 +607,22 @@ int mmal_status_to_int(MMAL_STATUS_T status)
    {
       switch (status)
       {
-      case MMAL_ENOMEM :   fprintf(stderr,"Out of memory"); break;
-      case MMAL_ENOSPC :   fprintf(stderr,"Out of resources (other than memory)"); break;
-      case MMAL_EINVAL:    fprintf(stderr,"Argument is invalid"); break;
-      case MMAL_ENOSYS :   fprintf(stderr,"Function not implemented"); break;
-      case MMAL_ENOENT :   fprintf(stderr,"No such file or directory"); break;
-      case MMAL_ENXIO :    fprintf(stderr,"No such device or address"); break;
-      case MMAL_EIO :      fprintf(stderr,"I/O error"); break;
-      case MMAL_ESPIPE :   fprintf(stderr,"Illegal seek"); break;
-      case MMAL_ECORRUPT : fprintf(stderr,"Data is corrupt \attention FIXME: not POSIX"); break;
-      case MMAL_ENOTREADY :fprintf(stderr,"Component is not ready \attention FIXME: not POSIX"); break;
-      case MMAL_ECONFIG :  fprintf(stderr,"Component is not configured \attention FIXME: not POSIX"); break;
-      case MMAL_EISCONN :  fprintf(stderr,"Port is already connected "); break;
-      case MMAL_ENOTCONN : fprintf(stderr,"Port is disconnected"); break;
-      case MMAL_EAGAIN :   fprintf(stderr,"Resource temporarily unavailable. Try again later"); break;
-      case MMAL_EFAULT :   fprintf(stderr,"Bad address"); break;
-      default :            fprintf(stderr,"Unknown status error"); break;
+      case MMAL_ENOMEM :   fprintf(stderr, "Out of memory"); break;
+      case MMAL_ENOSPC :   fprintf(stderr, "Out of resources (other than memory)"); break;
+      case MMAL_EINVAL:    fprintf(stderr, "Argument is invalid"); break;
+      case MMAL_ENOSYS :   fprintf(stderr, "Function not implemented"); break;
+      case MMAL_ENOENT :   fprintf(stderr, "No such file or directory"); break;
+      case MMAL_ENXIO :    fprintf(stderr, "No such device or address"); break;
+      case MMAL_EIO :      fprintf(stderr, "I/O error"); break;
+      case MMAL_ESPIPE :   fprintf(stderr, "Illegal seek"); break;
+      case MMAL_ECORRUPT : fprintf(stderr, "Data is corrupt \attention FIXME: not POSIX"); break;
+      case MMAL_ENOTREADY :fprintf(stderr, "Component is not ready \attention FIXME: not POSIX"); break;
+      case MMAL_ECONFIG :  fprintf(stderr, "Component is not configured \attention FIXME: not POSIX"); break;
+      case MMAL_EISCONN :  fprintf(stderr, "Port is already connected "); break;
+      case MMAL_ENOTCONN : fprintf(stderr, "Port is disconnected"); break;
+      case MMAL_EAGAIN :   fprintf(stderr, "Resource temporarily unavailable. Try again later"); break;
+      case MMAL_EFAULT :   fprintf(stderr, "Bad address"); break;
+      default :            fprintf(stderr, "Unknown status error"); break;
       }
 
       return 1;
@@ -739,6 +731,10 @@ int raspicamcontrol_set_all_parameters(MMAL_COMPONENT_T *camera, const RASPICAM_
    result += raspicamcontrol_set_shutter_speed(camera, params->shutter_speed);
    result += raspicamcontrol_set_DRC(camera, params->drc_level);
    result += raspicamcontrol_set_stats_pass(camera, params->stats_pass);
+   result += raspicamcontrol_set_annotate(camera, params->enable_annotate, params->annotate_string,
+                       params->annotate_text_size,
+                       params->annotate_text_colour,
+                       params->annotate_bg_colour);
 
    return result;
 }
@@ -763,7 +759,7 @@ int raspicamcontrol_set_saturation(MMAL_COMPONENT_T *camera, int saturation)
    }
    else
    {
-      fprintf(stderr,"Invalid saturation value");
+      fprintf(stderr, "Invalid saturation value");
       ret = 1;
    }
 
@@ -789,7 +785,7 @@ int raspicamcontrol_set_sharpness(MMAL_COMPONENT_T *camera, int sharpness)
    }
    else
    {
-      fprintf(stderr,"Invalid sharpness value");
+      fprintf(stderr, "Invalid sharpness value");
       ret = 1;
    }
 
@@ -816,7 +812,7 @@ int raspicamcontrol_set_contrast(MMAL_COMPONENT_T *camera, int contrast)
    }
    else
    {
-      fprintf(stderr,"Invalid contrast value");
+      fprintf(stderr, "Invalid contrast value");
       ret = 1;
    }
 
@@ -843,7 +839,7 @@ int raspicamcontrol_set_brightness(MMAL_COMPONENT_T *camera, int brightness)
    }
    else
    {
-      fprintf(stderr,"Invalid brightness value");
+      fprintf(stderr, "Invalid brightness value");
       ret = 1;
    }
 
@@ -1161,6 +1157,109 @@ int raspicamcontrol_set_stats_pass(MMAL_COMPONENT_T *camera, int stats_pass)
 }
 
 
+/**
+ * Set the annotate data
+ * @param camera Pointer to camera component
+ * @param Bitmask of required annotation data. 0 for off.
+ * @param If set, a pointer to text string to use instead of bitmask, max length 32 characters
+ *
+ * @return 0 if successful, non-zero if any parameters out of range
+ */
+int raspicamcontrol_set_annotate(MMAL_COMPONENT_T *camera, const int settings, const char *string,
+                const int text_size, const int text_colour, const int bg_colour)
+{
+   MMAL_PARAMETER_CAMERA_ANNOTATE_V3_T annotate =
+      {{MMAL_PARAMETER_ANNOTATE, sizeof(MMAL_PARAMETER_CAMERA_ANNOTATE_V3_T)}};
+
+   if (settings)
+   {
+      time_t t = time(NULL);
+      struct tm tm = *localtime(&t);
+      char tmp[MMAL_CAMERA_ANNOTATE_MAX_TEXT_LEN_V3];
+      int process_datetime = 1;
+
+      annotate.enable = 1;
+
+      if (settings & (ANNOTATE_APP_TEXT | ANNOTATE_USER_TEXT))
+      {
+         if ((settings & (ANNOTATE_TIME_TEXT | ANNOTATE_DATE_TEXT)) && strchr(string,'%') != NULL)
+         {  //string contains strftime parameter?
+            strftime(annotate.text, MMAL_CAMERA_ANNOTATE_MAX_TEXT_LEN_V3, string, &tm );
+            process_datetime = 0;
+         }else{
+            strncpy(annotate.text, string, MMAL_CAMERA_ANNOTATE_MAX_TEXT_LEN_V3);
+         }
+         annotate.text[MMAL_CAMERA_ANNOTATE_MAX_TEXT_LEN_V3-1] = '\0';
+      }
+
+      if (process_datetime && (settings & ANNOTATE_TIME_TEXT))
+      {
+         if(strlen(annotate.text)){
+            strftime(tmp, 32, " %X", &tm );
+         }else{
+            strftime(tmp, 32, "%X", &tm );
+         }
+         strncat(annotate.text, tmp, MMAL_CAMERA_ANNOTATE_MAX_TEXT_LEN_V3 - strlen(annotate.text) - 1);
+      }
+
+      if (process_datetime && (settings & ANNOTATE_DATE_TEXT))
+      {
+         if(strlen(annotate.text)){
+            strftime(tmp, 32, " %x", &tm );
+         }else{
+            strftime(tmp, 32, "%x", &tm );
+         }
+         strncat(annotate.text, tmp, MMAL_CAMERA_ANNOTATE_MAX_TEXT_LEN_V3 - strlen(annotate.text) - 1);
+      }
+
+      if (settings & ANNOTATE_SHUTTER_SETTINGS)
+         annotate.show_shutter = MMAL_TRUE;
+
+      if (settings & ANNOTATE_GAIN_SETTINGS)
+         annotate.show_analog_gain = MMAL_TRUE;
+
+      if (settings & ANNOTATE_LENS_SETTINGS)
+         annotate.show_lens = MMAL_TRUE;
+
+      if (settings & ANNOTATE_CAF_SETTINGS)
+         annotate.show_caf = MMAL_TRUE;
+
+      if (settings & ANNOTATE_MOTION_SETTINGS)
+         annotate.show_motion = MMAL_TRUE;
+
+      if (settings & ANNOTATE_FRAME_NUMBER)
+         annotate.show_frame_num = MMAL_TRUE;
+
+      if (settings & ANNOTATE_BLACK_BACKGROUND)
+         annotate.enable_text_background = MMAL_TRUE;
+
+      annotate.text_size = text_size;
+
+      if (text_colour != -1)
+      {
+         annotate.custom_text_colour = MMAL_TRUE;
+         annotate.custom_text_Y = text_colour&0xff;
+         annotate.custom_text_U = (text_colour>>8)&0xff;
+         annotate.custom_text_V = (text_colour>>16)&0xff;
+      }
+      else
+         annotate.custom_text_colour = MMAL_FALSE;
+
+      if (bg_colour != -1)
+      {
+         annotate.custom_background_colour = MMAL_TRUE;
+         annotate.custom_background_Y = bg_colour&0xff;
+         annotate.custom_background_U = (bg_colour>>8)&0xff;
+         annotate.custom_background_V = (bg_colour>>16)&0xff;
+      }
+      else
+         annotate.custom_background_colour = MMAL_FALSE;
+    }
+    else
+       annotate.enable = 0;
+
+   return mmal_status_to_int(mmal_port_parameter_set(camera->control, &annotate.hdr));
+}
 
 int raspicamcontrol_set_stereo_mode(MMAL_PORT_T *port, MMAL_PARAMETER_STEREOSCOPIC_MODE_T *stereo_mode)
 {
@@ -1217,12 +1316,11 @@ void raspicamcontrol_check_configuration(int min_gpu_mem)
    int supported = 0, detected = 0;
    raspicamcontrol_get_camera(&supported, &detected);
    if (!supported)
-      fprintf(stderr,"Camera is not enabled in this build. Try running \"sudo raspi-config\" and ensure that \"camera\" has been enabled\n");
+      fprintf(stderr, "Camera is not enabled in this build. Try running \"sudo raspi-config\" and ensure that \"camera\" has been enabled\n");
    else if (gpu_mem < min_gpu_mem)
-      fprintf(stderr,"Only %dM of gpu_mem is configured. Try running \"sudo raspi-config\" and ensure that \"memory_split\" has a value of %d or greater\n", gpu_mem, min_gpu_mem);
+      fprintf(stderr, "Only %dM of gpu_mem is configured. Try running \"sudo raspi-config\" and ensure that \"memory_split\" has a value of %d or greater\n", gpu_mem, min_gpu_mem);
    else if (!detected)
-      fprintf(stderr,"Camera is not detected. Please check carefully the camera module is installed correctly\n");
+      fprintf(stderr, "Camera is not detected. Please check carefully the camera module is installed correctly\n");
    else
-      fprintf(stderr,"Failed to run camera app. Please check for firmware updates\n");
+      fprintf(stderr, "Failed to run camera app. Please check for firmware updates\n");
 }
-

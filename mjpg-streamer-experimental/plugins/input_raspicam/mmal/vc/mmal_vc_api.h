@@ -145,7 +145,12 @@ typedef enum
    MMAL_STATS_INVALID = 0x7fffffff
 } MMAL_STATS_RESULT_T;
 
+/* If opening dev_vchiq outside mmal/vchiq this is the file path and mode */
+#define MMAL_DEV_VCHIQ_PATH "/dev/vchiq"
+#define MMAL_DEV_VCHIQ_MODE O_RDWR
+
 MMAL_STATUS_T mmal_vc_init(void);
+MMAL_STATUS_T mmal_vc_init_fd(int dev_vchiq_fd);
 void mmal_vc_deinit(void);
 
 MMAL_STATUS_T mmal_vc_use(void);
@@ -207,6 +212,21 @@ MMAL_STATUS_T mmal_vc_host_log(const char *msg);
  * @internal
  */
 MMAL_STATUS_T mmal_vc_consume_mem(size_t size, uint32_t *handle);
+
+typedef enum
+{
+   MMAL_VC_COMPACT_NONE       = 0,
+   MMAL_VC_COMPACT_NORMAL     = 1,
+   MMAL_VC_COMPACT_DISCARD    = 2,
+   MMAL_VC_COMPACT_AGGRESSIVE = 4,
+   MMAL_VC_COMPACT_SHUFFLE    = 0x80,
+   MMAL_VC_COMPACT_ALL        = MMAL_VC_COMPACT_NORMAL | MMAL_VC_COMPACT_DISCARD | MMAL_VC_COMPACT_AGGRESSIVE,
+} MMAL_VC_COMPACT_MODE_T;
+
+/** Trigger relocatable heap compaction.
+ * @internal
+ */
+MMAL_STATUS_T mmal_vc_compact(MMAL_VC_COMPACT_MODE_T mode, uint32_t *duration);
 
 /** Trigger LMK action from VC, for diagnostics.
  * @internal

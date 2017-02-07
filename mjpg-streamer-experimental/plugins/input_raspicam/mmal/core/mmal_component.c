@@ -44,7 +44,7 @@ typedef struct
 
    /** Action thread */
    VCOS_THREAD_T action_thread;
-   VCOS_SEMAPHORE_T action_sema;
+   VCOS_EVENT_T action_event;
    VCOS_MUTEX_T action_mutex;
    MMAL_BOOL_T action_quit;
 
@@ -96,6 +96,7 @@ static MMAL_STATUS_T mmal_component_create_core(const char *name,
    (*component)->priv = (MMAL_COMPONENT_PRIVATE_T *)private;
    (*component)->name = component_name= (char *)&((MMAL_COMPONENT_CORE_PRIVATE_T *)(*component)->priv)[1];
    memcpy(component_name, name, name_length);
+   /* coverity[missing_lock] Component and mutex have just been created. No need to lock yet */
    (*component)->priv->refcount = 1;
    (*component)->priv->priority = VCOS_THREAD_PRI_NORMAL;
 
@@ -358,7 +359,7 @@ MMAL_STATUS_T mmal_component_release(MMAL_COMPONENT_T *component)
 MMAL_STATUS_T mmal_component_enable(MMAL_COMPONENT_T *component)
 {
    MMAL_COMPONENT_CORE_PRIVATE_T *private;
-   MMAL_STATUS_T status;
+   MMAL_STATUS_T status = MMAL_ENOSYS;
    unsigned int i;
 
    if(!component)
@@ -377,13 +378,21 @@ MMAL_STATUS_T mmal_component_enable(MMAL_COMPONENT_T *component)
       return MMAL_SUCCESS;
    }
 
-   status = component->priv->pf_enable(component);
+   if (component->priv->pf_enable)
+      status = component->priv->pf_enable(component);
 
-   /* Resume all input / output ports */
-   for (i = 0; status == MMAL_SUCCESS && i < component->input_num; i++)
-      status = mmal_port_pause(component->input[i], MMAL_FALSE);
-   for (i = 0; status == MMAL_SUCCESS && i < component->output_num; i++)
-      status = mmal_port_pause(component->output[i], MMAL_FALSE);
+   /* If the component does not support enable/disable, we handle that
+    * in the core itself */
+   if (status == MMAL_ENOSYS)
+   {
+      status = MMAL_SUCCESS;
+
+      /* Resume all input / output ports */
+      for (i = 0; status == MMAL_SUCCESS && i < component->input_num; i++)
+         status = mmal_port_pause(component->input[i], MMAL_FALSE);
+      for (i = 0; status == MMAL_SUCCESS && i < component->output_num; i++)
+         status = mmal_port_pause(component->output[i], MMAL_FALSE);
+   }
 
    if (status == MMAL_SUCCESS)
       component->is_enabled = 1;
@@ -397,7 +406,7 @@ MMAL_STATUS_T mmal_component_enable(MMAL_COMPONENT_T *component)
 MMAL_STATUS_T mmal_component_disable(MMAL_COMPONENT_T *component)
 {
    MMAL_COMPONENT_CORE_PRIVATE_T *private;
-   MMAL_STATUS_T status;
+   MMAL_STATUS_T status = MMAL_ENOSYS;
    unsigned int i;
 
    if (!component)
@@ -416,13 +425,21 @@ MMAL_STATUS_T mmal_component_disable(MMAL_COMPONENT_T *component)
       return MMAL_SUCCESS;
    }
 
-   status = component->priv->pf_disable(component);
+   if (component->priv->pf_disable)
+      status = component->priv->pf_disable(component);
 
-   /* Pause all input / output ports */
-   for (i = 0; status == MMAL_SUCCESS && i < component->input_num; i++)
-      status = mmal_port_pause(component->input[i], MMAL_TRUE);
-   for (i = 0; status == MMAL_SUCCESS && i < component->output_num; i++)
-      status = mmal_port_pause(component->output[i], MMAL_TRUE);
+   /* If the component does not support enable/disable, we handle that
+    * in the core itself */
+   if (status == MMAL_ENOSYS)
+   {
+      status = MMAL_SUCCESS;
+
+      /* Pause all input / output ports */
+      for (i = 0; status == MMAL_SUCCESS && i < component->input_num; i++)
+         status = mmal_port_pause(component->input[i], MMAL_TRUE);
+      for (i = 0; status == MMAL_SUCCESS && i < component->output_num; i++)
+         status = mmal_port_pause(component->output[i], MMAL_TRUE);
+   }
 
    if (status == MMAL_SUCCESS)
       component->is_enabled = 0;
@@ -534,7 +551,7 @@ static void *mmal_component_action_thread_func(void *arg)
 
    while (1)
    {
-      status = vcos_semaphore_wait(&private->action_sema);
+      status = vcos_event_wait(&private->action_event);
 
       if (status == VCOS_EAGAIN)
          continue;
@@ -561,14 +578,14 @@ MMAL_STATUS_T mmal_component_action_register(MMAL_COMPONENT_T *component,
    if (private->pf_action)
       return MMAL_EINVAL;
 
-   status = vcos_semaphore_create(&private->action_sema, component->name, 0);
+   status = vcos_event_create(&private->action_event, component->name);
    if (status != VCOS_SUCCESS)
       return MMAL_ENOMEM;
 
    status = vcos_mutex_create(&private->action_mutex, component->name);
    if (status != VCOS_SUCCESS)
    {
-      vcos_semaphore_delete(&private->action_sema);
+      vcos_event_delete(&private->action_event);
       return MMAL_ENOMEM;
    }
 
@@ -580,7 +597,7 @@ MMAL_STATUS_T mmal_component_action_register(MMAL_COMPONENT_T *component,
    if (status != VCOS_SUCCESS)
    {
       vcos_mutex_delete(&private->action_mutex);
-      vcos_semaphore_delete(&private->action_sema);
+      vcos_event_delete(&private->action_event);
       return MMAL_ENOMEM;
    }
 
@@ -597,9 +614,9 @@ MMAL_STATUS_T mmal_component_action_deregister(MMAL_COMPONENT_T *component)
       return MMAL_EINVAL;
 
    private->action_quit = 1;
-   vcos_semaphore_post(&private->action_sema);
+   vcos_event_signal(&private->action_event);
    vcos_thread_join(&private->action_thread, NULL);
-   vcos_semaphore_delete(&private->action_sema);
+   vcos_event_delete(&private->action_event);
    vcos_mutex_delete(&private->action_mutex);
    private->pf_action = NULL;
    private->action_quit = 0;
@@ -614,7 +631,7 @@ MMAL_STATUS_T mmal_component_action_trigger(MMAL_COMPONENT_T *component)
    if (!private->pf_action)
       return MMAL_EINVAL;
 
-   vcos_semaphore_post(&private->action_sema);
+   vcos_event_signal(&private->action_event);
    return MMAL_SUCCESS;
 }
 

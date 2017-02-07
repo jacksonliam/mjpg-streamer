@@ -209,8 +209,14 @@ uint8_t *mmal_vc_shm_lock(uint8_t *mem, uint32_t workaround)
    MMAL_VC_PAYLOAD_ELEM_T *elem = mmal_vc_payload_list_find_handle(mem);
    MMAL_PARAM_UNUSED(workaround);
 
-   if (elem)
+   if (elem) {
       mem = elem->mem;
+#ifdef ENABLE_MMAL_VCSM
+      void *p = vcsm_lock((unsigned int)elem->handle);
+      if (!p)
+         assert(0);
+#endif /* ENABLE_MMAL_VCSM */
+   }
 
    return mem;
 }

@@ -24,7 +24,7 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-#include "../mmal.h"
+#include "interface/mmal/mmal.h"
 #include "mmal_encodings.h"
 #include "mmal_util.h"
 #include "mmal_logging.h"
@@ -68,26 +68,80 @@ static struct {
    uint32_t encoding;
    uint32_t pitch_num;
    uint32_t pitch_den;
+   uint32_t alignment;
 } pixel_pitch[] =
 {
-   {MMAL_ENCODING_I420,  1, 1},
-   {MMAL_ENCODING_YV12,  1, 1},
-   {MMAL_ENCODING_I422,  1, 1},
-   {MMAL_ENCODING_NV21,  1, 1},
-   {MMAL_ENCODING_NV12,  1, 1},
-   {MMAL_ENCODING_ARGB,  4, 1},
-   {MMAL_ENCODING_RGBA,  4, 1},
-   {MMAL_ENCODING_RGB32, 4, 1},
-   {MMAL_ENCODING_ABGR,  4, 1},
-   {MMAL_ENCODING_BGRA,  4, 1},
-   {MMAL_ENCODING_BGR32, 4, 1},
-   {MMAL_ENCODING_RGB16, 2, 1},
-   {MMAL_ENCODING_RGB24, 3, 1},
-   {MMAL_ENCODING_BGR16, 2, 1},
-   {MMAL_ENCODING_BGR24, 3, 1},
+   {MMAL_ENCODING_I420,  1, 1, 1},
+   {MMAL_ENCODING_YV12,  1, 1, 1},
+   {MMAL_ENCODING_I422,  1, 1, 1},
+   {MMAL_ENCODING_NV21,  1, 1, 1},
+   {MMAL_ENCODING_NV12,  1, 1, 1},
+   {MMAL_ENCODING_ARGB,  4, 1, 1},
+   {MMAL_ENCODING_RGBA,  4, 1, 1},
+   {MMAL_ENCODING_RGB32, 4, 1, 1},
+   {MMAL_ENCODING_ABGR,  4, 1, 1},
+   {MMAL_ENCODING_BGRA,  4, 1, 1},
+   {MMAL_ENCODING_BGR32, 4, 1, 1},
+   {MMAL_ENCODING_RGB16, 2, 1, 1},
+   {MMAL_ENCODING_RGB24, 3, 1, 1},
+   {MMAL_ENCODING_BGR16, 2, 1, 1},
+   {MMAL_ENCODING_BGR24, 3, 1, 1},
+
+   {MMAL_ENCODING_I420_SLICE,  1, 1, 1},
+   {MMAL_ENCODING_I422_SLICE,  1, 1, 1},
+   {MMAL_ENCODING_ARGB_SLICE,  4, 1, 1},
+   {MMAL_ENCODING_RGBA_SLICE,  4, 1, 1},
+   {MMAL_ENCODING_RGB32_SLICE, 4, 1, 1},
+   {MMAL_ENCODING_ABGR_SLICE,  4, 1, 1},
+   {MMAL_ENCODING_BGRA_SLICE,  4, 1, 1},
+   {MMAL_ENCODING_BGR32_SLICE, 4, 1, 1},
+   {MMAL_ENCODING_RGB16_SLICE, 2, 1, 1},
+   {MMAL_ENCODING_RGB24_SLICE, 3, 1, 1},
+   {MMAL_ENCODING_BGR16_SLICE, 2, 1, 1},
+   {MMAL_ENCODING_BGR24_SLICE, 3, 1, 1},
+
+   {MMAL_ENCODING_YUYV,  2, 1, 1},
+   {MMAL_ENCODING_YVYU,  2, 1, 1},
+   {MMAL_ENCODING_UYVY,  2, 1, 1},
+   {MMAL_ENCODING_VYUY,  2, 1, 1},
+
+   // Bayer formats, the resulting alignment must also be a multiple of 16.
+   // Camplus padded to a multiple of 32, so let's copy that.
+   {MMAL_ENCODING_BAYER_SBGGR8,        1, 1, 32},
+   {MMAL_ENCODING_BAYER_SGBRG8,        1, 1, 32},
+   {MMAL_ENCODING_BAYER_SGRBG8,        1, 1, 32},
+   {MMAL_ENCODING_BAYER_SRGGB8,        1, 1, 32},
+   {MMAL_ENCODING_BAYER_SBGGR10DPCM8,  1, 1, 32},
+   {MMAL_ENCODING_BAYER_SBGGR10P,      10,8, 32},
+   {MMAL_ENCODING_BAYER_SGRBG10P,      10,8, 32},
+   {MMAL_ENCODING_BAYER_SGBRG10P,      10,8, 32},
+   {MMAL_ENCODING_BAYER_SRGGB10P,      10,8, 32},
+   {MMAL_ENCODING_BAYER_SBGGR16,       2, 1, 32},
+
    /* {MMAL_ENCODING_YUVUV128, 1, 1}, That's a special case which must not be included */
    {MMAL_ENCODING_UNKNOWN, 0, 0}
 };
+
+static struct {
+   uint32_t encoding;
+   uint32_t sliced_encoding;
+} slice_equivalents[] =
+{
+   { MMAL_ENCODING_I420,      MMAL_ENCODING_I420_SLICE   },
+   { MMAL_ENCODING_I422,      MMAL_ENCODING_I422_SLICE   },
+   { MMAL_ENCODING_ARGB,      MMAL_ENCODING_ARGB_SLICE   },
+   { MMAL_ENCODING_RGBA,      MMAL_ENCODING_RGBA_SLICE   },
+   { MMAL_ENCODING_RGB32,     MMAL_ENCODING_RGB32_SLICE  },
+   { MMAL_ENCODING_ABGR,      MMAL_ENCODING_ABGR_SLICE   },
+   { MMAL_ENCODING_BGRA,      MMAL_ENCODING_BGRA_SLICE   },
+   { MMAL_ENCODING_BGR32,     MMAL_ENCODING_BGR32_SLICE  },
+   { MMAL_ENCODING_RGB16,     MMAL_ENCODING_RGB16_SLICE  },
+   { MMAL_ENCODING_RGB24,     MMAL_ENCODING_RGB24_SLICE  },
+   { MMAL_ENCODING_BGR16,     MMAL_ENCODING_BGR16_SLICE  },
+   { MMAL_ENCODING_BGR24,     MMAL_ENCODING_BGR24_SLICE  },
+   { MMAL_ENCODING_UNKNOWN,   MMAL_ENCODING_UNKNOWN      },
+};
+
 
 uint32_t mmal_encoding_stride_to_width(uint32_t encoding, uint32_t stride)
 {
@@ -112,7 +166,17 @@ uint32_t mmal_encoding_width_to_stride(uint32_t encoding, uint32_t width)
    if(pixel_pitch[i].encoding == MMAL_ENCODING_UNKNOWN)
       return 0;
 
-   return pixel_pitch[i].pitch_num * width / pixel_pitch[i].pitch_den;
+   return VCOS_ALIGN_UP(pixel_pitch[i].pitch_num * width / pixel_pitch[i].pitch_den, pixel_pitch[i].alignment);
+}
+
+uint32_t mmal_encoding_get_slice_variant(uint32_t encoding)
+{
+   unsigned int i;
+
+   for(i = 0; slice_equivalents[i].encoding != MMAL_ENCODING_UNKNOWN; i++)
+      if(slice_equivalents[i].encoding == encoding) break;
+
+   return slice_equivalents[i].sliced_encoding;
 }
 
 const char* mmal_port_type_to_string(MMAL_PORT_TYPE_T type)
@@ -322,6 +386,7 @@ MMAL_PORT_T *mmal_util_get_port(MMAL_COMPONENT_T *comp, MMAL_PORT_TYPE_T type, u
       return NULL;
    }
    if (index < num)
+      /* coverity[ptr_arith] num is 1 here */
       return list[index];
    else
       return NULL;
@@ -347,3 +412,42 @@ char *mmal_4cc_to_string(char *buf, size_t len, uint32_t fourcc)
    return buf;
 }
 
+#define MAX_ENCODINGS_NUM 20
+typedef struct {
+   MMAL_PARAMETER_HEADER_T header;
+   MMAL_FOURCC_T encodings[MAX_ENCODINGS_NUM];
+} MMAL_SUPPORTED_ENCODINGS_T;
+
+
+int mmal_util_rgb_order_fixed(MMAL_PORT_T *port)
+{
+   int new_fw = 0;
+   //Firmware support of RGB24 vs BGR24 colour ordering from camera
+   //and video splitter components has been corrected as of June 2016.
+   //New firmwares always report MMAL_ENCODING_RGB24 before BGR24, and
+   //that is the format we want.
+   //Old firmware reported BGR24 first, and also returned an error on
+   //the still port on querying MMAL_PARAMETER_SUPPORTED_ENCODINGS.
+
+   MMAL_SUPPORTED_ENCODINGS_T sup_encodings = {{MMAL_PARAMETER_SUPPORTED_ENCODINGS, sizeof(sup_encodings)}, {0}};
+   if (mmal_port_parameter_get(port, &sup_encodings.header) == MMAL_SUCCESS)
+   {
+      int i;
+      int num_encodings = (sup_encodings.header.size - sizeof(sup_encodings.header)) /
+          sizeof(sup_encodings.encodings[0]);
+      for (i=0; i<num_encodings; i++)
+      {
+         if (sup_encodings.encodings[i] == MMAL_ENCODING_BGR24)
+         {
+            //Found BGR24 first - old firmware.
+            break;
+         }
+         if (sup_encodings.encodings[i] == MMAL_ENCODING_RGB24)
+         {
+            //Found RGB24 first - new firmware, so use RGB24.
+            new_fw = 1;
+         }
+      }
+   }
+   return new_fw;
+}
