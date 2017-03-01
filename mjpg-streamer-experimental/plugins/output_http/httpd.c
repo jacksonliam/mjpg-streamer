@@ -1465,7 +1465,7 @@ void *server_thread(void *arg)
     hints.ai_socktype = SOCK_STREAM;
 
     snprintf(name, sizeof(name), "%d", ntohs(pcontext->conf.port));
-    if((err = getaddrinfo(NULL, name, &hints, &aip)) != 0) {
+    if((err = getaddrinfo(pcontext->conf.hostname, name, &hints, &aip)) != 0) {
         perror(gai_strerror(err));
         exit(EXIT_FAILURE);
     }
