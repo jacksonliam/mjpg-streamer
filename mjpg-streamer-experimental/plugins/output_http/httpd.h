@@ -120,6 +120,7 @@ typedef struct {
 /* store configuration for each server instance */
 typedef struct {
     int port;
+    char *hostname;
     char *credentials;
     char *www_folder;
     char nocommands;
