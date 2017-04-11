@@ -800,18 +800,18 @@ void *worker_thread(void *arg)
   {
     fprintf(stderr, "Unable to create JPEG encoder component\n");
     mmal_component_destroy(camera);
-    exit(EXIT_FAILURE);
     if (encoder)
       mmal_component_destroy(encoder);
+    exit(EXIT_FAILURE);
   }
 
   if (!encoder->input_num || !encoder->output_num)
   {
     fprintf(stderr, "Unable to create JPEG encoder input/output ports\n");
     mmal_component_destroy(camera);
-    exit(EXIT_FAILURE);
     if (encoder)
       mmal_component_destroy(encoder);
+    exit(EXIT_FAILURE);
   }
 
   encoder_input = encoder->input[0];
