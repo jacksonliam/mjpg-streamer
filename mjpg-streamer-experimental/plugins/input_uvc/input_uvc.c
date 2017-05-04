@@ -97,7 +97,7 @@ int input_cmd(int plugin, unsigned int control, unsigned int group, int value, c
 
 const char *get_name_by_tvnorm(v4l2_std_id vstd) {
 	int i;
-	for (i=0;i<sizeof(norms);i++) {
+	for (i=0;i<sizeof(norms)/sizeof(norms[0]);i++) {
 		if (vstd == norms[i].vstd) {
 			return norms[i].string;
 		}
