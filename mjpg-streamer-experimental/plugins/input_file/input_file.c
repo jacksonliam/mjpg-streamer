@@ -50,7 +50,7 @@ void *worker_thread(void *);
 void worker_cleanup(void *);
 void help(void);
 
-static int delay = 1;
+static float delay = 1.0;
 static char *folder = NULL;
 static char *filename = NULL;
 static int rm = 0;
@@ -118,7 +118,7 @@ int input_init(input_parameter *param, int id)
         case 2:
         case 3:
             DBG("case 2,3\n");
-            delay = atoi(optarg);
+            delay = atof(optarg);
             break;
 
             /* f, folder */
@@ -167,7 +167,7 @@ int input_init(input_parameter *param, int id)
     }
 
     IPRINT("folder to watch...: %s\n", folder);
-    IPRINT("forced delay......: %i\n", delay);
+    IPRINT("forced delay......: %.4f\n", delay);
     IPRINT("delete file.......: %s\n", (rm) ? "yes, delete" : "no, do not delete");
     IPRINT("filename must be..: %s\n", (filename == NULL) ? "-no filter for certain filename set-" : filename);
 
@@ -227,7 +227,7 @@ void help(void)
     " Help for input plugin..: "INPUT_PLUGIN_NAME"\n" \
     " ---------------------------------------------------------------\n" \
     " The following parameters can be passed to this plugin:\n\n" \
-    " [-d | --delay ]........: delay to pause between frames\n" \
+    " [-d | --delay ]........: delay (in seconds) to pause between frames\n" \
     " [-f | --folder ].......: folder to watch for new JPEG files\n" \
     " [-r | --remove ].......: remove/delete JPEG file after reading\n" \
     " [-n | --name ].........: ignore changes unless filename matches\n" \
