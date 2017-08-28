@@ -25,13 +25,13 @@
 
 #ifndef DBG
 #ifdef DEBUG
-#define DBG(...) printf(__VA_ARGS__)
+#define DBG(...) fprintf(stderr, " DBG(%s, %s(), %d): ", __FILE__, __FUNCTION__, __LINE__); fprintf(stderr, __VA_ARGS__)
 #else
 #define DBG(...)
 #endif
 #endif
 
-#define BUFFER_SIZE 1024 * 100
+#define BUFFER_SIZE 1024 * 256
 
 struct extractor_state {
     
