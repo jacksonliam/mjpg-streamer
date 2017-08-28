@@ -299,9 +299,14 @@ void *worker_thread(void *arg)
                     currentFileNumber = 0;
             } else {
                 currentFileNumber++;
-                if ((currentFileNumber == fileCount) && (hasJpgFile == 0)) {
-                    perror("No files with jpg/JPG extension in the folder\n");
-                    goto thread_quit;
+                if (currentFileNumber == fileCount) {
+                    if(hasJpgFile == 0) {
+                        perror("No files with jpg/JPG extension in the folder\n");
+                        goto thread_quit;
+                    } else {
+                        // There are some jpeg files, the last one just happens not to be one
+                        currentFileNumber = 0;
+                    }
                 }
                 continue;
             }
