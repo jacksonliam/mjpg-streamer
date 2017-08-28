@@ -164,6 +164,7 @@ int input_init(input_parameter *param, int plugin_no)
       {"shutter", required_argument, 0, 0},           // 29
       {"awbgainR", required_argument, 0, 0},          // 30
       {"awbgainB", required_argument, 0, 0},          // 31
+      {"roi", required_argument, 0, 0},               // 32
       {0, 0, 0, 0}
     };
 
@@ -302,6 +303,10 @@ int input_init(input_parameter *param, int plugin_no)
       case 31:
         // awb gain blue
         sscanf(optarg, "%f", &c_params.awb_gains_b);
+        break;
+      case 32:
+        // roi
+        sscanf(optarg, "%lf,%lf,%lf,%lf", &c_params.roi.x, &c_params.roi.y, &c_params.roi.w, &c_params.roi.h);
         break;
       default:
         DBG("default case\n");
