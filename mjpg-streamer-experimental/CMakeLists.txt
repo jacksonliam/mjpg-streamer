@@ -4,6 +4,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
 project("mjpg-streamer")
 
 # If the user doesn't manually specify a build type, use 'Release'
+message("CMAKE_BUILD_TYPE = ${CMAKE_BUILD_TYPE}")
 if("${CMAKE_BUILD_TYPE}" STREQUAL "")
   SET(CMAKE_BUILD_TYPE "Release")
 endif()
@@ -19,6 +20,7 @@ include(mjpg_streamer_utils)
 #
 # Options
 #
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG")
 
 add_feature_option(WXP_COMPAT "Enable compatibility with WebcamXP" OFF)
 

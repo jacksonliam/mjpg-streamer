@@ -63,6 +63,7 @@ This will build and install all plugins that can be compiled.
 By default, everything will be compiled in "release" mode. If you wish to compile
 with debugging symbols enabled, you can do this:
 
+    make distclean
     cd mjpg-streamer-experimental
     make CMAKE_BUILD_TYPE=Debug
     sudo make install
