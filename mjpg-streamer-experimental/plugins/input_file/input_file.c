@@ -50,7 +50,7 @@ void *worker_thread(void *);
 void worker_cleanup(void *);
 void help(void);
 
-static float delay = 1.0;
+static double delay = 1.0;
 static char *folder = NULL;
 static char *filename = NULL;
 static int rm = 0;
