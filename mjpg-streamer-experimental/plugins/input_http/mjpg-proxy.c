@@ -205,7 +205,7 @@ void connect_and_stream(struct extractor_state * state){
                 continue;
             }
 
-            DBG("socket value is %d\n", sockfd);
+            DBG("socket value is %d\n", state->sockfd);
             if (connect(state->sockfd, (struct sockaddr *) rp->ai_addr, rp->ai_addrlen)>=0 ) {
                 DBG("connected to host\n");
                 break;
