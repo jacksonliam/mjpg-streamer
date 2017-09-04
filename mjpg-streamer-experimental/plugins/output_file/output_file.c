@@ -283,6 +283,13 @@ void *worker_thread(void *arg)
 
             close(fd);
 
+            /* link the last picture as frame.jpg */
+            if (1) {
+                snprintf(buffer1, sizeof(buffer1), "%s/frame.jpg", folder);
+                unlink(buffer1);
+                link(buffer2, buffer1);
+            }
+
             /* call the command if user specified one, pass current filename as argument */
             if(command != NULL) {
                 memset(buffer1, 0, sizeof(buffer1));
