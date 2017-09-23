@@ -23,17 +23,11 @@
 #define V4L2_DYNA_CTRLS_H
 
 #include <linux/videodev2.h>
+#include <linux/uvcvideo.h>
 #include "v4l2uvc.h"
 /*
  * Dynamic controls
  */
-
-#define UVC_CTRL_DATA_TYPE_RAW      0
-#define UVC_CTRL_DATA_TYPE_SIGNED   1
-#define UVC_CTRL_DATA_TYPE_UNSIGNED 2
-#define UVC_CTRL_DATA_TYPE_BOOLEAN  3
-#define UVC_CTRL_DATA_TYPE_ENUM     4
-#define UVC_CTRL_DATA_TYPE_BITMASK  5
 
 #define V4L2_CID_BASE_EXTCTR                0x0A046D01
 #define V4L2_CID_BASE_LOGITECH              V4L2_CID_BASE_EXTCTR
@@ -59,53 +53,6 @@
 #define XU_MOTORCONTROL_FOCUS           3
 #define XU_COLOR_PROCESSING_DISABLE     5
 #define XU_RAW_DATA_BITS_PER_PIXEL      8
-
-#define UVC_CONTROL_SET_CUR (1 << 0)
-#define UVC_CONTROL_GET_CUR (1 << 1)
-#define UVC_CONTROL_GET_MIN (1 << 2)
-#define UVC_CONTROL_GET_MAX (1 << 3)
-#define UVC_CONTROL_GET_RES (1 << 4)
-#define UVC_CONTROL_GET_DEF (1 << 5)
-/* Control should be saved at suspend and restored at resume. */
-#define UVC_CONTROL_RESTORE (1 << 6)
-/* Control can be updated by the camera. */
-#define UVC_CONTROL_AUTO_UPDATE (1 << 7)
-
-#define UVC_CONTROL_GET_RANGE   (UVC_CONTROL_GET_CUR | UVC_CONTROL_GET_MIN | \
-                                 UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_RES | \
-                                 UVC_CONTROL_GET_DEF)
-
-struct uvc_xu_control_info {
-    __u8 entity[16];
-    __u8 index;
-    __u8 selector;
-    __u16 size;
-    __u32 flags;
-};
-
-struct uvc_xu_control_mapping {
-    __u32 id;
-    __u8 name[32];
-    __u8 entity[16];
-    __u8 selector;
-
-    __u8 size;
-    __u8 offset;
-    enum v4l2_ctrl_type v4l2_type;
-    __u32 data_type;
-};
-
-struct uvc_xu_control {
-    __u8 unit;
-    __u8 selector;
-    __u16 size;
-    __u8 *data;
-};
-
-#define UVCIOC_CTRL_ADD     _IOW('U', 1, struct uvc_xu_control_info)
-#define UVCIOC_CTRL_MAP     _IOWR('U', 2, struct uvc_xu_control_mapping)
-#define UVCIOC_CTRL_GET     _IOWR('U', 3, struct uvc_xu_control)
-#define UVCIOC_CTRL_SET     _IOW('U', 4, struct uvc_xu_control)
 
 int initDynCtrls(int fd);
 
