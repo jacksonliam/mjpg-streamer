@@ -52,6 +52,7 @@ static unsigned char *frame = NULL;
 static char *command = NULL;
 static int input_number = 0;
 static char *mjpgFileName = NULL;
+static char *linkFileName = NULL;
 
 /******************************************************************************
 Description.: print a help message
@@ -66,6 +67,7 @@ void help(void)
             " The following parameters can be passed to this plugin:\n\n" \
             " [-f | --folder ]........: folder to save pictures\n" \
             " [-m | --mjpeg ].........: save the frames to an mjpg file \n" \
+            " [-l | --link ]..........: link the last picture in ringbuffer as this fixed named file\n" \
             " [-d | --delay ].........: delay after saving pictures in ms\n" \
             " [-i | --input ].........: read frames from the specified input plugin\n" \
             " The following arguments are takes effect only if the current mode is not MJPG\n" \
@@ -283,11 +285,11 @@ void *worker_thread(void *arg)
 
             close(fd);
 
-            /* link the last picture as frame.jpg */
-            if (1) {
-                snprintf(buffer1, sizeof(buffer1), "%s/frame.jpg", folder);
+            /* link the picture as fixed name file */
+            if (linkFileName) {
+                snprintf(buffer1, sizeof(buffer1), "%s/%s", folder, linkFileName);
                 unlink(buffer1);
-                link(buffer2, buffer1);
+                (void) link(buffer2, buffer1);
             }
 
             /* call the command if user specified one, pass current filename as argument */
@@ -385,6 +387,8 @@ int output_init(output_parameter *param, int id)
             {"input", required_argument, 0, 0},
             {"m", required_argument, 0, 0},
             {"mjpeg", required_argument, 0, 0},
+            {"l", required_argument, 0, 0},
+            {"link", required_argument, 0, 0},
             {0, 0, 0, 0}
         };
 
@@ -449,6 +453,12 @@ int output_init(output_parameter *param, int id)
         case 13:
             DBG("case 12,13\n");
             mjpgFileName = strdup(optarg);
+            break;
+            /* l link */
+        case 14:
+        case 15:
+            DBG("case 14,15\n");
+            linkFileName = strdup(optarg);
             break;
         }
     }
