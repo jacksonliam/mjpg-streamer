@@ -228,15 +228,13 @@ int main(int argc, char *argv[])
             break;
 
         case 'v':
-            printf("MJPG Streamer Version: %s\n" \
-            "Compilation Date.....: %s\n" \
-            "Compilation Time.....: %s\n",
+            printf("MJPG Streamer Version: %s\n",
 #ifdef SVN_REV
-            SVN_REV,
+            SVN_REV
 #else
-            SOURCE_VERSION,
+            SOURCE_VERSION
 #endif
-            __DATE__, __TIME__);
+            );
             return 0;
             break;
 
