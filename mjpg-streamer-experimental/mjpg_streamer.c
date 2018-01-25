@@ -229,8 +229,8 @@ int main(int argc, char *argv[])
 
         case 'v':
             printf("MJPG Streamer Version: %s\n",
-#ifdef SVN_REV
-            SVN_REV
+#ifdef GIT_HASH
+            GIT_HASH
 #else
             SOURCE_VERSION
 #endif
@@ -273,8 +273,8 @@ int main(int argc, char *argv[])
      * messages like the following will only be visible on your terminal
      * if not running in daemon mode
      */
-#ifdef SVN_REV
-    LOG("MJPG Streamer Version: svn rev: %s\n", SVN_REV);
+#ifdef GIT_HASH
+    LOG("MJPG Streamer Version: git rev: %s\n", GIT_HASH);
 #else
     LOG("MJPG Streamer Version.: %s\n", SOURCE_VERSION);
 #endif
