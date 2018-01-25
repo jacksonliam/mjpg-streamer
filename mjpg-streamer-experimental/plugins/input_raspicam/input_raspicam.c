@@ -249,7 +249,7 @@ int input_init(input_parameter *param, int plugin_no)
         break;
       case 18:
         //color effects
-        sscanf(optarg, "%d:%d", &c_params.colourEffects.u, &c_params.colourEffects.u);
+        sscanf(optarg, "%d:%d", &c_params.colourEffects.u, &c_params.colourEffects.v);
         c_params.colourEffects.enable = 1;
         break;
       case 19:
