@@ -386,6 +386,8 @@ int input_init(input_parameter *param, int id)
     char *fmtString = NULL;
     switch (format) {
         case V4L2_PIX_FMT_MJPEG:
+            // Fall-through intentional
+        case V4L2_PIX_FMT_JPEG:
             fmtString = "JPEG";
             break;
         #ifndef NO_LIBJPG
@@ -405,7 +407,7 @@ int input_init(input_parameter *param, int id)
 
     IPRINT("Format............: %s\n", fmtString);
     #ifndef NO_LIBJPEG
-        if(format != V4L2_PIX_FMT_MJPEG)
+        if(format != V4L2_PIX_FMT_MJPEG && format != V4L2_PIX_FMT_JPEG)
             IPRINT("JPEG Quality......: %d\n", settings->quality);
     #endif
 

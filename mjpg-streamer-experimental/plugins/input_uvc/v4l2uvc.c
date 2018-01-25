@@ -213,6 +213,8 @@ int init_videoIn(struct vdIn *vd, char *device, int width,
     /* alloc a temp buffer to reconstruct the pict */
     vd->framesizeIn = (vd->width * vd->height << 1);
     switch(vd->formatIn) {
+    case V4L2_PIX_FMT_JPEG:
+        // Fall-through intentional
     case V4L2_PIX_FMT_MJPEG: // in JPG mode the frame size is varies at every frame, so we allocate a bit bigger buffer
         vd->tmpbuffer = (unsigned char *) calloc(1, (size_t) vd->framesizeIn);
         if(!vd->tmpbuffer)
@@ -324,8 +326,10 @@ static int init_v4l2(struct vdIn *vd)
       fcc2s(fmtStringRequested,8,vd->formatIn);
       fprintf(stderr, " i: Could not obtain the requested pixelformat: %s , driver gave us: %s\n",fmtStringRequested,fmtStringObtained);
       fprintf(stderr, "    ... will try to handle this by checking against supported formats. \n");
-      
+
       switch(vd->fmt.fmt.pix.pixelformat){
+      case V4L2_PIX_FMT_JPEG:
+	// Fall-through intentional
       case V4L2_PIX_FMT_MJPEG:
 	fprintf(stderr, "    ... Falling back to the faster MJPG mode (consider changing cmd line options).\n");
 	vd->formatIn = vd->fmt.fmt.pix.pixelformat;
@@ -564,6 +568,8 @@ int uvcGrab(struct vdIn *vd)
     }
 
     switch(vd->formatIn) {
+    case V4L2_PIX_FMT_JPEG:
+        // Fall-through intentional
     case V4L2_PIX_FMT_MJPEG:
         if(vd->buf.bytesused <= HEADERFRAME1) {
             /* Prevent crash
