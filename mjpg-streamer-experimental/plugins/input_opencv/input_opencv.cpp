@@ -284,7 +284,7 @@ int input_init(input_parameter *param, int plugin_no)
         IPRINT("filter........... : %s\n", filter);
         IPRINT("filter args ..... : %s\n", filter_args);
         
-        pctx->filter_handle = dlopen(filter, RTLD_LAZY);
+        pctx->filter_handle = dlopen(filter, RTLD_LAZY | RTLD_GLOBAL);
         if(!pctx->filter_handle) {
             LOG("ERROR: could not find input plugin\n");
             LOG("       Perhaps you want to adjust the search path with:\n");
