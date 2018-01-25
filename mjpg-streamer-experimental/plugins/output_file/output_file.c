@@ -372,8 +372,7 @@ int output_init(output_parameter *param, int id)
     while(1) {
         int option_index = 0, c = 0;
         static struct option long_options[] = {
-            {"h", no_argument, 0, 0
-            },
+            {"h", no_argument, 0, 0},
             {"help", no_argument, 0, 0},
             {"f", required_argument, 0, 0},
             {"folder", required_argument, 0, 0},
@@ -389,6 +388,8 @@ int output_init(output_parameter *param, int id)
             {"mjpeg", required_argument, 0, 0},
             {"l", required_argument, 0, 0},
             {"link", required_argument, 0, 0},
+            {"c", required_argument, 0, 0},
+            {"command", required_argument, 0, 0},
             {0, 0, 0, 0}
         };
 
@@ -459,6 +460,12 @@ int output_init(output_parameter *param, int id)
         case 15:
             DBG("case 14,15\n");
             linkFileName = strdup(optarg);
+            break;
+            /* c command */
+        case 16:
+        case 17:
+            DBG("case 16,17\n");
+            command = strdup(optarg);
             break;
         }
     }

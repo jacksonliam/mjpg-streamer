@@ -228,15 +228,13 @@ int main(int argc, char *argv[])
             break;
 
         case 'v':
-            printf("MJPG Streamer Version: %s\n" \
-            "Compilation Date.....: %s\n" \
-            "Compilation Time.....: %s\n",
-#ifdef SVN_REV
-            SVN_REV,
+            printf("MJPG Streamer Version: %s\n",
+#ifdef GIT_HASH
+            GIT_HASH
 #else
-            SOURCE_VERSION,
+            SOURCE_VERSION
 #endif
-            __DATE__, __TIME__);
+            );
             return 0;
             break;
 
@@ -275,8 +273,8 @@ int main(int argc, char *argv[])
      * messages like the following will only be visible on your terminal
      * if not running in daemon mode
      */
-#ifdef SVN_REV
-    LOG("MJPG Streamer Version: svn rev: %s\n", SVN_REV);
+#ifdef GIT_HASH
+    LOG("MJPG Streamer Version: git rev: %s\n", GIT_HASH);
 #else
     LOG("MJPG Streamer Version.: %s\n", SOURCE_VERSION);
 #endif
