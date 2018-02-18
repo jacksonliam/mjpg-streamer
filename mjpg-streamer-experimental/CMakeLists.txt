@@ -107,6 +107,32 @@ install(DIRECTORY www DESTINATION share/mjpg-streamer)
 
 feature_summary(WHAT ALL)
 
+
+#
+# Packaging support
+#
+
+configure_file(mjpg_streamer@.service ${CMAKE_BINARY_DIR})
+install (FILES ${CMAKE_BINARY_DIR}/mjpg_streamer@.service DESTINATION /lib/systemd/system)
+
+execute_process(COMMAND bash -c "grep '#define SOURCE_VERSION' mjpg_streamer.h | awk '{gsub(/\"/, \"\"); print $3}'"
+    OUTPUT_VARIABLE PKG_VERSION
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+execute_process(COMMAND dpkg --print-architecture
+    OUTPUT_VARIABLE DPKG_ARCH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+set (CPACK_DEBIAN_PACKAGE_MAINTAINER <https://github.com/jacksonliam/mjpg-streamer>)
+set (CPACK_DEBIAN_PACKAGE_DESCRIPTION "A server for streaming Motion-JPEG from a video capture device")
+set (CPACK_PACKAGE_VERSION ${PKG_VERSION})
+set (CPACK_PACKAGE_FILE_NAME mjpg-streamer_${CPACK_PACKAGE_VERSION}_${DPKG_ARCH})
+set (CPACK_PACKAGING_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX})
+set (CPACK_STRIP_FILES TRUE)
+include(CPack)
+
+
 #
 # Final warning
 #

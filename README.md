@@ -81,6 +81,22 @@ shows the basic steps to enable the experimental HTTP management feature:
     make
     sudo make install
 
+Debian package generation and installation
+------------------------------------------
+
+To build and create a Debian package for installation on a Raspberry Pi
+
+    cd mjpg-streamer-experimental
+    mkdir _build
+    cd _build
+    cmake ..
+    make
+    cpack -G DEB
+
+To install package
+
+    sudo dpkg -i mjpg-streamer_2.0_armhf.deb
+
 Usage
 =====
 From the mjpeg streamer experimental
@@ -91,6 +107,27 @@ export LD_LIBRARY_PATH=.
 ```
 
 See [README.md](mjpg-streamer-experimental/README.md) or the individual plugin's documentation for more details.
+
+
+Usage with systemd
+==================
+
+To start mjpg-streamer with a camera on `/dev/video0` for example
+
+    sudo systemctl start mjpg_streamer@video0
+
+To stop mjpg-streamer
+
+    sudo systemctl stop mjpg_streamer@video0
+
+To enable mjpg-streamer on startup
+
+    sudo systemctl enable mjpg_streamer@video0
+
+To disable mjpg-streamer on startup
+
+    sudo systemctl disable mjpg_streamer@video0
+
 
 Discussion / Questions / Help
 =============================
