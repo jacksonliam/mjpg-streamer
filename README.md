@@ -46,10 +46,10 @@ Output plugins:
 Building & Installation
 =======================
 
-You must have cmake installed. You will also probably want to have a development
+You must have cmake, gcc and g++ installed. You will also probably want to have a development
 version of libjpeg installed. I used libjpeg8-dev. e.g.
 
-    sudo apt-get install cmake libjpeg8-dev
+    sudo apt-get install cmake libjpeg8-dev gcc g++
 
 Simple compilation
 ------------------
