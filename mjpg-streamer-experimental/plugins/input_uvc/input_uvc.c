@@ -70,6 +70,8 @@ static globals *pglobal;
 static unsigned int minimum_size = 0;
 static int dynctrls = 1;
 static unsigned int every = 1;
+static int wantTimestamp = 0;
+static struct timeval timestamp;
 
 static const struct {
   const char * k;
@@ -205,6 +207,7 @@ int input_init(input_parameter *param, int id)
             {"gain", required_argument, 0, 0},
             {"cagc", required_argument, 0, 0},
             {"cb", required_argument, 0, 0},
+            {"timestamp", no_argument, 0, 0},            
             {0, 0, 0, 0}
         };
 
@@ -361,6 +364,10 @@ int input_init(input_parameter *param, int id)
             break;
         OPTION_INT_AUTO(38, cb)
             break;
+        OPTION_INT_AUTO(39, timestamp)
+            // timestamp
+            wantTimestamp = 1;
+            break;        
     
         default:
             DBG("default case\n");
@@ -530,6 +537,7 @@ void help(void)
     " [-pl ].................: Set power line filter (disabled, 50hz, 60hz, auto)\n"\
     " [-gain ]...............: Set gain (auto or integer)\n"\
     " [-cagc ]...............: Set chroma gain control (auto or integer)\n"\
+    " [-timestamp ]..........: Set timestamp value to populate\n"\    
     " ---------------------------------------------------------------\n\n"\
     );
 }
@@ -707,7 +715,12 @@ void *cam_thread(void *arg)
         prev_size = global->size;
 #endif
 
-
+        if(wantTimestamp)
+        {
+            gettimeofday(&timestamp, NULL);
+            pglobal->in[pcontext->id].timestamp = timestamp;
+        }
+        
         /* signal fresh_frame */
         pthread_cond_broadcast(&pglobal->in[pcontext->id].db_update);
         pthread_mutex_unlock(&pglobal->in[pcontext->id].db);
