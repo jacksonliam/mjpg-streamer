@@ -69,6 +69,7 @@ add_subdirectory(plugins/input_uvc)
 
 add_subdirectory(plugins/output_file)
 add_subdirectory(plugins/output_http)
+add_subdirectory(plugins/output_motion)
 add_subdirectory(plugins/output_rtsp)
 add_subdirectory(plugins/output_udp)
 add_subdirectory(plugins/output_viewer)
