@@ -28,6 +28,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/ioctl.h>
+#include <sys/time.h>
 #include <errno.h>
 #include <signal.h>
 #include <sys/socket.h>
