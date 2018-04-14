@@ -73,6 +73,7 @@ static int dynctrls = 1;
 static unsigned int every = 1;
 static int wantTimestamp = 0;
 static struct timeval timestamp;
+static int softfps = -1;
 
 static const struct {
   const char * k;
@@ -208,7 +209,8 @@ int input_init(input_parameter *param, int id)
             {"gain", required_argument, 0, 0},
             {"cagc", required_argument, 0, 0},
             {"cb", required_argument, 0, 0},
-            {"timestamp", no_argument, 0, 0},            
+            {"timestamp", no_argument, 0, 0},
+            {"softfps", required_argument, 0, 0},
             {0, 0, 0, 0}
         };
 
@@ -367,13 +369,15 @@ int input_init(input_parameter *param, int id)
             break;
         case 39:
             wantTimestamp = 1;
-            break;        
-    
-        default:
-            DBG("default case\n");
-            help();
-            return 1;
-        }
+            break;
+       case 40:
+           softfps = atoi(optarg);
+           break;
+       default:
+           DBG("default case\n");
+           help();
+           return 1;
+      }
     }
     DBG("input id: %d\n", id);
     pctx->id = id;
@@ -431,6 +435,11 @@ int input_init(input_parameter *param, int id)
         closelog();
         exit(EXIT_FAILURE);
     }
+
+    if (softfps > 0) {
+        IPRINT("Framedrop FPS.....: %d\n", softfps);
+    }
+
     /*
      * recent linux-uvc driver (revision > ~#125) requires to use dynctrls
      * for pan/tilt/focus/...
@@ -505,7 +514,7 @@ void help(void)
 
     fprintf(stderr,
     " [-f | --fps ]..........: frames per second\n" \
-    "                          (activates YUYV format, disables MJPEG)\n" \
+    "                          (camera may coerce to different value)\n" \
     " [-q | --quality ] .....: set quality of JPEG encoding\n" \
     " [-m | --minimum_size ].: drop frames smaller then this limit, useful\n" \
     "                          if the webcam produces small-sized garbage frames\n" \
@@ -519,10 +528,13 @@ void help(void)
     " [-y | --yuv  ] ........: Use YUV format, default: MJPEG (uses more cpu power)\n" \
     " [-fourcc ] ............: Use FOURCC codec 'argopt', \n" \
     "                          currently supported codecs are: RGBP \n" \
+    " [-timestamp ]..........: Populate frame timestamp with system time\n" \
+    " [-softfps] ............: Drop frames to try and achieve this fps\n" \
+    "                          set your camera to its maximum fps to avoid stuttering\n" \
     " ---------------------------------------------------------------\n");
 
-    fprintf(stderr, "\n"                                                \
-    " Optional parameters (may not be supported by all cameras):\n\n"
+    fprintf(stderr, "\n"\
+    " Optional parameters (may not be supported by all cameras):\n\n"\
     " [-br ].................: Set image brightness (auto or integer)\n"\
     " [-co ].................: Set image contrast (integer)\n"\
     " [-sh ].................: Set image sharpness (integer)\n"\
@@ -537,7 +549,6 @@ void help(void)
     " [-pl ].................: Set power line filter (disabled, 50hz, 60hz, auto)\n"\
     " [-gain ]...............: Set gain (auto or integer)\n"\
     " [-cagc ]...............: Set chroma gain control (auto or integer)\n"\
-    " [-timestamp ]..........: Set timestamp value to populate\n"\    
     " ---------------------------------------------------------------\n\n"\
     );
 }
@@ -632,6 +643,11 @@ void *cam_thread(void *arg)
     settings = NULL;
     pcontext->init_settings = NULL;
 
+    if (softfps > 0) {
+        pcontext->videoIn->soft_framedrop = 1;
+        pcontext->videoIn->frame_period_time = 1000/softfps;
+    }
+
     while(!pglobal->stop) {
         while(pcontext->videoIn->streamingState == STREAMING_PAUSED) {
             usleep(1); // maybe not the best way so FIXME
@@ -665,16 +681,24 @@ void *cam_thread(void *arg)
             continue;
         }
 
+        // Overwrite timestamp (e.g. where camera is providing 0 values)
+        // Do it here so that this timestamp can be used in frameskipping
+        if(wantTimestamp)
+        {
+            gettimeofday(&timestamp, NULL);
+            pcontext->videoIn->tmptimestamp = timestamp;
+        }
+
         // use software frame dropping on low fps
         if (pcontext->videoIn->soft_framedrop == 1) {
             unsigned long last = pglobal->in[pcontext->id].timestamp.tv_sec * 1000 +
                                 (pglobal->in[pcontext->id].timestamp.tv_usec/1000); // convert to ms
-            unsigned long current = pcontext->videoIn->buf.timestamp.tv_sec * 1000 +
-                                    pcontext->videoIn->buf.timestamp.tv_usec/1000; // convert to ms
+            unsigned long current = pcontext->videoIn->tmptimestamp.tv_sec * 1000 +
+                                    pcontext->videoIn->tmptimestamp.tv_usec/1000; // convert to ms
 
             // if the requested time did not esplashed skip the frame
             if ((current - last) < pcontext->videoIn->frame_period_time) {
-                //DBG("Last frame taken %d ms ago so drop it\n", (current - last));
+                DBG("Last frame taken %d ms ago so drop it\n", (current - last));
                 continue;
             }
             DBG("Lagg: %ld\n", (current - last) - pcontext->videoIn->frame_period_time);
@@ -696,7 +720,7 @@ void *cam_thread(void *arg)
             DBG("compressing frame from input: %d\n", (int)pcontext->id);
             pglobal->in[pcontext->id].size = compress_image_to_jpeg(pcontext->videoIn, pglobal->in[pcontext->id].buf, pcontext->videoIn->framesizeIn, quality);
             /* copy this frame's timestamp to user space */
-            pglobal->in[pcontext->id].timestamp = pcontext->videoIn->buf.timestamp;
+            pglobal->in[pcontext->id].timestamp = pcontext->videoIn->tmptimestamp;
         } else {
         #endif
             DBG("copying frame from input: %d\n", (int)pcontext->id);
@@ -715,12 +739,6 @@ void *cam_thread(void *arg)
         prev_size = global->size;
 #endif
 
-        if(wantTimestamp)
-        {
-            gettimeofday(&timestamp, NULL);
-            pglobal->in[pcontext->id].timestamp = timestamp;
-        }
-        
         /* signal fresh_frame */
         pthread_cond_broadcast(&pglobal->in[pcontext->id].db_update);
         pthread_mutex_unlock(&pglobal->in[pcontext->id].db);
