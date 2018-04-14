@@ -364,8 +364,7 @@ int input_init(input_parameter *param, int id)
             break;
         OPTION_INT_AUTO(38, cb)
             break;
-        OPTION_INT_AUTO(39, timestamp)
-            // timestamp
+        case 39:
             wantTimestamp = 1;
             break;        
     
