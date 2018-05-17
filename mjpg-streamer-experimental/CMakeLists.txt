@@ -126,6 +126,7 @@ execute_process(COMMAND dpkg --print-architecture
 )
 set (CPACK_DEBIAN_PACKAGE_MAINTAINER <https://github.com/jacksonliam/mjpg-streamer>)
 set (CPACK_DEBIAN_PACKAGE_DESCRIPTION "A server for streaming Motion-JPEG from a video capture device")
+set (CPACK_DEBIAN_PACKAGE_DEPENDS "libjpeg8")
 set (CPACK_PACKAGE_VERSION ${PKG_VERSION})
 set (CPACK_PACKAGE_FILE_NAME mjpg-streamer_${CPACK_PACKAGE_VERSION}_${DPKG_ARCH})
 set (CPACK_PACKAGING_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX})
