@@ -36,6 +36,6 @@ Output plugins:
 * output_file
 * output_http ([documentation](plugins/output_http/README.md))
 * output_rtsp
-* output_udp
+* output_udp (not functional)
 * output_viewer ([documentation](plugins/output_viewer/README.md))
 
