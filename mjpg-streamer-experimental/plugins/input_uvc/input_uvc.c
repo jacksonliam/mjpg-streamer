@@ -740,8 +740,8 @@ void *cam_thread(void *arg)
 #endif
 
         /* signal fresh_frame */
-        pthread_cond_broadcast(&pglobal->in[pcontext->id].db_update);
         pthread_mutex_unlock(&pglobal->in[pcontext->id].db);
+        pthread_cond_broadcast(&pglobal->in[pcontext->id].db_update);
     }
 
     DBG("leaving input thread, calling cleanup function now\n");

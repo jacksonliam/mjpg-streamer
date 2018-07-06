@@ -414,8 +414,8 @@ static void encoder_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buf
 
       pData->offset = 0;
       /* signal fresh_frame */
-      pthread_cond_broadcast(&pglobal->in[plugin_number].db_update);
       pthread_mutex_unlock(&pglobal->in[plugin_number].db);
+      pthread_cond_broadcast(&pglobal->in[plugin_number].db_update);
     }
   }
   else
