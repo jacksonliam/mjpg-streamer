@@ -125,7 +125,7 @@ static context_settings * init_settings() {
 
 /*** plugin interface functions ***/
 /******************************************************************************
-Description.: This function ializes the plugin. It parses the commandline-
+Description.: This function initializes the plugin. It parses the commandline-
               parameter and stores the default and parsed values in the
               appropriate variables.
 Input Value.: param contains among others the command-line string
