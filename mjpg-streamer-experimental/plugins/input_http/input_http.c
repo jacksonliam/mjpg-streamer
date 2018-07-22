@@ -19,6 +19,7 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA    #
 #                                                                              #
 # Modified by Eugene Katsevman, 2011                                           #
+# Modified by Carlos Garcia Saura, 2018                                        #
 *******************************************************************************/
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,6 +40,7 @@
 #include "../../utils.h"
 
 #include "mjpg-proxy.h"
+#include "libepeg/Epeg.h"
 
 /* private functions and variables to this plugin */
 static pthread_t   worker;
@@ -86,7 +88,13 @@ int input_init(input_parameter *param, int plugin_no)
     pglobal = param->global;
 
     IPRINT("host.............: %s\n", proxy.hostname);
+    IPRINT("path.............: %s\n", proxy.path);
     IPRINT("port.............: %s\n", proxy.port);
+    if(proxy.width > 0 && proxy.height > 0) {
+        IPRINT("rescale width....: %d\n", proxy.width);
+        IPRINT("rescale height...: %d\n", proxy.height);
+        IPRINT("rescale quality..: %d\n", proxy.quality);
+    }
 
     return 0;
 }
@@ -126,13 +134,37 @@ int input_run(int id)
     return 0;
 }
 
-
+/******************************************************************************
+Description.: rescales the received JPG (if needed) and writes it to the global buffer
+Input Value.: raw image data
+Return Value: -
+******************************************************************************/
 void on_image_received(char * data, int length){
-        /* copy JPG picture to global buffer */
         pthread_mutex_lock(&pglobal->in[plugin_number].db);
-
-        pglobal->in[plugin_number].size = length;
-        memcpy(pglobal->in[plugin_number].buf, data, pglobal->in[plugin_number].size);
+        
+        if(proxy.width > 0 && proxy.height > 0) { /* only activate the epeg library when resizing is needed */
+            /* initialize the epeg structure loading image metadata */
+            Epeg_Image * raw_img = epeg_memory_open(data, length);
+            
+            if(raw_img) { /* corrupt frames will be discarded */
+                /* tell the epeg library what needs to be modified */
+                epeg_quality_set(raw_img, proxy.quality);
+                epeg_decode_size_set(raw_img, proxy.width,proxy.height);
+                
+                /* assign the output buffer directly as the global buffer */
+                epeg_memory_output_set(raw_img, &(pglobal->in[plugin_number].buf), &(pglobal->in[plugin_number].size));
+                
+                /* apply the transformations and write to the output buffer */
+                epeg_encode(raw_img);
+                
+                /* free the internal allocations of the epeg library */
+                epeg_close(raw_img);
+            }
+        } else {
+            /* directly copy JPG picture to global buffer */
+            pglobal->in[plugin_number].size = length;
+            memcpy(pglobal->in[plugin_number].buf, data, pglobal->in[plugin_number].size);
+        }
 
         /* signal fresh_frame */
         pthread_cond_broadcast(&pglobal->in[plugin_number].db_update);

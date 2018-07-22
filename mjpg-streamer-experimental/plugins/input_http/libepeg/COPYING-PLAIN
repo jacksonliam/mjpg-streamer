@@ -1,0 +1,33 @@
+Plain English Copyright Notice
+
+This file is not intended to be the actual License. The reason this file
+exists is that we here are programmers and engineers. We aren't lawyers. We
+provide licenses that we THINK say the right things, but we have our own
+intentions at heart. This is a plain-english explanation of what those
+intentions are, and if you follow them you will be within the "spirit" of
+the license.
+
+The intent is for us to enjoy writing software that is useful to us (the
+AUTHORS) and allow others to use it freely and also benefit from the work we
+put into making it. We don't want to restrict others using it. They should
+not *HAVE* to make the source code of the applications they write that
+simply link to these libraries (be that statically or dynamically), or for
+them to be limited as to what license they choose to use (be it open, closed
+or anything else). But we would like to know you are using these libraries.
+We simply would like to know that it has been useful to someone. This is why
+we ask for acknowledgement of some sort.
+
+You can do what you want with the source of this software - it doesn't
+matter. We still have it here for ourselves and it is open and free to use
+and download and play with. It can't be taken away. We don't really mind what
+you do with the source to your software. We would simply like to know that
+you are using it - especially if it makes it to a commerical product. If you
+simply e-mail all the AUTHORS (see COPYING and AUTHORS files) telling us, and
+then make sure you include a paragraph or page in the manual for the product
+with the copyright notice and state that you used this software, we will be
+very happy. If you want to contribute back modifications and fixes you may have
+made we will welcome those too with open arms (generally). If you want help
+with changes needed, ports needed or features to be added, arrangements can
+be easily made with some dialogue.
+
+Carsten Haitzler <raster@rasterman.com>

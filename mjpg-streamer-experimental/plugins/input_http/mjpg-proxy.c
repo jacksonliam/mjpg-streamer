@@ -15,6 +15,7 @@
 # along with this program; if not, write to the Free Software                  #
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA    #
 #                                                                              #
+# Modified by Carlos Garcia Saura, 2018                                        #
 *******************************************************************************/
 
 #include <sys/types.h>
@@ -60,7 +61,11 @@ void init_extractor_state(struct extractor_state * state) {
 
 void init_mjpg_proxy(struct extractor_state * state){
     state->hostname = strdup("localhost");
+    state->path = strdup("/?action=stream");
     state->port = strdup("8080");
+    state->width = 0;
+    state->height = 0;
+    state->quality = 75;
 
     init_extractor_state(state);
 }
@@ -110,16 +115,20 @@ void extract_data(struct extractor_state * state, char * buffer, int length) {
 
 }
 
-char request [] = "GET /?action=stream HTTP/1.0\r\n\r\n";
-
 void send_request_and_process_response(struct extractor_state * state) {
     int recv_length;
     char netbuffer[NETBUFFER_SIZE];
+    char * request;
 
     init_extractor_state(state);
     
+    request = malloc(strlen(state->path) + 20);
+    sprintf(request, "GET %s HTTP/1.0\r\n\r\n", state->path);
+
     // send request
-    send(state->sockfd, request, sizeof(request), 0);
+    send(state->sockfd, request, strlen(request), 0);
+
+    free(request);
 
     // and listen for answer until sockerror or THEY stop us 
     // TODO: we must handle EINTR here, it really might occur
@@ -136,9 +145,13 @@ fprintf(stderr, " --------------------------------------------------------------
                 " ---------------------------------------------------------------\n" \
                 " The following parameters can be passed to this plugin:\n\n" \
                 " [-v | --version ]........: current SVN Revision\n" \
-                " [-h | --help]............: show this message\n"
-                " [-H | --host]............: select host to data from, localhost is default\n"
-                " [-p | --port]............: port, defaults to 8080\n"
+                " [-h | --help]............: show this message\n" \
+                " [-H | --host]............: select host to data from, localhost is default\n" \
+                " [-P | --path]............: select path, defaults to /?action=stream\n" \
+                " [-p | --port]............: port, defaults to 8080\n" \
+                " [-x | --width ]..........: width of frame (to rescale), default disabled\n" \
+                " [-y | --height]..........: height of frame (to rescale), default disabled \n"\
+                " [-q | --quality].........: set JPEG quality 0-100 (to rescale), default disabled \n"\
                 " ---------------------------------------------------------------\n", program_name);
 }
 // TODO: this must be reworked, too. I don't know how
@@ -152,12 +165,16 @@ int parse_cmd_line(struct extractor_state * state, int argc, char * argv []) {
             {"help", no_argument, 0, 'h'},
             {"version", no_argument, 0, 'v'},
             {"host", required_argument, 0, 'H'},
+            {"path", required_argument, 0, 'P'},
             {"port", required_argument, 0, 'p'},
+            {"width", required_argument, 0, 'x'},
+            {"height", required_argument, 0, 'y'},
+            {"quality", required_argument, 0, 'q'},
             {0,0,0,0}
         };
 
         int index = 0, c = 0;
-        c = getopt_long_only(argc,argv, "hvH:p:", long_options, &index);
+        c = getopt_long_only(argc,argv, "hvH:P:p:x:y:q:", long_options, &index);
 
         if (c==-1) break;
 
@@ -179,9 +196,22 @@ int parse_cmd_line(struct extractor_state * state, int argc, char * argv []) {
                 free(state->hostname);
                 state->hostname = strdup(optarg);
                 break;
+            case 'P' :
+                free(state->path);
+                state->path = strdup(optarg);
+                break;
             case 'p' :
                 free(state->port);
                 state->port = strdup(optarg);
+                break;
+            case 'x' :
+                state->width = atoi(optarg);
+                break;
+            case 'y' :
+                state->height = atoi(optarg);
+                break;
+            case 'q' :
+                state->quality = atoi(optarg);
                 break;
             }
     }
@@ -240,5 +270,6 @@ void connect_and_stream(struct extractor_state * state){
 void close_mjpg_proxy(struct extractor_state * state){
     free(state->hostname);
     free(state->port);
+    free(state->path);
 }
 
