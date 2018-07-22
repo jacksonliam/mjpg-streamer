@@ -15,6 +15,7 @@
 # along with this program; if not, write to the Free Software                  #
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA    #
 #                                                                              #
+# Modified by Carlos Garcia Saura, 2018                                        #
 *******************************************************************************/
 
 #ifndef MJPG_PROXY_H
@@ -31,12 +32,16 @@
 #endif
 #endif
 
-#define BUFFER_SIZE 1024 * 256
+#define BUFFER_SIZE 1024 * 512
 
 struct extractor_state {
     
     char * port;
     char * hostname;
+    char * path;
+    int width;
+    int height;
+    int quality;
 
     // this is current result
     char buffer [BUFFER_SIZE];
