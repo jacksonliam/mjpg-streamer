@@ -39,6 +39,7 @@ Output plugins:
 
 * output_file
 * output_http ([documentation](mjpg-streamer-experimental/plugins/output_http/README.md))
+* output_motion ([documentation](mjpg-streamer-experimental/plugins/output_motion/README.md))
 * ~output_rtsp~ (not functional)
 * output_udp
 * output_viewer ([documentation](mjpg-streamer-experimental/plugins/output_viewer/README.md))
