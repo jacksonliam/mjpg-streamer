@@ -380,23 +380,6 @@ static int init_v4l2(struct vdIn *vd)
                     if (vd->fps != setfps->parm.capture.timeperframe.denominator) {
                         IPRINT("FPS coerced ......: from %d to %d\n", vd->fps, setfps->parm.capture.timeperframe.denominator);
                     }
-
-                    // if we selecting lower FPS than the allowed then we will use software framedropping
-                    if (vd->fps < setfps->parm.capture.timeperframe.denominator) {
-                        vd->soft_framedrop = 1;
-                        vd->frame_period_time = 1000/vd->fps; // calcualate frame period time in ms
-                        IPRINT("Frame period time ......: %ld ms\n", vd->frame_period_time);
-
-                        // set FPS to maximum in order to minimize the lagging
-                        memset(setfps, 0, sizeof(struct v4l2_streamparm));
-                        setfps->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-                        setfps->parm.capture.timeperframe.numerator = 1;
-                        setfps->parm.capture.timeperframe.denominator = 255;
-                        ret = xioctl(vd->fd, VIDIOC_S_PARM, setfps);
-                        if (ret) {
-                            perror("Unable to set the FPS\n");
-                        }
-                    }
                 }
             } else {
                 perror("Setting FPS on the capture device is not supported, fallback to software framedropping\n");
@@ -589,18 +572,21 @@ int uvcGrab(struct vdIn *vd)
         vd->tmpbytesused = vd->buf.bytesused;
         vd->tmptimestamp = vd->buf.timestamp;
 
-        if(debug)
+        if(debug) {
             fprintf(stderr, "bytes in used %d \n", vd->buf.bytesused);
+        }
         break;
     case V4L2_PIX_FMT_RGB565:
     case V4L2_PIX_FMT_YUYV:
     case V4L2_PIX_FMT_UYVY:
-        if(vd->buf.bytesused > vd->framesizeIn)
+        if(vd->buf.bytesused > vd->framesizeIn) {
             memcpy(vd->framebuffer, vd->mem[vd->buf.index], (size_t) vd->framesizeIn);
-        else
+        } else {
             memcpy(vd->framebuffer, vd->mem[vd->buf.index], (size_t) vd->buf.bytesused);
+        }
+        vd->tmpbytesused = vd->buf.bytesused;
+        vd->tmptimestamp = vd->buf.timestamp;
         break;
-
     default:
         goto err;
         break;
