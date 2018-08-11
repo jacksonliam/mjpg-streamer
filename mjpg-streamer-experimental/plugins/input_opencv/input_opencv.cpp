@@ -27,9 +27,9 @@
 #include "input_opencv.h"
 
 #include "opencv2/opencv.hpp"
-#include "opencv2/highgui/highgui.hpp"
 
 #if CV_MAJOR_VERSION<3
+#include "opencv2/highgui/highgui.hpp"
 enum VideoCaptureProperties {
        CAP_PROP_POS_MSEC       =0, //!< Current position of the video file in milliseconds.
        CAP_PROP_POS_FRAMES     =1, //!< 0-based index of the frame to be decoded/captured next.
