@@ -308,6 +308,13 @@ static int init_v4l2(struct vdIn *vd)
         if (video_set_dv_timings(vd)) {
             goto fatal;
         }
+
+        struct v4l2_event_subscription sub;
+        memset(&sub, 0, sizeof(sub));
+        sub.type = V4L2_EVENT_SOURCE_CHANGE;
+        if (ioctl(vd->fd, VIDIOC_SUBSCRIBE_EVENT, &sub) < 0) {
+            IPRINT("Can\'t subscribe to V4L2_EVENT_SOURCE_CHANGE: %s\n", strerror(errno));
+        }
     }
 
     /*
@@ -534,18 +541,17 @@ int video_set_dv_timings(struct vdIn *vd)
 int video_handle_event(struct vdIn *vd)
 {
     struct v4l2_event ev;
-
-    while (!xioctl(vd->fd, VIDIOC_DQEVENT, &ev)) {
+    if (!ioctl(vd->fd, VIDIOC_DQEVENT, &ev)) {
         switch (ev.type) {
-        case V4L2_EVENT_SOURCE_CHANGE:
-            IPRINT("V4L2_EVENT_SOURCE_CHANGE: Source changed\n");
-            if (setResolution(vd, vd->width, vd->height) < 0) {
-                return -1;
-            }
-            break;
-        case V4L2_EVENT_EOS:
-            IPRINT("V4L2_EVENT_EOS\n");
-            break;
+            case V4L2_EVENT_SOURCE_CHANGE:
+                IPRINT("V4L2_EVENT_SOURCE_CHANGE: Source changed\n");
+                if (setResolution(vd, vd->width, vd->height) < 0) {
+                    return -1;
+                }
+                break;
+            case V4L2_EVENT_EOS:
+                IPRINT("V4L2_EVENT_EOS\n");
+                break;
         }
     }
     return 0;
@@ -980,8 +986,13 @@ int setResolution(struct vdIn *vd, int width, int height)
         return -1;
     }
 
-    DBG("setResolution(%d, %d) done, enabling the video...\n", width, height);
-    return video_enable(vd);
+    DBG("Resolution changed to %dx%d , enabling the video...\n", width, height);
+    if (video_enable(vd) < 0) {
+        IPRINT("Can\'t RE-enable the video after setResolution(%dx%d)", width, height);
+        return -1;
+    }
+
+    return 0;
 }
 
 /*
