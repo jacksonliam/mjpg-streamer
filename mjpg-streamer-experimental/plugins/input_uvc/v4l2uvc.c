@@ -307,7 +307,7 @@ static int init_v4l2(struct vdIn *vd)
     if (vd->dv_timings) {
         if (video_set_dv_timings(vd)) {
             IPRINT("Can\'t set DV timings\n");
-            exit(EXIT_FAILURE);
+            goto fatal;
         }
     }
 

@@ -665,7 +665,7 @@ void *cam_thread(void *arg)
 
     if (video_enable(pcontext->videoIn)) {
         IPRINT("Can\'t enable video in first time\n");
-        exit(EXIT_FAILURE);
+        goto endloop;
     }
 
     while(!pglobal->stop) {
@@ -702,17 +702,19 @@ void *cam_thread(void *arg)
 
         if (sel < 0) {
             if (errno == EINTR) {
-                goto other_select_handlers;
+                continue;
             }
             IPRINT("select() error: %s\n", strerror(errno));
-            exit(EXIT_FAILURE);
+            goto endloop;
         } else if (sel == 0) {
             IPRINT("select() timeout\n");
             if (dv_timings) {
-                setResolution(pcontext->videoIn, pcontext->videoIn->width, pcontext->videoIn->height);
+                if (setResolution(pcontext->videoIn, pcontext->videoIn->width, pcontext->videoIn->height) < 0) {
+                    goto endloop;
+                }
                 continue;
             } else {
-                exit(EXIT_FAILURE);
+                goto endloop;
             }
         }
 
@@ -824,7 +826,9 @@ other_select_handlers:
                     switch (ev.type) {
                     case V4L2_EVENT_SOURCE_CHANGE:
                         IPRINT("V4L2_EVENT_SOURCE_CHANGE: Source changed\n");
-                        setResolution(pcontext->videoIn, pcontext->videoIn->width, pcontext->videoIn->height);
+                        if (setResolution(pcontext->videoIn, pcontext->videoIn->width, pcontext->videoIn->height) < 0) {
+                            goto endloop;
+                        }
                         break;
                     case V4L2_EVENT_EOS:
                         IPRINT("V4L2_EVENT_EOS\n");
@@ -834,6 +838,8 @@ other_select_handlers:
             }
         }
     }
+
+endloop:
 
     DBG("leaving input thread, calling cleanup function now\n");
     pthread_cleanup_pop(1);
