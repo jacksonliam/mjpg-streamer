@@ -544,7 +544,7 @@ void help(void)
     " [-timestamp ]..........: Populate frame timestamp with system time\n" \
     " [-softfps] ............: Drop frames to try and achieve this fps\n" \
     "                          set your camera to its maximum fps to avoid stuttering\n" \
-    " [-timeout] ............: Timeout for device querying\n" \
+    " [-timeout] ............: Timeout for device querying (seconds)\n" \
     " [-dv_timings] .........: Enable DV timings queriyng and events processing\n" \
     " ---------------------------------------------------------------\n");
 
@@ -673,31 +673,24 @@ void *cam_thread(void *arg)
             usleep(1); // maybe not the best way so FIXME
         }
 
-        fd_set fds[3];
-        fd_set *rd_fds = &fds[0]; /* for capture */
-        fd_set *ex_fds = &fds[1]; /* for capture */
-        fd_set *wr_fds = &fds[2]; /* for output */
+        fd_set rd_fds; /* for capture */
+        fd_set ex_fds; /* for capture */
+        fd_set wr_fds; /* for output */
 
-        if (rd_fds) {
-            FD_ZERO(rd_fds);
-            FD_SET(pcontext->videoIn->fd, rd_fds);
-        }
+        FD_ZERO(&rd_fds);
+        FD_SET(pcontext->videoIn->fd, &rd_fds);
 
-        if (ex_fds) {
-            FD_ZERO(ex_fds);
-            FD_SET(pcontext->videoIn->fd, ex_fds);
-        }
+        FD_ZERO(&ex_fds);
+        FD_SET(pcontext->videoIn->fd, &ex_fds);
 
-        if (wr_fds) {
-        //    FD_ZERO(wr_fds);
-        //    FD_SET(pcontext->videoIn->vd->fd, wr_fds);
-        }
+        FD_ZERO(&wr_fds);
+        FD_SET(pcontext->videoIn->fd, &wr_fds);
 
         struct timeval tv;
         tv.tv_sec = timeout;
         tv.tv_usec = 0;
 
-        int sel = select(pcontext->videoIn->fd + 1, rd_fds, wr_fds, ex_fds, &tv);
+        int sel = select(pcontext->videoIn->fd + 1, &rd_fds, &wr_fds, &ex_fds, &tv);
         DBG("select() = %d\n", sel);
 
         if (sel < 0) {
@@ -718,7 +711,7 @@ void *cam_thread(void *arg)
             }
         }
 
-        if (rd_fds && FD_ISSET(pcontext->videoIn->fd, rd_fds)) {
+        if (FD_ISSET(pcontext->videoIn->fd, &rd_fds)) {
             DBG("Grabbing a frame...\n");
             /* grab a frame */
             if(uvcGrab(pcontext->videoIn) < 0) {
@@ -814,11 +807,11 @@ void *cam_thread(void *arg)
 other_select_handlers:
 
         if (dv_timings) {
-            if (wr_fds && FD_ISSET(pcontext->videoIn->fd, wr_fds)) {
+            if (FD_ISSET(pcontext->videoIn->fd, &wr_fds)) {
                 IPRINT("Writing?!\n");
             }
 
-            if (ex_fds && FD_ISSET(pcontext->videoIn->fd, ex_fds)) {
+            if (FD_ISSET(pcontext->videoIn->fd, &ex_fds)) {
                 IPRINT("FD exception\n");
                 struct v4l2_event ev;
 
