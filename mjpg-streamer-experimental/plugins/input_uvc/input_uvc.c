@@ -673,9 +673,9 @@ void *cam_thread(void *arg)
             usleep(1); // maybe not the best way so FIXME
         }
 
-        fd_set rd_fds; /* for capture */
-        fd_set ex_fds; /* for capture */
-        fd_set wr_fds; /* for output */
+        fd_set rd_fds; // for capture
+        fd_set ex_fds; // for capture
+        fd_set wr_fds; // for output
 
         FD_ZERO(&rd_fds);
         FD_SET(pcontext->videoIn->fd, &rd_fds);
@@ -697,7 +697,7 @@ void *cam_thread(void *arg)
             if (errno == EINTR) {
                 continue;
             }
-            IPRINT("select() error: %s\n", strerror(errno));
+            perror("select() error");
             goto endloop;
         } else if (sel == 0) {
             IPRINT("select() timeout\n");
@@ -716,7 +716,7 @@ void *cam_thread(void *arg)
             /* grab a frame */
             if(uvcGrab(pcontext->videoIn) < 0) {
                 IPRINT("Error grabbing frames\n");
-                exit(EXIT_FAILURE);
+                goto endloop;
             }
 
             if ( every_count < every - 1 ) {
@@ -813,20 +813,8 @@ other_select_handlers:
 
             if (FD_ISSET(pcontext->videoIn->fd, &ex_fds)) {
                 IPRINT("FD exception\n");
-                struct v4l2_event ev;
-
-                while (!ioctl(pcontext->videoIn->fd, VIDIOC_DQEVENT, &ev)) {
-                    switch (ev.type) {
-                    case V4L2_EVENT_SOURCE_CHANGE:
-                        IPRINT("V4L2_EVENT_SOURCE_CHANGE: Source changed\n");
-                        if (setResolution(pcontext->videoIn, pcontext->videoIn->width, pcontext->videoIn->height) < 0) {
-                            goto endloop;
-                        }
-                        break;
-                    case V4L2_EVENT_EOS:
-                        IPRINT("V4L2_EVENT_EOS\n");
-                        break;
-                    }
+                if (video_handle_event(pcontext->videoIn) < 0) {
+                    goto endloop;
                 }
             }
         }

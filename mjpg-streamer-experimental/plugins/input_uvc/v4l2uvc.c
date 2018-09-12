@@ -116,9 +116,9 @@ int init_videoIn(struct vdIn *vd, char *device, int width,
 	vd->vstd = vstd;
     vd->grabmethod = grabmethod;
     vd->soft_framedrop = 0;
+
     if(init_v4l2(vd) < 0) {
-        fprintf(stderr, " Init v4L2 failed !! exit fatal \n");
-        goto error;;
+        goto error;
     }
 
     // getting the name of the input source
@@ -306,7 +306,6 @@ static int init_v4l2(struct vdIn *vd)
 
     if (vd->dv_timings) {
         if (video_set_dv_timings(vd)) {
-            IPRINT("Can\'t set DV timings\n");
             goto fatal;
         }
     }
@@ -469,6 +468,7 @@ static int init_v4l2(struct vdIn *vd)
     }
     return 0;
 fatal:
+    fprintf(stderr, "Init v4L2 failed !! exit fatal\n");
     return -1;
 
 }
@@ -512,7 +512,7 @@ int video_set_dv_timings(struct vdIn *vd)
         IPRINT("QUERY_DV_TIMINGS returned %ux%u pixclk %llu\n", timings.bt.width, timings.bt.height, timings.bt.pixelclock);
         // Can read DV timings, so set them.
         if (xioctl(vd->fd, VIDIOC_S_DV_TIMINGS, &timings) < 0) {
-            IPRINT("Failed to set DV timings: %s\n", strerror(errno));
+            perror("Failed to set DV timings");
             return -1;
         } else {
             vd->width = timings.bt.width;
@@ -523,9 +523,29 @@ int video_set_dv_timings(struct vdIn *vd)
         if (xioctl(vd->fd, VIDIOC_QUERYSTD, &std) >= 0) {
             // Can read standard, so set it.
             if (xioctl(vd->fd, VIDIOC_S_STD, &std) < 0) {
-                IPRINT("Failed to set standard: %s\n", strerror(errno));
+                perror("Failed to set standard");
                 return -1;
             }
+        }
+    }
+    return 0;
+}
+
+int video_handle_event(struct vdIn *vd)
+{
+    struct v4l2_event ev;
+
+    while (!xioctl(vd->fd, VIDIOC_DQEVENT, &ev)) {
+        switch (ev.type) {
+        case V4L2_EVENT_SOURCE_CHANGE:
+            IPRINT("V4L2_EVENT_SOURCE_CHANGE: Source changed\n");
+            if (setResolution(vd, vd->width, vd->height) < 0) {
+                return -1;
+            }
+            break;
+        case V4L2_EVENT_EOS:
+            IPRINT("V4L2_EVENT_EOS\n");
+            break;
         }
     }
     return 0;
@@ -935,33 +955,32 @@ int setResolution(struct vdIn *vd, int width, int height)
 {
     vd->streamingState = STREAMING_PAUSED;
     if (video_disable(vd, STREAMING_PAUSED) < 0) {
-        DBG(" Unable to disable streaming\n");
+        IPRINT("Unable to disable streaming\n");
         return -1;
     }
 
-    DBG(" Unmap buffers\n");
+    DBG("Unmap buffers\n");
     for (int i = 0; i < NB_BUFFER; i++) {
         munmap(vd->mem[i], vd->buf.length);
     }
 
     if (CLOSE_VIDEO(vd->fd) == 0) {
-        DBG(" Device closed successfully\n");
+        DBG("Device closed successfully\n");
     }
 
     vd->width = width;
     vd->height = height;
     if (init_v4l2(vd) < 0) {
-        fprintf(stderr, " Init v4L2 failed !! exit fatal \n");
         return -1;
     }
 
     free_framebuffer(vd);
     if (init_framebuffer(vd) < 0) {
-        fprintf(stderr, " Can\'t reallocate framebuffer\n");
+        IPRINT("Can\'t reallocate framebuffer\n");
         return -1;
     }
 
-    DBG(" setResolution(%d, %d) done, enabling the video...\n", width, height);
+    DBG("setResolution(%d, %d) done, enabling the video...\n", width, height);
     return video_enable(vd);
 }
 

@@ -157,6 +157,7 @@ int close_v4l2(struct vdIn *vd);
 
 int video_enable(struct vdIn *vd);
 int video_set_dv_timings(struct vdIn *vd);
+int video_handle_event(struct vdIn *vd);
 
 int v4l2GetControl(struct vdIn *vd, int control);
 int v4l2SetControl(struct vdIn *vd, int control, int value, int plugin_number, globals *pglobal);
