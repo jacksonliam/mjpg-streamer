@@ -21,7 +21,7 @@
 
 // dumb 4 byte storing to detect double CRLF
 int is_crlf(int bytes) {
-    int result = (((13 << 8) | (10)) & bytes) == ((13 << 8) | (10));
+    int result = ( 0xffff & bytes) == ((13 << 8) | (10));
     return result ;
 }
 
