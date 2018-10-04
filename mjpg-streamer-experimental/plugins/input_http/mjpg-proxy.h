@@ -37,6 +37,7 @@ struct extractor_state {
     
     char * port;
     char * hostname;
+    char * path;
 
     // this is current result
     char buffer [BUFFER_SIZE];
@@ -47,7 +48,8 @@ struct extractor_state {
     int sockfd;
     int part;
     int last_four_bytes;
-    struct search_pattern contentlength;
+    struct search_pattern contentlength_string;
+    struct search_pattern boundary_string;
     struct search_pattern boundary;
 
     int * should_stop;
