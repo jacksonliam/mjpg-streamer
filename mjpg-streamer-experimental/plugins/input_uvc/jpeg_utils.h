@@ -1,1 +1,1 @@
-int compress_image_to_jpeg(struct vdIn *vd, unsigned char *buffer, int size, int quality);
+int compress_image_to_jpeg(struct vdIn *vd, unsigned char *buffer, int size, int quality, unsigned int crop_size_x, unsigned int crop_size_y, unsigned int crop_ref_x, unsigned int crop_ref_y, unsigned char * mask);

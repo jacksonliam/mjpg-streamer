@@ -74,6 +74,9 @@ static unsigned int every = 1;
 static int wantTimestamp = 0;
 static struct timeval timestamp;
 static int softfps = -1;
+static int crop_size_x = 0, crop_size_y = 0, crop_ref_x = 0, crop_ref_y = 0;
+unsigned char * mask = NULL;
+static int mask_size_x = 0, mask_size_y = 0, mask_ref_x = 0, mask_ref_y = 0;
 
 static const struct {
   const char * k;
@@ -211,6 +214,10 @@ int input_init(input_parameter *param, int id)
             {"cb", required_argument, 0, 0},
             {"timestamp", no_argument, 0, 0},
             {"softfps", required_argument, 0, 0},
+            {"c", required_argument, 0, 0},
+            {"crop", required_argument, 0, 0},
+            {"M", required_argument, 0, 0},
+            {"mask", required_argument, 0, 0},
             {0, 0, 0, 0}
         };
 
@@ -228,156 +235,177 @@ int input_init(input_parameter *param, int id)
 
         /* dispatch the given options */
         switch(option_index) {
-        /* h, help */
-        case 0:
-        case 1:
-            DBG("case 0,1\n");
-            help();
-            return 1;
-            break;
+            /* h, help */
+            case 0:
+            case 1:
+                DBG("case 0,1\n");
+                help();
+                return 1;
+                break;
 
-        /* d, device */
-        case 2:
-        case 3:
-            DBG("case 2,3\n");
-            dev = realpath(optarg, NULL);
-            break;
+            /* d, device */
+            case 2:
+            case 3:
+                DBG("case 2,3\n");
+                dev = realpath(optarg, NULL);
+                break;
 
-        /* r, resolution */
-        case 4:
-        case 5:
-            DBG("case 4,5\n");
-            parse_resolution_opt(optarg, &width, &height);
-            break;
+            /* r, resolution */
+            case 4:
+            case 5:
+                DBG("case 4,5\n");
+                parse_resolution_opt(optarg, &width, &height);
+                break;
 
-        /* f, fps */
-        case 6:
-        case 7:
-            DBG("case 6,7\n");
-            fps = atoi(optarg);
-            break;
+            /* f, fps */
+            case 6:
+            case 7:
+                DBG("case 6,7\n");
+                fps = atoi(optarg);
+                break;
 
-        /* y, yuv */
-        #ifndef NO_LIBJPEG
-        case 8:
-        case 9:
-            DBG("case 8,9\n");
-            format = V4L2_PIX_FMT_YUYV;
-            break;
-        #endif
-	/* u, uyvy */
-        #ifndef NO_LIBJPEG
-        case 10:
-        case 11:
-            DBG("case 10,11\n");
-            format = V4L2_PIX_FMT_UYVY;
-            break;
-        #endif
-        /* q, quality */
-        #ifndef NO_LIBJPEG
-        case 12:
-        OPTION_INT(13, quality)
-            settings->quality = MIN(MAX(settings->quality, 0), 100);
-            break;
-        #endif
-        /* m, minimum_size */
-        case 14:
-        case 15:
-            DBG("case 14,15\n");
-            minimum_size = MAX(atoi(optarg), 0);
-            break;
+            /* y, yuv */
+            #ifndef NO_LIBJPEG
+            case 8:
+            case 9:
+                DBG("case 8,9\n");
+                format = V4L2_PIX_FMT_YUYV;
+                break;
+            #endif
+            /* u, uyvy */
+            #ifndef NO_LIBJPEG
+            case 10:
+            case 11:
+                DBG("case 10,11\n");
+                format = V4L2_PIX_FMT_UYVY;
+                break;
+            #endif
+            /* q, quality */
+            #ifndef NO_LIBJPEG
+            case 12:
+            OPTION_INT(13, quality)
+                settings->quality = MIN(MAX(settings->quality, 0), 100);
+                break;
+            #endif
+            /* m, minimum_size */
+            case 14:
+            case 15:
+                DBG("case 14,15\n");
+                minimum_size = MAX(atoi(optarg), 0);
+                break;
 
-        /* n, no_dynctrl */
-        case 16:
-        case 17:
-            DBG("case 16,17\n");
-            dynctrls = 0;
-            break;
+            /* n, no_dynctrl */
+            case 16:
+            case 17:
+                DBG("case 16,17\n");
+                dynctrls = 0;
+                break;
 
             /* l, led */
-        case 18:
-        case 19:/*
-        DBG("case 18,19\n");
-        if ( strcmp("on", optarg) == 0 ) {
-          led = IN_CMD_LED_ON;
-        } else if ( strcmp("off", optarg) == 0 ) {
-          led = IN_CMD_LED_OFF;
-        } else if ( strcmp("auto", optarg) == 0 ) {
-          led = IN_CMD_LED_AUTO;
-        } else if ( strcmp("blink", optarg) == 0 ) {
-          led = IN_CMD_LED_BLINK;
-        }*/
-            break;
-        /* fourcc */
-        #ifndef NO_LIBJPEG
-        case 20:
-            DBG("case 20\n");
-            if (strcmp(optarg, "RGBP") == 0) {
-                format = V4L2_PIX_FMT_RGB565;
-            } else {
-              fprintf(stderr," i: FOURCC codec '%s' not supported\n", optarg);
-            }
-            break;
-        #endif
-        /* t, tvnorm */
-        case 21:
-        case 22:
-            DBG("case 21,22\n");
-            if (strcasecmp("pal",optarg) == 0 ) {
-	             tvnorm = V4L2_STD_PAL;
-            } else if ( strcasecmp("ntsc",optarg) == 0 ) {
-	             tvnorm = V4L2_STD_NTSC;
-            } else if ( strcasecmp("secam",optarg) == 0 ) {
-	             tvnorm = V4L2_STD_SECAM;
-            }
-            break;
-        case 23:
-        /* e, every */
-        case 24:
-            DBG("case 24\n");
-            every = MAX(atoi(optarg), 1);
-            break;
+            case 18:
+            case 19:/*
+            DBG("case 18,19\n");
+            if ( strcmp("on", optarg) == 0 ) {
+              led = IN_CMD_LED_ON;
+            } else if ( strcmp("off", optarg) == 0 ) {
+              led = IN_CMD_LED_OFF;
+            } else if ( strcmp("auto", optarg) == 0 ) {
+              led = IN_CMD_LED_AUTO;
+            } else if ( strcmp("blink", optarg) == 0 ) {
+              led = IN_CMD_LED_BLINK;
+            }*/
+                break;
+            /* fourcc */
+            #ifndef NO_LIBJPEG
+            case 20:
+                DBG("case 20\n");
+                if (strcmp(optarg, "RGBP") == 0) {
+                    format = V4L2_PIX_FMT_RGB565;
+                } else {
+                  fprintf(stderr," i: FOURCC codec '%s' not supported\n", optarg);
+                }
+                break;
+            #endif
+            /* t, tvnorm */
+            case 21:
+            case 22:
+                DBG("case 21,22\n");
+                if (strcasecmp("pal",optarg) == 0 ) {
+                    tvnorm = V4L2_STD_PAL;
+                } else if ( strcasecmp("ntsc",optarg) == 0 ) {
+                    tvnorm = V4L2_STD_NTSC;
+                } else if ( strcasecmp("secam",optarg) == 0 ) {
+                    tvnorm = V4L2_STD_SECAM;
+                }
+                break;
+            case 23:
+            /* e, every */
+            case 24:
+                DBG("case 24\n");
+                every = MAX(atoi(optarg), 1);
+                break;
 
-        /* options */
-        OPTION_INT(25, sh)
-            break;
-        OPTION_INT(26, co)
-            break;
-        OPTION_INT_AUTO(27, br)
-            break;
-        OPTION_INT(28, sa)
-            break;
-        OPTION_INT_AUTO(29, wb)
-            break;
-        OPTION_MULTI_OR_INT(30, ex_auto, V4L2_EXPOSURE_MANUAL, ex, exposures)
-            break;
-        OPTION_INT(31, bk)
-            break;
-        OPTION_INT(32, rot)
-            break;
-        OPTION_BOOL(33, hf)
-            break;
-        OPTION_BOOL(34, vf)
-            break;
-        OPTION_MULTI(35, pl, power_line)
-            break;
-        OPTION_INT_AUTO(36, gain)
-            break;
-        OPTION_INT_AUTO(37, cagc)
-            break;
-        OPTION_INT_AUTO(38, cb)
-            break;
-        case 39:
-            wantTimestamp = 1;
-            break;
-       case 40:
-           softfps = atoi(optarg);
-           break;
-       default:
-           DBG("default case\n");
-           help();
-           return 1;
-      }
+            /* options */
+            OPTION_INT(25, sh)
+                break;
+            OPTION_INT(26, co)
+                break;
+            OPTION_INT_AUTO(27, br)
+                break;
+            OPTION_INT(28, sa)
+                break;
+            OPTION_INT_AUTO(29, wb)
+                break;
+            OPTION_MULTI_OR_INT(30, ex_auto, V4L2_EXPOSURE_MANUAL, ex, exposures)
+                break;
+            OPTION_INT(31, bk)
+                break;
+            OPTION_INT(32, rot)
+                break;
+            OPTION_BOOL(33, hf)
+                break;
+            OPTION_BOOL(34, vf)
+                break;
+            OPTION_MULTI(35, pl, power_line)
+                break;
+            OPTION_INT_AUTO(36, gain)
+                break;
+            OPTION_INT_AUTO(37, cagc)
+                break;
+            OPTION_INT_AUTO(38, cb)
+                break;
+            case 39:
+                wantTimestamp = 1;
+                break;
+            case 40:
+                softfps = atoi(optarg);
+                break;
+
+            /* c, crop */
+            case 41:
+            case 42:
+                DBG("case 41,42\n");
+                crop_size_x = atoi(strtok(optarg, ":"));
+                crop_size_y = atoi(strtok(NULL, ":"));
+                crop_ref_x = atoi(strtok(NULL, ":"));
+                crop_ref_y = atoi(strtok(NULL, ":"));
+                break;
+
+            /* M, mask */
+            case 43:
+            case 44:
+                DBG("case 43,44\n");
+                mask_size_x = atoi(strtok(optarg, ":"));
+                mask_size_y = atoi(strtok(NULL, ":"));
+                mask_ref_x = atoi(strtok(NULL, ":"));
+                mask_ref_y = atoi(strtok(NULL, ":"));
+                break;
+
+            default:
+                DBG("default case\n");
+                help();
+                return 1;
+        }
     }
     DBG("input id: %d\n", id);
     pctx->id = id;
@@ -475,6 +503,7 @@ Return Value: always 0
 ******************************************************************************/
 int input_run(int id)
 {
+    int x, y, width, height;
     input * in = &pglobal->in[id];
     context *pctx = (context*)in->context;
     
@@ -483,6 +512,28 @@ int input_run(int id)
         fprintf(stderr, "could not allocate memory\n");
         exit(EXIT_FAILURE);
     }
+
+    // creating mask...
+    if (crop_size_x && crop_size_y) {
+        width = crop_size_x;
+        height = crop_size_y;
+    } else {
+        width = pctx->videoIn->width;
+        height = pctx->videoIn->height;
+    }
+    //IPRINT("creating mask...\n");
+    if (mask_size_x && mask_size_y) {
+        mask = malloc(width * height * sizeof (unsigned char));
+        for(x=0; x<width; x++) {
+            for(y=0; y<height; y++) {
+                if (((x - mask_ref_x)*(x - mask_ref_x) + ((y - mask_ref_y)*mask_size_x/mask_size_y)*((y - mask_ref_y)*mask_size_x/mask_size_y)) < mask_size_x*mask_size_x/4.0 )
+                    mask[x + (y*width)] = 1;
+                else
+                    mask[x + (y*width)] = 0;
+            }
+        }
+    }
+    //IPRINT("creating mask done...\n");
 
     DBG("launching camera thread #%02d\n", id);
     /* create thread and pass context to thread function */
@@ -531,6 +582,12 @@ void help(void)
     " [-timestamp ]..........: Populate frame timestamp with system time\n" \
     " [-softfps] ............: Drop frames to try and achieve this fps\n" \
     "                          set your camera to its maximum fps to avoid stuttering\n" \
+    " [-c | --crop ].........: crop the input stream and keep only selected rectangle,\n" \
+    "                          defined by parameter \"sizeX:sizeY:originX:originY\",\n" \
+    "                          origin related to upper-left corner.\n" \
+    " [-M | --mask ].........: define positive mask of elliptic shape on the image,\n" \
+    "                          defined by parameter \"sizeX:sizeY:originX:originY\",\n" \
+    "                          origin related to upper-left corner, defining center.\n" \
     " ---------------------------------------------------------------\n");
 
     fprintf(stderr, "\n"\
@@ -718,12 +775,13 @@ void *cam_thread(void *arg)
 	    (pcontext->videoIn->formatIn == V4L2_PIX_FMT_UYVY) ||
 	    (pcontext->videoIn->formatIn == V4L2_PIX_FMT_RGB565) ) {
             DBG("compressing frame from input: %d\n", (int)pcontext->id);
-            pglobal->in[pcontext->id].size = compress_image_to_jpeg(pcontext->videoIn, pglobal->in[pcontext->id].buf, pcontext->videoIn->framesizeIn, quality);
+	    pglobal->in[pcontext->id].size = compress_image_to_jpeg(pcontext->videoIn, pglobal->in[pcontext->id].buf, pcontext->videoIn->framesizeIn, settings->quality, crop_size_x, crop_size_y, crop_ref_x, crop_ref_y, mask);
             /* copy this frame's timestamp to user space */
             pglobal->in[pcontext->id].timestamp = pcontext->videoIn->tmptimestamp;
         } else {
         #endif
             DBG("copying frame from input: %d\n", (int)pcontext->id);
+	    // TODO: should add crop and mask functionality also for jpeg-source variant...
             pglobal->in[pcontext->id].size = memcpy_picture(pglobal->in[pcontext->id].buf, pcontext->videoIn->tmpbuffer, pcontext->videoIn->tmpbytesused);
             /* copy this frame's timestamp to user space */
             pglobal->in[pcontext->id].timestamp = pcontext->videoIn->tmptimestamp;
@@ -769,6 +827,9 @@ void cam_cleanup(void *arg)
         pctx->videoIn = NULL;
     }
     
+    if(mask != NULL)
+        free(mask);
+
     free(in->buf);
     in->buf = NULL;
     in->size = 0;
