@@ -44,23 +44,26 @@
 #define TRUE 1
 #define FALSE 0
 
-const char * CONTENT_LENGTH = "Content-Length:";
-// TODO: this must be decoupled from mjpeg-streamer
-const char * BOUNDARY =     "--boundarydonotcross";
+const char * CONTENTLENGTH_STRING = "Content-Length:";
+const char * BOUNDARY_STRING = "boundary=";
 
 void init_extractor_state(struct extractor_state * state) {
     state->length = 0;
     state->part = HEADER;
     state->last_four_bytes = 0;
-    state->contentlength.string = CONTENT_LENGTH;
-    state->boundary.string = BOUNDARY;
-    search_pattern_reset(&state->contentlength);
+    search_pattern_reset(&state->contentlength_string);
+    search_pattern_reset(&state->boundary_string);
     search_pattern_reset(&state->boundary);
 }
 
 void init_mjpg_proxy(struct extractor_state * state){
     state->hostname = strdup("localhost");
     state->port = strdup("8080");
+    state->path = strdup("/?action=stream");
+
+    state->contentlength_string.string = CONTENTLENGTH_STRING;
+    state->boundary_string.string = BOUNDARY_STRING;
+    state->boundary.string = strdup("--boundarydonotcross");
 
     init_extractor_state(state);
 }
@@ -71,22 +74,53 @@ void init_mjpg_proxy(struct extractor_state * state){
 // TODO; decouple from mjpeg streamer and ensure content-length processing
 //       for that, we must properly work with headers, not just detect them
 void extract_data(struct extractor_state * state, char * buffer, int length) {
+
     int i;
+    char * buffer2;
+
+    if (strncmp (buffer, "HTTP/", 5) == 0) {
+        // HTTP response - we will try to parse at least the boundary string
+        for (i = 0; i < length && !*(state->should_stop); i++) {
+	    search_pattern_compare(&state->boundary_string, buffer[i]);
+            if (search_pattern_matches(&state->boundary_string)) {
+	        DBG("Boundary_string found, let's parse the value!\n");
+		i++;
+		buffer2 = strstr(&buffer[i], "\r\n");
+		if(buffer2 == NULL)
+		    return;
+		if (buffer[i]=='-' && buffer[i+1]=='-')
+		    i=i+2;	// sometimes the string already contains the "--" prefix
+		if(buffer2 == &buffer[i])
+		    return;	// the string seems to be empty, rather use the default value
+
+                *buffer2 = '\0';
+                free(state->boundary.string);
+                state->boundary.string = (char*) malloc (strlen(&buffer[i]) + 3 * sizeof(char));
+                sprintf(state->boundary.string, "--%s", &buffer[i]);
+                search_pattern_reset(&state->boundary);
+
+                DBG("The new boundary string: %s\n", state->boundary.string);
+		return;
+	    }
+	}
+        return;		// the rest of this response is supposed to be also part of http header
+    }
+
     for (i = 0; i < length && !*(state->should_stop); i++) {
         switch (state->part) {
         case HEADER:
             push_byte(&state->last_four_bytes, buffer[i]);
             if (is_crlfcrlf(state->last_four_bytes))
                 state->part = CONTENT;
-            else if (is_crlf(state->last_four_bytes))
-                search_pattern_reset(&state->contentlength);
+            /*else if (is_crlf(state->last_four_bytes))
+                search_pattern_reset(&state->contentlength_string);
             else {
-                search_pattern_compare(&state->contentlength, buffer[i]);
-                if (search_pattern_matches(&state->contentlength)) {
+                search_pattern_compare(&state->contentlength_string, buffer[i]);
+                if (search_pattern_matches(&state->contentlength_string)) {
                     DBG("Content length found\n");
-                    search_pattern_reset(&state->contentlength);
+                    search_pattern_reset(&state->contentlength_string);
                 }
-            }
+            }*/
             break;
 
         case CONTENT:
@@ -110,16 +144,21 @@ void extract_data(struct extractor_state * state, char * buffer, int length) {
 
 }
 
-char request [] = "GET /?action=stream HTTP/1.0\r\n\r\n";
 
 void send_request_and_process_response(struct extractor_state * state) {
     int recv_length;
     char netbuffer[NETBUFFER_SIZE];
 
     init_extractor_state(state);
-    
+
+    DBG("path is: %s\n", state->path);
+    char *request = (char*) malloc (19 * sizeof(char) + sizeof(state->path));
+    sprintf(request, "GET %s HTTP/1.0\r\n\r\n", state->path);
+
     // send request
-    send(state->sockfd, request, sizeof(request), 0);
+    send(state->sockfd, request, strlen(request), 0);
+
+    free (request);
 
     // and listen for answer until sockerror or THEY stop us 
     // TODO: we must handle EINTR here, it really might occur
@@ -139,6 +178,7 @@ fprintf(stderr, " --------------------------------------------------------------
                 " [-h | --help]............: show this message\n"
                 " [-H | --host]............: select host to data from, localhost is default\n"
                 " [-p | --port]............: port, defaults to 8080\n"
+                " [-P | --path]............: path (+query), defaults to /?action=stream\n"
                 " ---------------------------------------------------------------\n", program_name);
 }
 // TODO: this must be reworked, too. I don't know how
@@ -153,11 +193,12 @@ int parse_cmd_line(struct extractor_state * state, int argc, char * argv []) {
             {"version", no_argument, 0, 'v'},
             {"host", required_argument, 0, 'H'},
             {"port", required_argument, 0, 'p'},
+            {"path", required_argument, 0, 'P'},
             {0,0,0,0}
         };
 
         int index = 0, c = 0;
-        c = getopt_long_only(argc,argv, "hvH:p:", long_options, &index);
+        c = getopt_long_only(argc,argv, "hvH:p:P:", long_options, &index);
 
         if (c==-1) break;
 
@@ -182,6 +223,10 @@ int parse_cmd_line(struct extractor_state * state, int argc, char * argv []) {
             case 'p' :
                 free(state->port);
                 state->port = strdup(optarg);
+                break;
+            case 'P' :
+                free(state->path);
+                state->path = strdup(optarg);
                 break;
             }
     }
@@ -240,5 +285,7 @@ void connect_and_stream(struct extractor_state * state){
 void close_mjpg_proxy(struct extractor_state * state){
     free(state->hostname);
     free(state->port);
+    free(state->path);
+    free(state->boundary.string);
 }
 

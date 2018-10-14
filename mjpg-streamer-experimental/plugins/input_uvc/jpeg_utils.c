@@ -138,16 +138,24 @@ Input Value.: video structure from v4l2uvc.c/h, destination buffer and buffersiz
               the buffer must be large enough, no error/size checking is done!
 Return Value: the buffer will contain the compressed data
 ******************************************************************************/
-int compress_image_to_jpeg(struct vdIn *vd, unsigned char *buffer, int size, int quality)
+int compress_image_to_jpeg(struct vdIn *vd, unsigned char *buffer, int size, int quality, unsigned int crop_size_x, unsigned int crop_size_y, unsigned int crop_ref_x, unsigned int crop_ref_y, unsigned char * mask)
 {
     struct jpeg_compress_struct cinfo;
     struct jpeg_error_mgr jerr;
     JSAMPROW row_pointer[1];
     unsigned char *line_buffer, *yuyv;
-    int z;
+    int z, x2, y2;
     static int written;
 
-    line_buffer = calloc(vd->width * 3, 1);
+    if(crop_size_x == 0 || crop_size_y == 0) {
+        crop_size_x = vd->width;
+        crop_size_y = vd->height;
+        crop_ref_x = 0;
+        crop_ref_y = 0;
+    }
+
+    line_buffer = calloc(crop_size_x * 3, 1);
+
     yuyv = vd->framebuffer;
 
     cinfo.err = jpeg_std_error(&jerr);
@@ -155,8 +163,8 @@ int compress_image_to_jpeg(struct vdIn *vd, unsigned char *buffer, int size, int
     /* jpeg_stdio_dest (&cinfo, file); */
     dest_buffer(&cinfo, buffer, size, &written);
 
-    cinfo.image_width = vd->width;
-    cinfo.image_height = vd->height;
+    cinfo.image_width = crop_size_x;
+    cinfo.image_height = crop_size_y;
     cinfo.input_components = 3;
     cinfo.in_color_space = JCS_RGB;
 
@@ -165,93 +173,107 @@ int compress_image_to_jpeg(struct vdIn *vd, unsigned char *buffer, int size, int
 
     jpeg_start_compress(&cinfo, TRUE);
 
-    z = 0;
-    if (vd->formatIn == V4L2_PIX_FMT_YUYV) {
-        while(cinfo.next_scanline < vd->height) {
-            int x;
+    if (vd->formatIn == V4L2_PIX_FMT_YUYV || vd->formatIn == V4L2_PIX_FMT_UYVY) {
+
+        // skip to first line, defined by crop area (the division by integer 2 is intentional)
+	yuyv += (vd->width * crop_ref_y) / 2 * 4;
+	z = (vd->width * crop_ref_y) % 2;
+	y2 = 0;
+
+        while(cinfo.next_scanline < crop_size_y) {
             unsigned char *ptr = line_buffer;
 
+            yuyv += (crop_ref_x + z) / 2 * 4;
+	    z = (crop_ref_x + z) % 2;
 
-            for(x = 0; x < vd->width; x++) {
+	    for(x2 = 0; x2 < crop_size_x; x2++) {
                 int r, g, b;
                 int y, u, v;
 
-                if(!z)
-                    y = yuyv[0] << 8;
-                else
-                    y = yuyv[2] << 8;
-                u = yuyv[1] - 128;
-                v = yuyv[3] - 128;
+		if (vd->formatIn == V4L2_PIX_FMT_YUYV) {
+                    if(!z)
+                        y = yuyv[0] << 8;
+                    else
+                        y = yuyv[2] << 8;
+                    u = yuyv[1] - 128;
+                    v = yuyv[3] - 128;
+		} else { // i.e. vd->formatIn == V4L2_PIX_FMT_UYVY
+                    if(!z)
+                        y = yuyv[1] << 8;
+                    else
+                        y = yuyv[3] << 8;
+                    u = yuyv[0] - 128;
+                    v = yuyv[2] - 128;
+		}
 
-                r = (y + (359 * v)) >> 8;
-                g = (y - (88 * u) - (183 * v)) >> 8;
-                b = (y + (454 * u)) >> 8;
 
-                *(ptr++) = (r > 255) ? 255 : ((r < 0) ? 0 : r);
-                *(ptr++) = (g > 255) ? 255 : ((g < 0) ? 0 : g);
-                *(ptr++) = (b > 255) ? 255 : ((b < 0) ? 0 : b);
+                if (mask == NULL || mask[x2 + (y2*crop_size_x)]) {
+                    if(!z)
+                        y = yuyv[0] << 8;
+                    else
+                        y = yuyv[2] << 8;
+                    u = yuyv[1] - 128;
+                    v = yuyv[3] - 128;
+
+                    r = (y + (359 * v)) >> 8;
+                    g = (y - (88 * u) - (183 * v)) >> 8;
+                    b = (y + (454 * u)) >> 8;
+
+                    *(ptr++) = (r > 255) ? 255 : ((r < 0) ? 0 : r);
+                    *(ptr++) = (g > 255) ? 255 : ((g < 0) ? 0 : g);
+                    *(ptr++) = (b > 255) ? 255 : ((b < 0) ? 0 : b);
+                 } else {
+                    *(ptr++) = 0;
+                    *(ptr++) = 0;
+                    *(ptr++) = 0;
+                }
 
                 if(z++) {
                     z = 0;
                     yuyv += 4;
                 }
             }
+
+            yuyv += (vd->width - (crop_ref_x + crop_size_x) + z) / 2 * 4;
+            z = (vd->width - (crop_ref_x + crop_size_x) + z) % 2;
+            y2++;
 
             row_pointer[0] = line_buffer;
             jpeg_write_scanlines(&cinfo, row_pointer, 1);
         }
     } else if (vd->formatIn == V4L2_PIX_FMT_RGB565) {
-        while(cinfo.next_scanline < vd->height) {
-            int x;
+        // skip to first line, defined by crop area
+	yuyv += (vd->width * crop_ref_y) * 2;
+	y2 = 0;
+
+        while(cinfo.next_scanline < crop_size_y) {
             unsigned char *ptr = line_buffer;
 
-            for(x = 0; x < vd->width; x++) {
-                /*
-                unsigned int tb = ((unsigned char)raw[i+1] << 8) + (unsigned char)raw[i];
-                r =  ((unsigned char)(raw[i+1]) & 248);
-                g = (unsigned char)(( tb & 2016) >> 3);
-                b =  ((unsigned char)raw[i] & 31) * 8;
-                */
-                unsigned int twoByte = (yuyv[1] << 8) + yuyv[0];
-                *(ptr++) = (yuyv[1] & 248);
-                *(ptr++) = (unsigned char)((twoByte & 2016) >> 3);
-                *(ptr++) = ((yuyv[0] & 31) * 8);
-                yuyv += 2;
-            }
+            yuyv += crop_ref_x * 2;
 
-            row_pointer[0] = line_buffer;
-            jpeg_write_scanlines(&cinfo, row_pointer, 1);
-        }
-    }  else if (vd->formatIn == V4L2_PIX_FMT_UYVY) {
-        while(cinfo.next_scanline < vd->height) {
-            int x;
-            unsigned char *ptr = line_buffer;
-
-
-            for(x = 0; x < vd->width; x++) {
-                int r, g, b;
-                int y, u, v;
-
-                if(!z)
-                    y = yuyv[1] << 8;
-                else
-                    y = yuyv[3] << 8;
-                u = yuyv[0] - 128;
-                v = yuyv[2] - 128;
-
-                r = (y + (359 * v)) >> 8;
-                g = (y - (88 * u) - (183 * v)) >> 8;
-                b = (y + (454 * u)) >> 8;
-
-                *(ptr++) = (r > 255) ? 255 : ((r < 0) ? 0 : r);
-                *(ptr++) = (g > 255) ? 255 : ((g < 0) ? 0 : g);
-                *(ptr++) = (b > 255) ? 255 : ((b < 0) ? 0 : b);
-
-                if(z++) {
-                    z = 0;
-                    yuyv += 4;
+	    for(x2 = 0; x2 < crop_size_x; x2++) {
+                if (mask == NULL || mask[x2 + (y2*crop_size_x)]) {
+                    /*
+                    unsigned int tb = ((unsigned char)raw[i+1] << 8) + (unsigned char)raw[i];
+                    r =  ((unsigned char)(raw[i+1]) & 248);
+                    g = (unsigned char)(( tb & 2016) >> 3);
+                    b =  ((unsigned char)raw[i] & 31) * 8;
+                    */
+                    unsigned int twoByte = (yuyv[1] << 8) + yuyv[0];
+                    *(ptr++) = (yuyv[1] & 248);
+                    *(ptr++) = (unsigned char)((twoByte & 2016) >> 3);
+                    *(ptr++) = ((yuyv[0] & 31) * 8);
+                 } else {
+                    *(ptr++) = 0;
+                    *(ptr++) = 0;
+                    *(ptr++) = 0;
                 }
+                yuyv += 2;
+
             }
+
+            yuyv += (vd->width - (crop_ref_x + crop_size_x)) * 2;
+            y2++;
 
             row_pointer[0] = line_buffer;
             jpeg_write_scanlines(&cinfo, row_pointer, 1);
