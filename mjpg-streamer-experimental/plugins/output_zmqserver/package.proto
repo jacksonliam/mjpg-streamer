@@ -1,0 +1,13 @@
+syntax = "proto2";
+package pb;
+
+message Package {
+    message Frame {
+        required uint32       timestamp_unix = 1;
+        required uint32       timestamp_s   = 2;
+        required uint32       timestamp_us  = 3;
+        required bytes        blob          = 4;
+    }
+
+    repeated Frame frame = 1;
+}
