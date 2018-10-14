@@ -4,13 +4,6 @@ include(FindProtobuf-c)
 MJPG_STREAMER_PLUGIN_OPTION(output_zmqserver "ZMQ Server output plugin"
                             ONLYIF ZeroMQ_LIBRARY PROTOBUF_C_LIBRARY)
 
-if (NOT ZeroMQ_LIBRARY)
-    message(WARNING Optional dependency ZeroMQ not found)
-endif()
-
-if (NOT PROTOBUF_C_LIBRARY)
-    message(WARNING Optional dependency Protobuf-c not found)
-endif()
 
 if (PLUGIN_OUTPUT_ZMQSERVER)
     protobuf_c_generate(PROTO_SRC PROTO_HEADER package.proto)

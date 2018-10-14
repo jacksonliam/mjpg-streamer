@@ -1,8 +1,5 @@
 # mjpg-streamer output plugin: output_zmqserver
 
-This is a simple plugin that will display the input plugin stream in an SDL
-window.
-
 This plugin streams out the video data via
 [ZeroMQ](http://zeromq.org/) serialized as
 [Protobuf](https://developers.google.com/protocol-buffers/) data.
