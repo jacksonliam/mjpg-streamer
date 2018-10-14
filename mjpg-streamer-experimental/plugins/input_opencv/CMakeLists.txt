@@ -7,6 +7,7 @@ MJPG_STREAMER_PLUGIN_OPTION(input_opencv "OpenCV input plugin"
                             ONLYIF OpenCV_FOUND)
 
 if (PLUGIN_INPUT_OPENCV)
+    enable_language(CXX)
     include_directories(${OpenCV_INCLUDE_DIRS})
 
     MJPG_STREAMER_PLUGIN_COMPILE(input_opencv input_opencv.cpp)
