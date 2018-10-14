@@ -88,12 +88,11 @@ int input_init(input_parameter *param, int id)
     pglobal = param->global;
 
     /* allocate webcam datastructure */
-    this = malloc(sizeof(struct input_uvc));
+    this = calloc(sizeof(struct input_uvc));
     if(this == NULL) {
         IPRINT("not enough memory for videoIn\n");
         exit(EXIT_FAILURE);
     }
-    memset(this, 0, sizeof(struct input_uvc));
     this->min_res = MIN_RES;
 
     /* display the parsed values */
