@@ -966,7 +966,8 @@ int setResolution(struct vdIn *vd, int width, int height)
     }
 
     DBG("Unmap buffers\n");
-    for (int i = 0; i < NB_BUFFER; i++) {
+    int i;
+    for (i = 0; i < NB_BUFFER; i++) {
         munmap(vd->mem[i], vd->buf.length);
     }
 
