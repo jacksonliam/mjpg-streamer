@@ -1,0 +1,126 @@
+diff --git a/README.md b/README.md
+index 6ba75a9..7c1fff9 100644
+--- a/README.md
++++ b/README.md
+@@ -81,15 +81,15 @@ shows the basic steps to enable the experimental HTTP management feature:
+     make
+     sudo make install
+ 
+-Debian package generation and installation
+-------------------------------------------
++Debian package generation and installation for Raspberry Pi (Raspbian)
++----------------------------------------------------------------------
+ 
+ To build and create a Debian package for installation on a Raspberry Pi
+ 
+     cd mjpg-streamer-experimental
+     mkdir _build
+     cd _build
+-    cmake ..
++    cmake -DRASPBIAN_PACKAGING=TRUE ..
+     make
+     cpack -G DEB
+ 
+@@ -97,6 +97,7 @@ To install package
+ 
+     sudo dpkg -i mjpg-streamer_2.0_armhf.deb
+ 
++
+ Usage
+ =====
+ From the mjpeg streamer experimental
+diff --git a/mjpg-streamer-experimental/CMakeLists.txt b/mjpg-streamer-experimental/CMakeLists.txt
+index a387bec..bfb62c3 100644
+--- a/mjpg-streamer-experimental/CMakeLists.txt
++++ b/mjpg-streamer-experimental/CMakeLists.txt
+@@ -109,29 +109,32 @@ feature_summary(WHAT ALL)
+ 
+ 
+ #
+-# Packaging support
+-#
+-
+-configure_file(mjpg_streamer@.service ${CMAKE_BINARY_DIR})
+-install (FILES ${CMAKE_BINARY_DIR}/mjpg_streamer@.service DESTINATION /lib/systemd/system)
+-
+-execute_process(COMMAND bash -c "grep '#define SOURCE_VERSION' mjpg_streamer.h | awk '{gsub(/\"/, \"\"); print $3}'"
+-    OUTPUT_VARIABLE PKG_VERSION
+-    OUTPUT_STRIP_TRAILING_WHITESPACE
+-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+-)
+-execute_process(COMMAND dpkg --print-architecture
+-    OUTPUT_VARIABLE DPKG_ARCH
+-    OUTPUT_STRIP_TRAILING_WHITESPACE
+-)
+-set (CPACK_DEBIAN_PACKAGE_MAINTAINER <https://github.com/jacksonliam/mjpg-streamer>)
+-set (CPACK_DEBIAN_PACKAGE_DESCRIPTION "A server for streaming Motion-JPEG from a video capture device")
+-set (CPACK_DEBIAN_PACKAGE_DEPENDS "libjpeg8")
+-set (CPACK_PACKAGE_VERSION ${PKG_VERSION})
+-set (CPACK_PACKAGE_FILE_NAME mjpg-streamer_${CPACK_PACKAGE_VERSION}_${DPKG_ARCH})
+-set (CPACK_PACKAGING_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX})
+-set (CPACK_STRIP_FILES TRUE)
+-include(CPack)
++# Raspbian DEB packaging support
++#
++if(${RASPBIAN_PACKAGING})
++	message(STATUS "Raspbian DEB Packaging Enabled")
++	set(SERVICE_NAME mjpg_streamer@.service)
++	configure_file(${SERVICE_NAME}_pi ${CMAKE_BINARY_DIR})
++	install(FILES ${CMAKE_BINARY_DIR}/${SERVICE_NAME}_pi DESTINATION /lib/systemd/system RENAME ${SERVICE_NAME})
++
++	execute_process(COMMAND bash -c "grep '#define SOURCE_VERSION' mjpg_streamer.h | awk '{gsub(/\"/, \"\"); print $3}'"
++	    OUTPUT_VARIABLE PKG_VERSION
++	    OUTPUT_STRIP_TRAILING_WHITESPACE
++	    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
++	)
++	execute_process(COMMAND dpkg --print-architecture
++	    OUTPUT_VARIABLE DPKG_ARCH
++	    OUTPUT_STRIP_TRAILING_WHITESPACE
++	)
++	set(CPACK_DEBIAN_PACKAGE_MAINTAINER <https://github.com/jacksonliam/mjpg-streamer>)
++	set(CPACK_DEBIAN_PACKAGE_DESCRIPTION "A server for streaming Motion-JPEG from a video capture device")
++	set(CPACK_DEBIAN_PACKAGE_DEPENDS "libjpeg8")
++	set(CPACK_PACKAGE_VERSION ${PKG_VERSION})
++	set(CPACK_PACKAGE_FILE_NAME mjpg-streamer_${CPACK_PACKAGE_VERSION}_${DPKG_ARCH})
++	set(CPACK_PACKAGING_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX})
++	set(CPACK_STRIP_FILES TRUE)
++	include(CPack)
++endif()
+ 
+ 
+ #
+diff --git a/mjpg-streamer-experimental/mjpg_streamer@.service b/mjpg-streamer-experimental/mjpg_streamer@.service
+index c8b5e4f..1632969 100644
+--- a/mjpg-streamer-experimental/mjpg_streamer@.service
++++ b/mjpg-streamer-experimental/mjpg_streamer@.service
+@@ -3,10 +3,8 @@ Description=A server for streaming Motion-JPEG from a video capture device
+ After=network.target
+ 
+ [Service]
+-User=pi
+-ExecStart=${CMAKE_INSTALL_PREFIX}/bin/mjpg_streamer -i 'input_uvc.so -d /dev/%I' -o 'output_http.so -w ${CMAKE_INSTALL_PREFIX}/share/mjpg-streamer/www'
+-Restart=on-failure
+-RestartSec=3
++User=mjpg_streamer
++ExecStart=/usr/bin/mjpg_streamer -i 'input_uvc.so -d /dev/%I' -o 'output_http.so -w /usr/share/mjpg_streamer/www'
+ 
+ [Install]
+ WantedBy=multi-user.target
+diff --git a/mjpg-streamer-experimental/mjpg_streamer@.service_pi b/mjpg-streamer-experimental/mjpg_streamer@.service_pi
+new file mode 100644
+index 0000000..c8b5e4f
+--- /dev/null
++++ b/mjpg-streamer-experimental/mjpg_streamer@.service_pi
+@@ -0,0 +1,12 @@
++[Unit]
++Description=A server for streaming Motion-JPEG from a video capture device
++After=network.target
++
++[Service]
++User=pi
++ExecStart=${CMAKE_INSTALL_PREFIX}/bin/mjpg_streamer -i 'input_uvc.so -d /dev/%I' -o 'output_http.so -w ${CMAKE_INSTALL_PREFIX}/share/mjpg-streamer/www'
++Restart=on-failure
++RestartSec=3
++
++[Install]
++WantedBy=multi-user.target

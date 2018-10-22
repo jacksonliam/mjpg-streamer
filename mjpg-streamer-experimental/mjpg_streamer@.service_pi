@@ -1,0 +1,12 @@
+[Unit]
+Description=A server for streaming Motion-JPEG from a video capture device
+After=network.target
+
+[Service]
+User=pi
+ExecStart=${CMAKE_INSTALL_PREFIX}/bin/mjpg_streamer -i 'input_uvc.so -d /dev/%I' -o 'output_http.so -w ${CMAKE_INSTALL_PREFIX}/share/mjpg-streamer/www'
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
