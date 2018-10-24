@@ -9,7 +9,7 @@ if (PLUGIN_INPUT_PTP2)
 
     MJPG_STREAMER_PLUGIN_COMPILE(input_ptp2 input_ptp2.c)
     
-    target_link_libraries(input_ptp2 ${GPHOTO2_LIBRARIES})
+    target_link_libraries(input_ptp2 ${Gphoto2_LIBRARIES})
     
 endif()
 
