@@ -8,7 +8,7 @@ endif()
 
 ## use the hint from above to find where 'zmq.hpp' is located
 find_path(ZeroMQ_INCLUDE_DIR
-        NAMES zmq.hpp
+        NAMES zmq.h
         HINTS ${PC_ZeroMQ_INCLUDEDIR} ${PC_ZeroMQ_INCLUDE_DIRS}
         )
 
