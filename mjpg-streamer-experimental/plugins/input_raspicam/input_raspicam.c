@@ -164,7 +164,8 @@ int input_init(input_parameter *param, int plugin_no)
       {"shutter", required_argument, 0, 0},           // 29
       {"awbgainR", required_argument, 0, 0},          // 30
       {"awbgainB", required_argument, 0, 0},          // 31
-      {"roi", required_argument, 0, 0},               // 32
+		{"roi", required_argument, 0, 0},               // 32
+		{"fli", required_argument, 0, 0},               // 33
       {0, 0, 0, 0}
     };
 
