@@ -138,7 +138,8 @@ typedef struct
    int exposureCompensation;  /// -10 to +10 ?
    MMAL_PARAM_EXPOSUREMODE_T exposureMode;
    MMAL_PARAM_EXPOSUREMETERINGMODE_T exposureMeterMode;
-   MMAL_PARAM_AWBMODE_T awbMode;
+	MMAL_PARAM_AWBMODE_T awbMode;
+	MMAL_PARAM_FLICKERAVOID_T flickerMode;
    MMAL_PARAM_IMAGEFX_T imageEffect;
    MMAL_PARAMETER_IMAGEFX_PARAMETERS_T imageEffectsParameters;
    MMAL_PARAM_COLOURFX_T colourEffects;
@@ -185,6 +186,7 @@ int raspicamcontrol_set_video_stabilisation(MMAL_COMPONENT_T *camera, int vstabi
 int raspicamcontrol_set_exposure_compensation(MMAL_COMPONENT_T *camera, int exp_comp);
 int raspicamcontrol_set_exposure_mode(MMAL_COMPONENT_T *camera, MMAL_PARAM_EXPOSUREMODE_T mode);
 int raspicamcontrol_set_awb_mode(MMAL_COMPONENT_T *camera, MMAL_PARAM_AWBMODE_T awb_mode);
+int raspicamcontrol_set_flicker_mode(MMAL_COMPONENT_T *camera, MMAL_PARAM_FLICKERAVOID_T flicker_mode);
 int raspicamcontrol_set_awb_gains(MMAL_COMPONENT_T *camera, float r_gain, float b_gain);
 int raspicamcontrol_set_imageFX(MMAL_COMPONENT_T *camera, MMAL_PARAM_IMAGEFX_T imageFX);
 int raspicamcontrol_set_colourFX(MMAL_COMPONENT_T *camera, const MMAL_PARAM_COLOURFX_T *colourFX);
@@ -210,6 +212,7 @@ int raspicamcontrol_get_exposure_compensation(MMAL_COMPONENT_T *camera);
 MMAL_PARAM_THUMBNAIL_CONFIG_T raspicamcontrol_get_thumbnail_parameters(MMAL_COMPONENT_T *camera);
 MMAL_PARAM_EXPOSUREMODE_T raspicamcontrol_get_exposure_mode(MMAL_COMPONENT_T *camera);
 MMAL_PARAM_AWBMODE_T raspicamcontrol_get_awb_mode(MMAL_COMPONENT_T *camera);
+MMAL_PARAM_FLICKERAVOID_T raspicamcontrol_get_flicker_mode(MMAL_COMPONENT_T *camera);
 MMAL_PARAM_IMAGEFX_T raspicamcontrol_get_imageFX(MMAL_COMPONENT_T *camera);
 MMAL_PARAM_COLOURFX_T raspicamcontrol_get_colourFX(MMAL_COMPONENT_T *camera);
 
