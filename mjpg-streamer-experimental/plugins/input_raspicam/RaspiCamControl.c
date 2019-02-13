@@ -218,7 +218,7 @@ static COMMAND_LIST  cmdline_commands[] =
    {CommandStereoDecimate,"-decimate","dec", "Half width/height of stereo image"},
    {CommandStereoSwap,  "-3dswap",    "3dswap", "Swap camera order for stereoscopic"},
    {CommandAnnotateExtras,"-annotateex","ae",  "Set extra annotation parameters (text size, text colour(hex YUV), bg colour(hex YUV))", 2},
-	{CommandFlicker,         "-fli",       "fli","Set Flicker mode (see Notes)", 1},
+   {CommandFlicker,         "-fli",       "fli","Set Flicker mode (see Notes)", 1},
 
 };
 
@@ -622,15 +622,15 @@ static MMAL_STEREOSCOPIC_MODE_T stereo_mode_from_string(const char *str)
 void raspicamcontrol_dump_parameters(const RASPICAM_CAMERA_PARAMETERS *params)
 {
    const char *exp_mode = unmap_xref(params->exposureMode, exposure_map, exposure_map_size);
-	const char *awb_mode = unmap_xref(params->awbMode, awb_map, awb_map_size);
-	const char *flicker_mode = unmap_xref(params->flickerMode, flicker_map, flicker_map_size);
+   const char *awb_mode = unmap_xref(params->awbMode, awb_map, awb_map_size);
+   const char *flicker_mode = unmap_xref(params->flickerMode, flicker_map, flicker_map_size);
    const char *image_effect = unmap_xref(params->imageEffect, imagefx_map, imagefx_map_size);
    const char *metering_mode = unmap_xref(params->exposureMeterMode, metering_mode_map, metering_mode_map_size);
 
    fprintf(stderr, "Sharpness %d, Contrast %d, Brightness %d\n", params->sharpness, params->contrast, params->brightness);
    fprintf(stderr, "Saturation %d, ISO %d, Video Stabilisation %s, Exposure compensation %d\n", params->saturation, params->ISO, params->videoStabilisation ? "Yes": "No", params->exposureCompensation);
    fprintf(stderr, "Exposure Mode '%s', AWB Mode '%s', Image Effect '%s'\n", exp_mode, awb_mode, image_effect);
-	fprintf(stderr, "Flicker Mode '%s', '\n", flicker_mode);
+   fprintf(stderr, "Flicker Mode '%s', '\n", flicker_mode);
    fprintf(stderr, "Metering Mode '%s', Colour Effect Enabled %s with U = %d, V = %d\n", metering_mode, params->colourEffects.enable ? "Yes":"No", params->colourEffects.u, params->colourEffects.v);
    fprintf(stderr, "Rotation %d, hflip %s, vflip %s\n", params->rotation, params->hflip ? "Yes":"No",params->vflip ? "Yes":"No");
    fprintf(stderr, "ROI x %lf, y %f, w %f h %f\n", params->roi.x, params->roi.y, params->roi.w, params->roi.h);
@@ -690,8 +690,8 @@ void raspicamcontrol_set_defaults(RASPICAM_CAMERA_PARAMETERS *params)
    params->exposureCompensation = 0;
    params->exposureMode = MMAL_PARAM_EXPOSUREMODE_AUTO;
    params->exposureMeterMode = MMAL_PARAM_EXPOSUREMETERINGMODE_AVERAGE;
-	params->awbMode = MMAL_PARAM_AWBMODE_AUTO;
-	params->flickerMode = MMAL_PARAM_FLICKERAVOID_AUTO;
+   params->awbMode = MMAL_PARAM_AWBMODE_AUTO;
+   params->flickerMode = MMAL_PARAM_FLICKERAVOID_AUTO;
    params->imageEffect = MMAL_PARAM_IMAGEFX_NONE;
    params->colourEffects.enable = 0;
    params->colourEffects.u = 128;
@@ -765,8 +765,8 @@ int raspicamcontrol_set_all_parameters(MMAL_COMPONENT_T *camera, const RASPICAM_
    result += raspicamcontrol_set_exposure_compensation(camera, params->exposureCompensation);
    result += raspicamcontrol_set_exposure_mode(camera, params->exposureMode);
    result += raspicamcontrol_set_metering_mode(camera, params->exposureMeterMode);
-	result += raspicamcontrol_set_awb_mode(camera, params->awbMode);
-	result += raspicamcontrol_set_flicker_mode(camera, params->flickerMode);
+   result += raspicamcontrol_set_awb_mode(camera, params->awbMode);
+   result += raspicamcontrol_set_flicker_mode(camera, params->flickerMode);
    result += raspicamcontrol_set_awb_gains(camera, params->awb_gains_r, params->awb_gains_b);
    result += raspicamcontrol_set_imageFX(camera, params->imageEffect);
    result += raspicamcontrol_set_colourFX(camera, &params->colourEffects);
@@ -1013,6 +1013,9 @@ int raspicamcontrol_set_awb_mode(MMAL_COMPONENT_T *camera, MMAL_PARAM_AWBMODE_T 
  * @param camera Pointer to camera component
  * @param awb_mode Value to set from
  *   - MMAL_PARAM_FLICKERAVOID_AUTO,
+ *   - MMAL_PARAM_FLICKERAVOID_OFF,
+ *   - MMAL_PARAM_FLICKERAVOID_50HZ,
+ *   - MMAL_PARAM_FLICKERAVOID_60HZ,
  * @return 0 if successful, non-zero if any parameters out of range
  */
 int raspicamcontrol_set_flicker_mode(MMAL_COMPONENT_T *camera, MMAL_PARAM_FLICKERAVOID_T flicker_mode)

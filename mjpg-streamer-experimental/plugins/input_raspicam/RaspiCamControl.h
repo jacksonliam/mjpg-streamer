@@ -138,8 +138,8 @@ typedef struct
    int exposureCompensation;  /// -10 to +10 ?
    MMAL_PARAM_EXPOSUREMODE_T exposureMode;
    MMAL_PARAM_EXPOSUREMETERINGMODE_T exposureMeterMode;
-	MMAL_PARAM_AWBMODE_T awbMode;
-	MMAL_PARAM_FLICKERAVOID_T flickerMode;
+   MMAL_PARAM_AWBMODE_T awbMode;
+   MMAL_PARAM_FLICKERAVOID_T flickerMode;
    MMAL_PARAM_IMAGEFX_T imageEffect;
    MMAL_PARAMETER_IMAGEFX_PARAMETERS_T imageEffectsParameters;
    MMAL_PARAM_COLOURFX_T colourEffects;
