@@ -48,10 +48,10 @@ void search_pattern_reset(struct search_pattern * pattern) {
 
 int search_pattern_compare(struct search_pattern * pattern, char c) {
     if (* (pattern->current_matched_char) == c)
-    {   pattern->current_matched_char ++;
+    {
+        pattern->current_matched_char ++;
         return 1;
-    }
-    else {
+    } else {
         search_pattern_reset(pattern);
         return 0;
     }

@@ -40,7 +40,6 @@
 
 #define HEADER 1
 #define CONTENT 0
-#define BUFFER_SIZE 1024 * 100
 #define NETBUFFER_SIZE 1024 * 4
 #define TRUE 1
 #define FALSE 0
@@ -48,8 +47,6 @@
 const char * CONTENT_LENGTH = "Content-Length:";
 // TODO: this must be decoupled from mjpeg-streamer
 const char * BOUNDARY =     "--boundarydonotcross";
-
-struct extractor_state state;
 
 void init_extractor_state(struct extractor_state * state) {
     state->length = 0;
@@ -62,11 +59,10 @@ void init_extractor_state(struct extractor_state * state) {
 }
 
 void init_mjpg_proxy(struct extractor_state * state){
-state->hostname = strdup("localhost");
-state->port = strdup("8080");
+    state->hostname = strdup("localhost");
+    state->port = strdup("8080");
 
-init_extractor_state(state);
-
+    init_extractor_state(state);
 }
 
 // main method
@@ -86,12 +82,18 @@ void extract_data(struct extractor_state * state, char * buffer, int length) {
                 search_pattern_reset(&state->contentlength);
             else {
                 search_pattern_compare(&state->contentlength, buffer[i]);
-                if (search_pattern_matches(&state->contentlength))
+                if (search_pattern_matches(&state->contentlength)) {
                     DBG("Content length found\n");
+                    search_pattern_reset(&state->contentlength);
+                }
             }
             break;
 
         case CONTENT:
+            if (state->length >= BUFFER_SIZE - 1) {
+                perror("Buffer too small\n");
+                break;
+            }
             state->buffer[state->length++] = buffer[i];
             search_pattern_compare(&state->boundary, buffer[i]);
             if (search_pattern_matches(&state->boundary)) {
@@ -205,7 +207,7 @@ void connect_and_stream(struct extractor_state * state){
                 continue;
             }
 
-            DBG("socket value is %d\n", sockfd);
+            DBG("socket value is %d\n", state->sockfd);
             if (connect(state->sockfd, (struct sockaddr *) rp->ai_addr, rp->ai_addrlen)>=0 ) {
                 DBG("connected to host\n");
                 break;
@@ -236,7 +238,7 @@ void connect_and_stream(struct extractor_state * state){
 }
 
 void close_mjpg_proxy(struct extractor_state * state){
-free(state->hostname);
-free(state->port);
+    free(state->hostname);
+    free(state->port);
 }
 

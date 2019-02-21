@@ -33,7 +33,6 @@
 #include <arpa/inet.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <syslog.h>
 #include <netdb.h>
 #include <errno.h>
 #include <limits.h>
@@ -1466,7 +1465,7 @@ void *server_thread(void *arg)
     hints.ai_socktype = SOCK_STREAM;
 
     snprintf(name, sizeof(name), "%d", ntohs(pcontext->conf.port));
-    if((err = getaddrinfo(NULL, name, &hints, &aip)) != 0) {
+    if((err = getaddrinfo(pcontext->conf.hostname, name, &hints, &aip)) != 0) {
         perror(gai_strerror(err));
         exit(EXIT_FAILURE);
     }
@@ -1575,7 +1574,6 @@ void *server_thread(void *arg)
                 DBG("create thread to handle client that just established a connection\n");
 
                 if(getnameinfo((struct sockaddr *)&client_addr, addr_len, name, sizeof(name), NULL, 0, NI_NUMERICHOST) == 0) {
-                    syslog(LOG_INFO, "serving client: %s\n", name);
                     DBG("serving client: %s\n", name);
                 }
 

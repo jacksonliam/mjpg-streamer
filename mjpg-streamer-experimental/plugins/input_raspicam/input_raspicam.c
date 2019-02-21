@@ -165,6 +165,7 @@ int input_init(input_parameter *param, int plugin_no)
       {"shutter", required_argument, 0, 0},           // 29
       {"awbgainR", required_argument, 0, 0},          // 30
       {"awbgainB", required_argument, 0, 0},          // 31
+      {"roi", required_argument, 0, 0},               // 32
       {0, 0, 0, 0}
     };
 
@@ -249,7 +250,7 @@ int input_init(input_parameter *param, int plugin_no)
         break;
       case 18:
         //color effects
-        sscanf(optarg, "%d:%d", &c_params.colourEffects.u, &c_params.colourEffects.u);
+        sscanf(optarg, "%d:%d", &c_params.colourEffects.u, &c_params.colourEffects.v);
         c_params.colourEffects.enable = 1;
         break;
       case 19:
@@ -303,6 +304,10 @@ int input_init(input_parameter *param, int plugin_no)
       case 31:
         // awb gain blue
         sscanf(optarg, "%f", &c_params.awb_gains_b);
+        break;
+      case 32:
+        // roi
+        sscanf(optarg, "%lf,%lf,%lf,%lf", &c_params.roi.x, &c_params.roi.y, &c_params.roi.w, &c_params.roi.h);
         break;
       default:
         DBG("default case\n");
@@ -801,18 +806,18 @@ void *worker_thread(void *arg)
   {
     fprintf(stderr, "Unable to create JPEG encoder component\n");
     mmal_component_destroy(camera);
-    exit(EXIT_FAILURE);
     if (encoder)
       mmal_component_destroy(encoder);
+    exit(EXIT_FAILURE);
   }
 
   if (!encoder->input_num || !encoder->output_num)
   {
     fprintf(stderr, "Unable to create JPEG encoder input/output ports\n");
     mmal_component_destroy(camera);
-    exit(EXIT_FAILURE);
     if (encoder)
       mmal_component_destroy(encoder);
+    exit(EXIT_FAILURE);
   }
 
   encoder_input = encoder->input[0];

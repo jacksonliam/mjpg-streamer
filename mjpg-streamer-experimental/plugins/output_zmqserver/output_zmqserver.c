@@ -36,23 +36,42 @@
 #include <time.h>
 #include <syslog.h>
 #include <dirent.h>
+#include <netinet/in.h>
+#include <zmq.h>
 
-#include "output_file.h"
+#include <linux/types.h>          /* for videodev2.h */
+#include <linux/videodev2.h>
+
+#include "package.pb-c.h"
+#include "output_zmqserver.h"
 
 #include "../../utils.h"
 #include "../../mjpg_streamer.h"
 
-#define OUTPUT_PLUGIN_NAME "FILE output plugin"
+#define OUTPUT_PLUGIN_NAME "UDPSERVER output plugin"
+
+#define MAX_ZMQ_BUFFER_SIZE 10
 
 static pthread_t worker;
 static globals *pglobal;
-static int fd, delay, ringbuffer_size = -1, ringbuffer_exceed = 0, max_frame_size;
+static int fd, ringbuffer_size = -1, ringbuffer_exceed = 0, max_frame_size;
 static char *folder = "/tmp";
 static unsigned char *frame = NULL;
+static unsigned char *frames[MAX_ZMQ_BUFFER_SIZE];
 static char *command = NULL;
 static int input_number = 0;
 static char *mjpgFileName = NULL;
-static char *linkFileName = NULL;
+static char *zmqAddress = NULL;
+static int zmqBufferSize = 3;
+static int zmqBufferPos = 0;
+static Pb__Package pbPackage = PB__PACKAGE__INIT; // Package
+
+static void *context;
+static void *publisher;
+static void *buf;                         // Buffer to store serialized data
+static int bufferSize;
+
+static clock_t begin, end;
 
 /******************************************************************************
 Description.: print a help message
@@ -61,14 +80,13 @@ Return Value: -
 ******************************************************************************/
 void help(void)
 {
+    // TODO: Update available command line arguments.
     fprintf(stderr, " ---------------------------------------------------------------\n" \
             " Help for output plugin..: "OUTPUT_PLUGIN_NAME"\n" \
             " ---------------------------------------------------------------\n" \
             " The following parameters can be passed to this plugin:\n\n" \
             " [-f | --folder ]........: folder to save pictures\n" \
             " [-m | --mjpeg ].........: save the frames to an mjpg file \n" \
-            " [-l | --link ]..........: link the last picture in ringbuffer as this fixed named file\n" \
-            " [-d | --delay ].........: delay after saving pictures in ms\n" \
             " [-i | --input ].........: read frames from the specified input plugin\n" \
             " The following arguments are takes effect only if the current mode is not MJPG\n" \
             " [-s | --size ]..........: size of ring buffer (max number of pictures to hold)\n" \
@@ -78,30 +96,45 @@ void help(void)
 }
 
 /******************************************************************************
-Description.: clean up allocated resources
+Description.: clean up allocated ressources
 Input Value.: unused argument
 Return Value: -
 ******************************************************************************/
 void worker_cleanup(void *arg)
 {
     static unsigned char first_run = 1;
+    int i;
 
     if (mjpgFileName != NULL) {
         close(fd);
     }
 
     if(!first_run) {
-        DBG("already cleaned up resources\n");
+        DBG("already cleaned up ressources\n");
         return;
     }
 
     first_run = 0;
-    OPRINT("cleaning up resources allocated by worker thread\n");
+    OPRINT("cleaning up ressources allocated by worker thread\n");
 
     if(frame != NULL) {
         free(frame);
     }
     close(fd);
+
+    // cleanup zmq
+    zmq_close (publisher);
+    zmq_ctx_destroy (context);
+
+    // Free the allocated serialized buffer
+    free(buf);
+
+    // Free protobuf message
+    for (i = 0; i < pbPackage.n_frame; ++i)
+    {
+        free(pbPackage.frame[i]);
+    }
+    free(pbPackage.frame);
 }
 
 /******************************************************************************
@@ -191,7 +224,7 @@ void maintain_ringbuffer(int size)
         free(namelist[i]);
     }
 
-    /* free last just allocated resources */
+    /* free last just allocated ressources */
     free(namelist);
 }
 
@@ -206,11 +239,45 @@ void *worker_thread(void *arg)
     int ok = 1, frame_size = 0, rc = 0;
     char buffer1[1024] = {0}, buffer2[1024] = {0};
     unsigned long long counter = 0;
-    time_t t;
-    struct tm *now;
     unsigned char *tmp_framebuffer = NULL;
 
-    /* set cleanup handler to cleanup allocated resources */
+    //  Prepare our context and publisher
+    //char zmqAddress[20];
+    if (zmqAddress == NULL) {
+        LOG("No ZMQ address specified");
+    }
+
+    context = zmq_ctx_new ();
+    publisher = zmq_socket (context, ZMQ_PUB);
+    //snprintf(zmqAddress, 20u, "epgm://eth0;239.1.1.1:%i", zmqPort);
+
+    if (zmq_bind (publisher, zmqAddress) == -1) {
+        LOG("Couldn't create zmq socket.\n");
+    }
+
+    unsigned len;                      // Length of serialized data
+    char topic[] = "frames";
+    struct timeval timestamp;
+    int i;
+
+    buf = NULL;
+    for (i = 0; i < MAX_ZMQ_BUFFER_SIZE; ++i)
+    {
+        frames[i] = NULL;
+    }
+
+    pbPackage.n_frame = zmqBufferSize;
+    if ((pbPackage.frame = malloc(sizeof(Pb__Package__Frame*) * pbPackage.n_frame)) == NULL) {
+        LOG("not enough memory\n");
+    }
+    for (i = 0; i < pbPackage.n_frame; ++i)
+    {
+        if ((pbPackage.frame[i] = malloc(sizeof(Pb__Package__Frame))) == NULL) {
+            LOG("not enough memory\n");
+        }
+        pb__package__frame__init(pbPackage.frame[i]);
+    }
+    /* set cleanup handler to cleanup allocated ressources */
     pthread_cleanup_push(worker_cleanup, NULL);
 
     while(ok >= 0 && !pglobal->stop) {
@@ -222,75 +289,86 @@ void *worker_thread(void *arg)
         /* read buffer */
         frame_size = pglobal->in[input_number].size;
 
+        /* set the right frame to store the data */
+        frame = frames[zmqBufferPos];
+
         /* check if buffer for frame is large enough, increase it if necessary */
-        if(frame_size > max_frame_size) {
+        if((frame_size > max_frame_size) || (frame == NULL)) {
             DBG("increasing buffer size to %d\n", frame_size);
 
-            max_frame_size = frame_size + (1 << 16);
+            if (frame_size > max_frame_size) {
+                max_frame_size = frame_size + (1 << 16);
+            }
             if((tmp_framebuffer = realloc(frame, max_frame_size)) == NULL) {
                 pthread_mutex_unlock(&pglobal->in[input_number].db);
                 LOG("not enough memory\n");
                 return NULL;
             }
 
+            if ((setvbuf(stdout, NULL, _IOFBF, max_frame_size)) != 0) {
+                DBG("setvbuf failed.\n");
+            }
+
             frame = tmp_framebuffer;
         }
 
+        /* copy v4l2_buffer timeval to user space */
+        timestamp = pglobal->in[input_number].timestamp;
+
         /* copy frame to our local buffer now */
         memcpy(frame, pglobal->in[input_number].buf, frame_size);
+
+        /* resync again with the frame buffer */
+        frames[zmqBufferPos] = frame;
 
         /* allow others to access the global buffer again */
         pthread_mutex_unlock(&pglobal->in[input_number].db);
 
         if (mjpgFileName == NULL) { // single files with ringbuffer mode
-            /* prepare filename */
-            memset(buffer1, 0, sizeof(buffer1));
-            memset(buffer2, 0, sizeof(buffer2));
-
-            /* get current time */
-            t = time(NULL);
-            now = localtime(&t);
-            if(now == NULL) {
-                perror("localtime");
-                return NULL;
-            }
-
-            /* prepare string, add time and date values */
-            if(strftime(buffer1, sizeof(buffer1), "%%s/%Y_%m_%d_%H_%M_%S_picture_%%09llu.jpg", now) == 0) {
-                OPRINT("strftime returned 0\n");
-                free(frame); frame = NULL;
-                return NULL;
-            }
-
-            /* finish filename by adding the foldername and a counter value */
-            snprintf(buffer2, sizeof(buffer2), buffer1, folder, counter);
-
+            DBG("Packaging data: %lld\n", counter);
             counter++;
 
-            DBG("writing file: %s\n", buffer2);
+            begin = clock();
 
-            /* open file for write */
-            if((fd = open(buffer2, O_CREAT | O_RDWR | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0) {
-                OPRINT("could not open the file %s\n", buffer2);
-                return NULL;
+            /* allocate enough memory to store a serialized string */
+            if ((buf == NULL) || (bufferSize < (max_frame_size * zmqBufferSize + 20)))
+            {
+                bufferSize = (max_frame_size * zmqBufferSize + 20);
+                buf = realloc(buf, bufferSize);
+                if (buf == NULL) {
+                    LOG("Not enough memory");
+                }
             }
 
-            /* save picture to file */
-            if(write(fd, frame, frame_size) < 0) {
-                OPRINT("could not write to file %s\n", buffer2);
-                perror("write()");
-                close(fd);
-                return NULL;
+            /* fill protobuf data */
+            pbPackage.frame[zmqBufferPos]->timestamp_unix = (u_int32_t)time(NULL);
+            pbPackage.frame[zmqBufferPos]->timestamp_s = (u_int32_t)timestamp.tv_sec;
+            pbPackage.frame[zmqBufferPos]->timestamp_us = (u_int32_t)timestamp.tv_usec;
+            pbPackage.frame[zmqBufferPos]->blob.data = frame;
+            pbPackage.frame[zmqBufferPos]->blob.len = frame_size;
+
+            zmqBufferPos++;
+
+            if (zmqBufferPos == zmqBufferSize)
+            {
+                DBG("transmitting ZMQ: %lld\n", counter);
+                /* pack protobuf data */
+                len = pb__package__get_packed_size(&pbPackage);
+                DBG("packing data: %i %i", max_frame_size, len);
+                pb__package__pack(&pbPackage, buf);
+
+                DBG("sending data");
+                // send data using zmq
+                if ((zmq_send(publisher, topic, strlen(topic), ZMQ_SNDMORE) == -1) || (zmq_send(publisher, buf, len, 0) == -1)) {
+                    DBG("ZMQ Transmission failure");
+                }
+
+                zmqBufferPos = 0;
             }
 
-            close(fd);
-
-            /* link the picture as fixed name file */
-            if (linkFileName) {
-                snprintf(buffer1, sizeof(buffer1), "%s/%s", folder, linkFileName);
-                unlink(buffer1);
-                (void) link(buffer2, buffer1);
-            }
+            end = clock();
+            DBG("Time1: %f\n", (double)(end-begin) / CLOCKS_PER_SEC);
+            begin = clock();
 
             /* call the command if user specified one, pass current filename as argument */
             if(command != NULL) {
@@ -311,9 +389,13 @@ void *worker_thread(void *arg)
                 }
             }
 
+            end = clock();
+            DBG("Time2: %f\n", (double)(end-begin) / CLOCKS_PER_SEC);
+            begin = clock();
+
             /*
              * maintain ringbuffer
-             * do not maintain ringbuffer for each picture, this saves resources since
+             * do not maintain ringbuffer for each picture, this saves ressources since
              * each run of the maintainance function involves sorting/malloc/free operations
              */
             if(ringbuffer_exceed <= 0) {
@@ -323,19 +405,20 @@ void *worker_thread(void *arg)
                 DBG("counter: %llu, will clean-up now\n", counter);
                 maintain_ringbuffer(ringbuffer_size);
             }
+
+            end = clock();
+            DBG("Time3: %f\n", (double)(end-begin) / CLOCKS_PER_SEC);
+
         } else { // recording to MJPG file
+            DBG("Entered else branch!\n");
             /* save picture to file */
-            if(write(fd, frame, frame_size) < 0) {
+            //if(write(fileno(stdout), frame, frame_size) < 0) {
+            if(fwrite(frame, sizeof(unsigned char), frame_size, stdout) < 0) {
                 OPRINT("could not write to file %s\n", buffer2);
-                perror("write()");
+                perror("fwrite()");
                 close(fd);
                 return NULL;
             }
-        }
-
-        /* if specified, wait now */
-        if(delay > 0) {
-            usleep(1000 * delay);
         }
     }
 
@@ -355,7 +438,6 @@ Return Value: 0 if everything is OK, non-zero otherwise
 int output_init(output_parameter *param, int id)
 {
 	int i;
-    delay = 0;
     pglobal = param->global;
     pglobal->out[id].name = malloc((1+strlen(OUTPUT_PLUGIN_NAME))*sizeof(char));
     sprintf(pglobal->out[id].name, "%s", OUTPUT_PLUGIN_NAME);
@@ -372,12 +454,11 @@ int output_init(output_parameter *param, int id)
     while(1) {
         int option_index = 0, c = 0;
         static struct option long_options[] = {
-            {"h", no_argument, 0, 0},
+            {"h", no_argument, 0, 0
+            },
             {"help", no_argument, 0, 0},
             {"f", required_argument, 0, 0},
             {"folder", required_argument, 0, 0},
-            {"d", required_argument, 0, 0},
-            {"delay", required_argument, 0, 0},
             {"s", required_argument, 0, 0},
             {"size", required_argument, 0, 0},
             {"e", required_argument, 0, 0},
@@ -386,10 +467,10 @@ int output_init(output_parameter *param, int id)
             {"input", required_argument, 0, 0},
             {"m", required_argument, 0, 0},
             {"mjpeg", required_argument, 0, 0},
-            {"l", required_argument, 0, 0},
-            {"link", required_argument, 0, 0},
-            {"c", required_argument, 0, 0},
-            {"command", required_argument, 0, 0},
+            {"a", required_argument, 0, 0},
+            {"address", required_argument, 0, 0},
+            {"b", required_argument, 0, 0},
+            {"buffer_size", required_argument, 0, 0},
             {0, 0, 0, 0}
         };
 
@@ -423,49 +504,42 @@ int output_init(output_parameter *param, int id)
                 folder[strlen(folder)-1] = '\0';
             break;
 
-            /* d, delay */
+            /* s, size */
         case 4:
         case 5:
             DBG("case 4,5\n");
-            delay = atoi(optarg);
-            break;
-
-            /* s, size */
-        case 6:
-        case 7:
-            DBG("case 6,7\n");
             ringbuffer_size = atoi(optarg);
             break;
 
             /* e, exceed */
-        case 8:
-        case 9:
-            DBG("case 8,9\n");
+        case 6:
+        case 7:
+            DBG("case 6,7\n");
             ringbuffer_exceed = atoi(optarg);
             break;
             /* i, input*/
-        case 10:
-        case 11:
-            DBG("case 12,13\n");
+        case 8:
+        case 9:
+            DBG("case 8,9\n");
             input_number = atoi(optarg);
             break;
             /* m mjpeg */
+        case 10:
+        case 11:
+            DBG("case 10,11\n");
+            mjpgFileName = strdup(optarg);
+            break;
+            /* a address */
         case 12:
         case 13:
             DBG("case 12,13\n");
-            mjpgFileName = strdup(optarg);
+            zmqAddress = strdup(optarg);
             break;
-            /* l link */
+            /* buffer_size */
         case 14:
         case 15:
             DBG("case 14,15\n");
-            linkFileName = strdup(optarg);
-            break;
-            /* c command */
-        case 16:
-        case 17:
-            DBG("case 16,17\n");
-            command = strdup(optarg);
+            zmqBufferSize = atoi(optarg);
             break;
         }
     }
@@ -477,7 +551,6 @@ int output_init(output_parameter *param, int id)
 
     OPRINT("output folder.....: %s\n", folder);
     OPRINT("input plugin.....: %d: %s\n", input_number, pglobal->in[input_number].plugin);
-    OPRINT("delay after save..: %d\n", delay);
     if  (mjpgFileName == NULL) {
         if(ringbuffer_size > 0) {
             OPRINT("ringbuffer size...: %d to %d\n", ringbuffer_size, ringbuffer_size + ringbuffer_exceed);
@@ -614,9 +687,10 @@ int output_cmd(int plugin_id, unsigned int control_id, unsigned int group, int v
                                     }
 
                                     /* save picture to file */
-                                    if(write(fd, frame, frame_size) < 0) {
+                                    //if(write(fileno(stdout), frame, frame_size) < 0) {
+                                    if(fwrite(frame, sizeof(unsigned char), frame_size, stdout) < 0) {
                                         OPRINT("could not write to file %s\n", valueStr);
-                                        perror("write()");
+                                        perror("fwrite()");
                                         close(fd);
                                         return -1;
                                     }
