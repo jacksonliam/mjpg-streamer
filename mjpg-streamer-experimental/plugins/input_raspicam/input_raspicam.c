@@ -47,6 +47,7 @@
 #include "mmal/mmal.h"
 #include "mmal/util/mmal_default_components.h"
 #include "mmal/util/mmal_connection.h"
+#include "mmal/util/mmal_util.h"
 
 #include "RaspiCamControl.c"
 
