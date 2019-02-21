@@ -389,13 +389,7 @@ static int init_v4l2(struct vdIn *vd)
                         memset(setfps, 0, sizeof(struct v4l2_streamparm));
                         setfps->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
                         setfps->parm.capture.timeperframe.numerator = 1;
-                        if (vd->formatIn == V4L2_PIX_FMT_MJPEG) {
-                            // set FPS to maximum in order to minimize the lagging
-                            setfps->parm.capture.timeperframe.denominator = 255;
-                        } else {
-                            setfps->parm.capture.timeperframe.denominator = vd->fps;
-                        }
-
+			setfps->parm.capture.timeperframe.denominator = 255;
                         ret = xioctl(vd->fd, VIDIOC_S_PARM, setfps);
                         if (ret) {
                             perror("Unable to set the FPS\n");
