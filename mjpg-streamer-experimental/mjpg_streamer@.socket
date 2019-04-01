@@ -1,0 +1,10 @@
+[Unit]
+Description=A socket for streaming Motion-JPEG from a video capture device
+PartOf=mjpg_streamer@.socket
+
+[Socket]
+ListenStream = 8080
+Accept = no
+
+[Install]
+WantedBy=sockets.target

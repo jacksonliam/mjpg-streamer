@@ -41,6 +41,8 @@
 #include <linux/types.h>          /* for videodev2.h */
 #include <linux/videodev2.h>
 
+#include <systemd/sd-daemon.h>
+
 #include "../../mjpg_streamer.h"
 #include "../../utils.h"
 
@@ -1465,6 +1467,16 @@ void *server_thread(void *arg)
     /* set cleanup handler to cleanup resources */
     pthread_cleanup_push(server_cleanup, pcontext);
 
+    for(i = 0; i < MAX_SD_LEN; i++)
+        pcontext->sd[i] = -1;
+
+    int n = sd_listen_fds(0);
+    if (n >= 1)
+        for(i=0; i<n; i++){
+            pcontext->sd[i] = SD_LISTEN_FDS_START + i;
+            DBG("got FD %d\n", SD_LISTEN_FDS_START + i);
+        }
+    else {
     bzero(&hints, sizeof(hints));
     hints.ai_family = PF_UNSPEC;
     hints.ai_flags = AI_PASSIVE;
@@ -1475,9 +1487,6 @@ void *server_thread(void *arg)
         perror(gai_strerror(err));
         exit(EXIT_FAILURE);
     }
-
-    for(i = 0; i < MAX_SD_LEN; i++)
-        pcontext->sd[i] = -1;
 
     #ifdef MANAGMENT
     if (pthread_mutex_init(&client_infos.mutex, NULL)) {
@@ -1530,6 +1539,7 @@ void *server_thread(void *arg)
             }
         }
     }
+    }
 
     pcontext->sd_len = i;
 
@@ -1553,7 +1563,6 @@ void *server_thread(void *arg)
 
         do {
             FD_ZERO(&selectfds);
-
             for(i = 0; i < MAX_SD_LEN; i++) {
                 if(pcontext->sd[i] != -1) {
                     FD_SET(pcontext->sd[i], &selectfds);
