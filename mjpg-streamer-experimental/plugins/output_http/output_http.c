@@ -83,6 +83,7 @@ int output_init(output_parameter *param, int id)
     int  port;
     char *credentials, *www_folder, *hostname = NULL;
     char nocommands;
+    int timeout;
 
     DBG("output #%02d\n", param->id);
 
@@ -90,6 +91,7 @@ int output_init(output_parameter *param, int id)
     credentials = NULL;
     www_folder = NULL;
     nocommands = 0;
+    timeout = -1;
 
     param->argv[0] = OUTPUT_PLUGIN_NAME;
 
@@ -115,6 +117,8 @@ int output_init(output_parameter *param, int id)
             {"www", required_argument, 0, 0},
             {"n", no_argument, 0, 0},
             {"nocommands", no_argument, 0, 0},
+            {"t", optional_argument, 0, 0},
+            {"timeout", optional_argument, 0, 0},
             {0, 0, 0, 0}
         };
 
@@ -175,6 +179,16 @@ int output_init(output_parameter *param, int id)
             DBG("case 10,11\n");
             nocommands = 1;
             break;
+
+            /* t, timeout */
+        case 12:
+        case 13:
+            DBG("case 12,13\n");
+            if (optarg) {
+                DBG(optarg);
+                timeout = atoi(optarg);
+            }
+            break;
         }
     }
 
@@ -185,12 +199,14 @@ int output_init(output_parameter *param, int id)
     servers[param->id].conf.credentials = credentials;
     servers[param->id].conf.www_folder = www_folder;
     servers[param->id].conf.nocommands = nocommands;
+    servers[param->id].conf.timeout = timeout;
 
     OPRINT("www-folder-path......: %s\n", (www_folder == NULL) ? "disabled" : www_folder);
     OPRINT("HTTP TCP port........: %d\n", ntohs(port));
     OPRINT("HTTP Listen Address..: %s\n", hostname);
     OPRINT("username:password....: %s\n", (credentials == NULL) ? "disabled" : credentials);
     OPRINT("commands.............: %s\n", (nocommands) ? "disabled" : "enabled");
+    OPRINT("timeout .............: %d\n", timeout);
 
     param->global->out[id].name = malloc((strlen(OUTPUT_PLUGIN_NAME) + 1) * sizeof(char));
     sprintf(param->global->out[id].name, OUTPUT_PLUGIN_NAME);

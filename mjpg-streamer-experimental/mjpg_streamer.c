@@ -415,7 +415,10 @@ int main(int argc, char *argv[])
     }
 
     /* wait for signals */
-    pause();
+    while(!global.stop)
+        sleep(1);
+
+    raise(SIGINT);
 
     return 0;
 }

@@ -124,6 +124,7 @@ typedef struct {
     char *credentials;
     char *www_folder;
     char nocommands;
+    int timeout;
 } config;
 
 /* context of each server thread */
@@ -133,6 +134,9 @@ typedef struct {
     int id;
     globals *pglobal;
     pthread_t threadID;
+
+    pthread_t *clients_list;
+    size_t clients_count;
 
     config conf;
 } context;

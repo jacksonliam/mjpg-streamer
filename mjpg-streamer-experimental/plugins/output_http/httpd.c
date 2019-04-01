@@ -1429,6 +1429,10 @@ void server_cleanup(void *arg)
 
     OPRINT("cleaning up resources allocated by server thread #%02d\n", pcontext->id);
 
+    for(int i=pcontext->clients_count-1; i>=0; i--){
+        pthread_cancel(pcontext->clients_list[i]);
+    }
+
     for(i = 0; i < MAX_SD_LEN; i++)
         close(pcontext->sd[i]);
 }
@@ -1455,6 +1459,8 @@ void *server_thread(void *arg)
 
     context *pcontext = arg;
     pglobal = pcontext->pglobal;
+
+    struct timeval *timeout;
 
     /* set cleanup handler to cleanup resources */
     pthread_cleanup_push(server_cleanup, pcontext);
@@ -1557,11 +1563,31 @@ void *server_thread(void *arg)
                 }
             }
 
-            err = select(max_fds + 1, &selectfds, NULL, NULL, NULL);
+            if(pcontext->conf.timeout >= 0){
+                timeout = malloc(sizeof(struct timeval));
+                timeout->tv_sec = pcontext->conf.timeout;
+                timeout->tv_usec = 0;
+            }
+
+            err = select(max_fds + 1, &selectfds, NULL, NULL, timeout);
+
+            if(timeout){
+                free(timeout);
+            }
 
             if(err < 0 && errno != EINTR) {
                 perror("select");
                 exit(EXIT_FAILURE);
+            }
+
+            if(err == 0 && pcontext->conf.timeout != -1) {
+                DBG("leaving server thread by timeout, exiting now\n");
+               
+                for(int i=pcontext->clients_count-1; i>=0; i--){
+                    pthread_join(pcontext->clients_list[i], NULL);
+                }
+                pglobal->stop = 1;
+                break;
             }
         } while(err <= 0);
 
@@ -1587,7 +1613,8 @@ void *server_thread(void *arg)
                     free(pcfd);
                     continue;
                 }
-                pthread_detach(client);
+                pcontext->clients_list = realloc(pcontext->clients_list, sizeof(pthread_t)*(pcontext->clients_count+1));
+                pcontext->clients_list[pcontext->clients_count++] = client;
             }
         }
     }

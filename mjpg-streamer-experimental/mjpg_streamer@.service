@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 User=mjpg_streamer
-ExecStart=/usr/bin/mjpg_streamer -i 'input_uvc.so -d /dev/%I' -o 'output_http.so -w /usr/share/mjpg_streamer/www'
+ExecStart=/usr/bin/mjpg_streamer -i 'input_uvc.so -d /dev/%I' -o 'output_http.so -w /usr/share/mjpg_streamer/www --timeout=10'
 
 [Install]
 WantedBy=multi-user.target
