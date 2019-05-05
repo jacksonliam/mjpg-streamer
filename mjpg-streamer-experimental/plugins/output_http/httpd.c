@@ -835,15 +835,23 @@ void execute_cgi(int id, int fd, char *parameter, char *query_string)
     if(f == NULL) {
         DBG("Unable to execute the requested CGI script\n");
         send_error(fd, 403, "CGI script cannot be executed");
+        free(buffer);
+        close(lfd);
         return;
     }
 
     while((i = fread(buffer, 1, sizeof(buffer), f)) > 0) {
         if (write(fd, buffer, i) < 0) {
             fclose(f);
+            free(buffer);
+            close(lfd);
             return;
         }
     }
+
+    fclose(f);
+    free(buffer);
+    close(lfd);
 }
 
 
@@ -1222,6 +1230,7 @@ void *client_thread(void *arg)
                 req.query_string = malloc(len + 1);
                 if (req.query_string == NULL)
                     exit(EXIT_FAILURE);
+                memset(req.query_string, 0, len + 1);
                 strncpy(req.query_string, pb, len);
             } else {
                 req.query_string = malloc(2);
