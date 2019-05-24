@@ -131,12 +131,6 @@ int input_run(int id)
 {
 	int res, i;
 
-	global->in[id].buf = malloc(256 * 1024);
-	if(global->in[id].buf == NULL)
-	{
-		IPRINT(INPUT_PLUGIN_NAME " - could not allocate memory\n");
-		exit(EXIT_FAILURE);
-	}
 	plugin_id = id;
 
 	// auto-detect algorithm
@@ -229,6 +223,14 @@ void* capture(void* arg)
 	int i = 0;
 	CameraFile* file;
 
+	int jpeg_buffer_size = 256 * 1024;
+	global->in[plugin_id].buf = malloc(jpeg_buffer_size);
+	if(global->in[plugin_id].buf == NULL)
+	{
+		IPRINT(INPUT_PLUGIN_NAME " - could not allocate memory\n");
+		return NULL;
+	}
+
 	pthread_cleanup_push(cleanup, NULL);
 					while(!global->stop)
 					{
@@ -258,6 +260,19 @@ void* capture(void* arg)
 						else
 							i = 0;
 						CAMERA_CHECK_GP(res, "gp_file_get_data_and_size");
+
+						if(jpeg_buffer_size <= xsize) {
+							jpeg_buffer_size = xsize + xsize * 10/100;
+							unsigned char *tmp_buff = realloc(global->in[plugin_id].buf,jpeg_buffer_size);
+							if(tmp_buff == NULL)
+							{
+								IPRINT(INPUT_PLUGIN_NAME " - could not allocate memory\n");
+								return NULL;
+							}
+							global->in[plugin_id].buf = tmp_buff;
+						}
+
+
 						memcpy(global->in[plugin_id].buf, xdata, xsize);
 						res = gp_file_unref(file);
 						pthread_mutex_unlock(&control_mutex);
