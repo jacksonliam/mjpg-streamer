@@ -28,7 +28,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MMAL_UTIL_PARAMS_H
 #define MMAL_UTIL_PARAMS_H
 
-#include "../mmal.h"
+#include "interface/mmal/mmal.h"
 
 #ifdef __cplusplus
 extern "C" {

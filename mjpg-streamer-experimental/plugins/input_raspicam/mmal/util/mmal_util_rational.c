@@ -148,3 +148,11 @@ void mmal_rational_simplify(MMAL_RATIONAL_T *rational)
    rational->num /= g;
    rational->den /= g;
 }
+
+/** Tests for equality */
+MMAL_BOOL_T mmal_rational_equal(MMAL_RATIONAL_T a, MMAL_RATIONAL_T b)
+{
+   if (a.num != b.num && a.num * (int64_t)b.num == 0)
+      return MMAL_FALSE;
+   return a.num * (int64_t)b.den == b.num * (int64_t)a.den;
+}

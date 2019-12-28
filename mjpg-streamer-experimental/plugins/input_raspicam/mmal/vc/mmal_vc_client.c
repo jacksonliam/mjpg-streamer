@@ -96,24 +96,24 @@ static void init_once(void)
   */
 static MMAL_STATUS_T create_waitpool(MMAL_WAITPOOL_T *waitpool)
 {
-   MMAL_STATUS_T status;
+   VCOS_STATUS_T status;
    int i;
 
    status = vcos_semaphore_create(&waitpool->sem, VCOS_FUNCTION,
                                   MAX_WAITERS);
-   if (status != MMAL_SUCCESS)
-      return status;
+   if (status != VCOS_SUCCESS)
+      return status==VCOS_SUCCESS ? MMAL_SUCCESS : MMAL_ENOSPC;
 
    for (i=0; i<MAX_WAITERS; i++)
    {
       waitpool->waiters[i].inuse = 0;
       status = vcos_semaphore_create(&waitpool->waiters[i].sem,
                                      "mmal waiter", 0);
-      if (status != MMAL_SUCCESS)
+      if (status != VCOS_SUCCESS)
          break;
    }
 
-   if (status != MMAL_SUCCESS)
+   if (status != VCOS_SUCCESS)
    {
       /* clean up */
       i--;
@@ -124,7 +124,7 @@ static MMAL_STATUS_T create_waitpool(MMAL_WAITPOOL_T *waitpool)
       }
       vcos_semaphore_delete(&waitpool->sem);
    }
-   return status;
+   return status==VCOS_SUCCESS ? MMAL_SUCCESS : MMAL_ENOSPC;
 }
 
 static void destroy_waitpool(MMAL_WAITPOOL_T *waitpool)
@@ -344,7 +344,8 @@ static VCHIQ_STATUS_T mmal_vc_vchiq_callback(VCHIQ_REASON_T reason,
                LOG_TRACE("buffer too small (%i, %i)",
                          msg->buffer_header.offset + msg->buffer_header.length,
                          msg->drvbuf.client_context->buffer->alloc_size);
-               msg->buffer_header.length = 0; /* FIXME: set a buffer flag to signal error */
+               msg->buffer_header.length = 0;
+               msg->buffer_header.flags |= MMAL_BUFFER_HEADER_FLAG_TRANSMISSION_FAILED;
                msg->drvbuf.client_context->callback(msg);
                vchiq_release_message(service, vchiq_header);
                break;
@@ -375,7 +376,8 @@ static VCHIQ_STATUS_T mmal_vc_vchiq_callback(VCHIQ_REASON_T reason,
                   if (vst != VCHIQ_SUCCESS)
                   {
                      LOG_TRACE("queue bulk rx len %d failed to start", msg->buffer_header.length);
-                     msg->buffer_header.length = 0; /* FIXME: set a buffer flag to signal error */
+                     msg->buffer_header.length = 0;
+                     msg->buffer_header.flags |= MMAL_BUFFER_HEADER_FLAG_TRANSMISSION_FAILED;
                      msg->drvbuf.client_context->callback(msg);
                      vchiq_release_message(service, vchiq_header);
                   }
@@ -589,6 +591,7 @@ MMAL_STATUS_T mmal_vc_sendwait_message(struct MMAL_CLIENT_T *client,
     * FIXME: we could do with a timeout here. Need to be careful to cancel
     * the semaphore on a timeout.
     */
+   /* coverity[lock] This semaphore isn't being used as a mutex */
    vcos_semaphore_wait(&waiter->sem);
 
    mmal_vc_release_internal(client);
@@ -692,7 +695,7 @@ MMAL_STATUS_T mmal_vc_release(void)
    return status;
 }
 
-MMAL_STATUS_T mmal_vc_init(void)
+MMAL_STATUS_T mmal_vc_init_fd(int dev_vchiq_fd)
 {
    VCHIQ_SERVICE_PARAMS_T vchiq_params;
    MMAL_BOOL_T vchiq_initialised = 0, waitpool_initialised = 0;
@@ -716,7 +719,7 @@ MMAL_STATUS_T mmal_vc_init(void)
    vcos_log_register("mmalipc", VCOS_LOG_CATEGORY);
 
    /* Initialise a VCHIQ instance */
-   vchiq_status = vchiq_initialise(&mmal_vchiq_instance);
+   vchiq_status = vchiq_initialise_fd(&mmal_vchiq_instance, dev_vchiq_fd);
    if (vchiq_status != VCHIQ_SUCCESS)
    {
       LOG_ERROR("failed to initialise vchiq");
@@ -789,6 +792,11 @@ MMAL_STATUS_T mmal_vc_init(void)
 
    vcos_mutex_unlock(&client.lock);
    return status;
+}
+
+MMAL_STATUS_T mmal_vc_init(void)
+{
+   return mmal_vc_init_fd(-1);
 }
 
 void mmal_vc_deinit(void)

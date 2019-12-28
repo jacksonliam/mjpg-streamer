@@ -39,7 +39,7 @@ MMAL_EVENT_FORMAT_CHANGED_T *mmal_event_format_changed_get(MMAL_BUFFER_HEADER_T 
    size = sizeof(MMAL_EVENT_FORMAT_CHANGED_T);
    size += sizeof(MMAL_ES_FORMAT_T) + sizeof(MMAL_ES_SPECIFIC_FORMAT_T);
 
-   if (buffer->cmd != MMAL_EVENT_FORMAT_CHANGED || !buffer || buffer->length < size)
+   if (!buffer || buffer->cmd != MMAL_EVENT_FORMAT_CHANGED || buffer->length < size)
       return 0;
 
    event = (MMAL_EVENT_FORMAT_CHANGED_T *)buffer->data;
@@ -72,5 +72,67 @@ MMAL_STATUS_T mmal_event_error_send(MMAL_COMPONENT_T *component, MMAL_STATUS_T e
    *(MMAL_STATUS_T *)event->data = error_status;
    mmal_port_event_send(component->control, event);
 
+   return MMAL_SUCCESS;
+}
+
+MMAL_STATUS_T mmal_event_eos_send(MMAL_PORT_T *port)
+{
+   MMAL_EVENT_END_OF_STREAM_T *event;
+   MMAL_BUFFER_HEADER_T *buffer;
+   MMAL_STATUS_T status;
+
+   if(!port)
+   {
+      LOG_ERROR("invalid port");
+      return MMAL_EINVAL;
+   }
+
+   status = mmal_port_event_get(port->component->control, &buffer, MMAL_EVENT_EOS);
+   if (status != MMAL_SUCCESS)
+   {
+      LOG_ERROR("event not available for port %s %p, result %d", port->name, port, status);
+      return status;
+   }
+
+   buffer->length = sizeof(*event);
+   event = (MMAL_EVENT_END_OF_STREAM_T *)buffer->data;
+   event->port_type = port->type;
+   event->port_index = port->index;
+   mmal_port_event_send(port->component->control, buffer);
+
+   return MMAL_SUCCESS;
+}
+
+MMAL_STATUS_T mmal_event_forward(MMAL_BUFFER_HEADER_T *event, MMAL_PORT_T *port)
+{
+   MMAL_BUFFER_HEADER_T *buffer;
+   MMAL_STATUS_T status;
+
+   if(!port || port->type != MMAL_PORT_TYPE_OUTPUT)
+   {
+      LOG_ERROR("invalid port");
+      return MMAL_EINVAL;
+   }
+
+   status = mmal_port_event_get(port->component->control, &buffer, event->cmd);
+   if (status != MMAL_SUCCESS)
+   {
+      LOG_ERROR("event not available for port %s %p, result %d", port->name, port, status);
+      return status;
+   }
+
+   if (buffer->alloc_size < event->length)
+   {
+      LOG_ERROR("event buffer too small (%i/%i)", buffer->alloc_size, event->length);
+      mmal_buffer_header_release(buffer);
+      return MMAL_ENOSPC;
+   }
+
+   memcpy(buffer->data, event->data, event->length);
+   buffer->length = event->length;
+   buffer->offset = event->offset;
+   buffer->flags = event->flags;
+   buffer->pts = event->pts;
+   mmal_port_event_send(port->component->control, buffer);
    return MMAL_SUCCESS;
 }

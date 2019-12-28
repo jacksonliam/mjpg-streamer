@@ -61,9 +61,12 @@ MMAL_LIST_T* mmal_list_create(void)
    if (vcos_mutex_create(&private->lock, "mmal-list lock") != VCOS_SUCCESS)
       goto error;
 
+   /* lock to keep coverity happy */
+   vcos_mutex_lock(&private->lock);
    private->list.first = NULL;
    private->list.last = NULL;
    private->list.length = 0;
+   vcos_mutex_unlock(&private->lock);
 
    return &private->list;
 
