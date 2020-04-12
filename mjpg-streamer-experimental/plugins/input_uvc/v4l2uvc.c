@@ -404,6 +404,12 @@ static int init_v4l2(struct vdIn *vd)
                 } else {
                     if (vd->fps != setfps->parm.capture.timeperframe.denominator) {
                         IPRINT("FPS coerced ......: from %d to %d\n", vd->fps, setfps->parm.capture.timeperframe.denominator);
+                        if(vd->fps < setfps->parm.capture.timeperframe.denominator){
+                            perror("Higher FPS coerced than specified, enabled software framedropping\n");
+                            vd->soft_framedrop = 1;
+                            vd->frame_period_time = 1000/vd->fps; // calcualate frame period time in ms
+                            IPRINT("Frame period time ......: %ld ms\n", vd->frame_period_time);
+                        }
                     }
                 }
             } else {
