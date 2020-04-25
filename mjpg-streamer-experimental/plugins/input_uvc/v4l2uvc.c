@@ -373,11 +373,11 @@ static int init_v4l2(struct vdIn *vd)
 	vd->formatIn = vd->fmt.fmt.pix.pixelformat;
         break;
       case V4L2_PIX_FMT_RGB24:
-	fprintf(stderr, "    ... Falling back to RGB24 mode. Note that this requires much more CPU power\n");
+	fprintf(stderr, "    ... Falling back to RGB24 mode (consider using -fourcc RGB24 option). Note that this requires much more CPU power\n");
 	vd->formatIn = vd->fmt.fmt.pix.pixelformat;
 	break;
       case V4L2_PIX_FMT_RGB565:
-	fprintf(stderr, "    ... Falling back to RGB565 mode (consider using -fourcc option). Note that this requires much more CPU power\n");
+	fprintf(stderr, "    ... Falling back to RGB565 mode (consider using -fourcc RGBP option). Note that this requires much more CPU power\n");
 	vd->formatIn = vd->fmt.fmt.pix.pixelformat;
 	break;
       default:

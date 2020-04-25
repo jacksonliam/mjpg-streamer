@@ -316,7 +316,9 @@ int input_init(input_parameter *param, int id)
         #ifndef NO_LIBJPEG
         case 20:
             DBG("case 20\n");
-            if (strcmp(optarg, "RGBP") == 0) {
+            if (strcmp(optarg, "RGB24") == 0) {
+                format = V4L2_PIX_FMT_RGB24;
+            } else if (strcmp(optarg, "RGBP") == 0) {
                 format = V4L2_PIX_FMT_RGB565;
             } else {
               fprintf(stderr," i: FOURCC codec '%s' not supported\n", optarg);
@@ -420,6 +422,9 @@ int input_init(input_parameter *param, int id)
             case V4L2_PIX_FMT_UYVY:
                 fmtString = "UYVY";
                 break;
+            case V4L2_PIX_FMT_RGB24:
+                fmtString = "RGB24";
+		break;
             case V4L2_PIX_FMT_RGB565:
                 fmtString = "RGB565";
                 break;
@@ -540,7 +545,7 @@ void help(void)
     " [-u | --uyvy ] ........: Use UYVY format, default: MJPEG (uses more cpu power)\n" \
     " [-y | --yuv  ] ........: Use YUV format, default: MJPEG (uses more cpu power)\n" \
     " [-fourcc ] ............: Use FOURCC codec 'argopt', \n" \
-    "                          currently supported codecs are: RGBP \n" \
+    "                          currently supported codecs are: RGB24, RGBP \n" \
     " [-timestamp ]..........: Populate frame timestamp with system time\n" \
     " [-softfps] ............: Drop frames to try and achieve this fps\n" \
     "                          set your camera to its maximum fps to avoid stuttering\n" \
