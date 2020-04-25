@@ -776,6 +776,7 @@ void *cam_thread(void *arg)
             #ifndef NO_LIBJPEG
             if ((pcontext->videoIn->formatIn == V4L2_PIX_FMT_YUYV) ||
             (pcontext->videoIn->formatIn == V4L2_PIX_FMT_UYVY) ||
+            (pcontext->videoIn->formatIn == V4L2_PIX_FMT_RGB24) ||
             (pcontext->videoIn->formatIn == V4L2_PIX_FMT_RGB565) ) {
                 DBG("compressing frame from input: %d\n", (int)pcontext->id);
                 pglobal->in[pcontext->id].size = compress_image_to_jpeg(pcontext->videoIn, pglobal->in[pcontext->id].buf, pcontext->videoIn->framesizeIn, quality);
