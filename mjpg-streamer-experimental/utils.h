@@ -86,6 +86,7 @@ void daemon_mode(void);
         settings->v = 1; \
     } else if (strcasecmp("false", optarg) == 0) { \
         settings->v = 0; \
+    } else { \
         fprintf(stderr, "Invalid value '%s' for -" #v " (true/false accepted)\n", optarg); \
         exit(EXIT_FAILURE); \
     } \
