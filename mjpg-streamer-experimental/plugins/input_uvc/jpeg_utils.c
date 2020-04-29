@@ -200,6 +200,21 @@ int compress_image_to_jpeg(struct vdIn *vd, unsigned char *buffer, int size, int
             row_pointer[0] = line_buffer;
             jpeg_write_scanlines(&cinfo, row_pointer, 1);
         }
+    } else if (vd->formatIn == V4L2_PIX_FMT_RGB24) {
+        while(cinfo.next_scanline < vd->height) {
+            int x;
+            unsigned char *ptr = line_buffer;
+
+            for(x = 0; x < vd->width; x++) {
+                *(ptr++) = yuyv[0];
+                *(ptr++) = yuyv[1];
+                *(ptr++) = yuyv[2];
+                yuyv += 3;
+            }
+
+            row_pointer[0] = line_buffer;
+            jpeg_write_scanlines(&cinfo, row_pointer, 1);
+        }
     } else if (vd->formatIn == V4L2_PIX_FMT_RGB565) {
         while(cinfo.next_scanline < vd->height) {
             int x;

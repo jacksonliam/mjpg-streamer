@@ -240,6 +240,11 @@ static int init_framebuffer(struct vdIn *vd) {
             vd->framebuffer =
                 (unsigned char *) calloc(1, (size_t) vd->width * (vd->height + 8) * 2);
             break;
+        case V4L2_PIX_FMT_RGB24:
+            vd->framesizeIn = (vd->width * vd->height) * 3;
+            vd->framebuffer =
+                (unsigned char *) calloc(1, (size_t) vd->framesizeIn);
+            break;
         case V4L2_PIX_FMT_RGB565: // buffer allocation for non varies on frame size formats
         case V4L2_PIX_FMT_YUYV:
         case V4L2_PIX_FMT_UYVY:
@@ -247,7 +252,7 @@ static int init_framebuffer(struct vdIn *vd) {
                 (unsigned char *) calloc(1, (size_t) vd->framesizeIn);
             break;
         default:
-            fprintf(stderr, " Unknow vd->formatIn\n");
+            fprintf(stderr, "Unknown vd->formatIn\n");
             return -1;
     }
     return -!vd->framebuffer;
@@ -367,8 +372,12 @@ static int init_v4l2(struct vdIn *vd)
 	fprintf(stderr, "    ... Falling back to UYVY mode (consider using -uyvy option). Note that this requires much more CPU power\n");
 	vd->formatIn = vd->fmt.fmt.pix.pixelformat;
         break;
+      case V4L2_PIX_FMT_RGB24:
+	fprintf(stderr, "    ... Falling back to RGB24 mode (consider using -fourcc RGB24 option). Note that this requires much more CPU power\n");
+	vd->formatIn = vd->fmt.fmt.pix.pixelformat;
+	break;
       case V4L2_PIX_FMT_RGB565:
-	fprintf(stderr, "    ... Falling back to RGB565 mode (consider using -fourcc option). Note that this requires much more CPU power\n");
+	fprintf(stderr, "    ... Falling back to RGB565 mode (consider using -fourcc RGBP option). Note that this requires much more CPU power\n");
 	vd->formatIn = vd->fmt.fmt.pix.pixelformat;
 	break;
       default:
@@ -650,6 +659,7 @@ int uvcGrab(struct vdIn *vd)
             fprintf(stderr, "bytes in used %d \n", vd->buf.bytesused);
         }
         break;
+    case V4L2_PIX_FMT_RGB24:
     case V4L2_PIX_FMT_RGB565:
     case V4L2_PIX_FMT_YUYV:
     case V4L2_PIX_FMT_UYVY:
