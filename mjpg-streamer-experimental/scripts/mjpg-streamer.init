@@ -1,24 +1,47 @@
 #!/bin/sh
 
 ### BEGIN INIT INFO
-# Provides:          octoprint
+# Provides:          mjpg-streamer
 # Required-Start:    $local_fs networking
 # Required-Stop:
 # Should-Start:
 # Should-Stop:
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Description: OctoPrint daemon
-# Description:       Starts the OctoPrint daemon with the user specified in
-#                    /etc/default/octoprint.
+# Short-Description: mjpg-streamer daemon
+# Description:       Starts the mjpg-streamer daemon with the user specified in
+#                    /etc/default/mjpg-streamer.
 ### END INIT INFO
 
 # Author: Sami Olmari & Gina Häußge
 
+# Set to true to aid in debugging with this script fails to
+# start.
+debug_me=false
+
+if [[ $debug_me == true ]]; then
+
+	# Close STDOUT
+	exec 1<&-
+	# Close STDERR
+	exec 2<&-
+
+	LOG_FILE=/home/webcam/mjpg_streamer.log
+
+	# Open STDOUT as $LOG_FILE file for read and write.
+	exec 1<>$LOG_FILE
+
+	# Redirect STDERR to STDOUT
+	exec 2>&1
+
+	# Display shell commands with expanded args
+	set -x
+fi
+
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
-DESC="OctoPrint Daemon"
-NAME="OctoPrint"
-PKGNAME=octoprint
+DESC="mjpg-streamer Daemon"
+NAME="mjpg-streamer"
+PKGNAME=mjpg-streamer
 PIDFILE=/var/run/$PKGNAME.pid
 SCRIPTNAME=/etc/init.d/$PKGNAME
 DEFAULTS=/etc/default/$PKGNAME
@@ -33,7 +56,7 @@ DEFAULTS=/etc/default/$PKGNAME
 # Exit if the DAEMON is not set
 if [ -z "$DAEMON" ]
 then
-    log_warning_msg "Not starting $PKGNAME, DAEMON not set in /etc/default/$PKGNAME."
+    log_warning_msg "Not starting $PKGNAME, DAEMON not set in $DEFAULTS."
     exit 0
 fi
 
@@ -45,25 +68,14 @@ fi
 
 if [ -z "$START" -o "$START" != "yes" ]
 then
-   log_warning_msg "Not starting $PKGNAME, edit /etc/default/$PKGNAME to start it."
+   log_warning_msg "Not starting $PKGNAME, edit $DEFAULTS to start it."
    exit 0
 fi
 
-if [ -z "$OCTOPRINT_USER" ]
+if [ -z "$MJPG_STREAMER_USER" ]
 then
-    log_warning_msg "Not starting $PKGNAME, OCTOPRINT_USER not set in /etc/default/$PKGNAME."
+    log_warning_msg "Not starting $PKGNAME, MJPG_STREAMER_USER not set in $DEFAULTS."
     exit 0
-fi
-
-COMMAND_ARGS=
-if [ -n "$BASEDIR" ]
-then
-    COMMAND_ARGS="--basedir $BASEDIR $COMMAND_ARGS"
-fi
-
-if [ -n "$CONFIGFILE" ]
-then
-    COMMAND_ARGS="--config $CONFIGFILE $COMMAND_ARGS"
 fi
 
 #
@@ -90,9 +102,9 @@ do_start()
    RETVAL="$?"
 
    if [ $RETVAL != 0 ]; then
-       start-stop-daemon --start --background --quiet --pidfile $PIDFILE --make-pidfile \
-       --exec $DAEMON --chuid $OCTOPRINT_USER --user $OCTOPRINT_USER --umask $UMASK --nicelevel=$NICELEVEL \
-       -- serve $COMMAND_ARGS $DAEMON_ARGS
+       start-stop-daemon --verbose --start --background --pidfile $PIDFILE --make-pidfile \
+       --exec $DAEMON --chuid $MJPG_STREAMER_USER --user $MJPG_STREAMER_USER \
+       --umask $UMASK -- -i "${INPUT_UVC_LIB} ${CAMERA_USB_OPTIONS}" -o "${OUTPUT_HTTP_LIB} -w ${WWW_ROOT}"
        RETVAL="$?"
    fi
 }
@@ -108,7 +120,7 @@ do_stop()
    #   2 if daemon could not be stopped
    #   other if a failure occurred
 
-   start-stop-daemon --stop --quiet --retry=TERM/30/KILL/5 --user $OCTOPRINT_USER --pidfile $PIDFILE
+   start-stop-daemon --stop --quiet --retry=TERM/30/KILL/5 --user $MJPG_STREAMER_USER --pidfile $PIDFILE
    RETVAL="$?"
    [ "$RETVAL" = "2" ] && return 2
 

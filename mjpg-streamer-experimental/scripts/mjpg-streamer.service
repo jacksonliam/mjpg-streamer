@@ -1,12 +1,12 @@
 [Unit]
-Description=The snappy web interface for your 3D printer
+Description=A Linux-UVC streaming application with Pan/Tilt
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-User=pi
-ExecStart=/home/pi/OctoPrint/venv/bin/octoprint
+User=webcam
+ExecStart=/usr/local/bin/mjpg_streamer
 
 [Install]
 WantedBy=multi-user.target
