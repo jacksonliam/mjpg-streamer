@@ -1,0 +1,37 @@
+# Configuration for /etc/init.d/mjpg-streamer
+
+# The init.d script will only run if this variable non-empty.
+MJPG_STREAMER_USER=webcam
+
+# base directory to use. This is where mjpg-streamer's `make install`
+# copies files by default.
+BASEDIR=/usr/local
+
+# The directory where the mjpg-streamer shared libraries reside.
+LIB_DIR=${BASEDIR}/lib/mjpg-streamer
+
+# https://github.com/OctoPrint/OctoPrint/wiki/Webcams-known-to-work
+CAMERA_OPTIONS="-r 1280x720 -f 30"
+
+# Document this.
+WWW_ROOT=/var/local/www
+
+# Path to the mjpg-streamer executable. Make sure this matches your
+# installation.
+DAEMON=${BASEDIR}/bin/mjpg_streamer
+
+# The input library.
+INPUT_UVC_LIB=${LIB_DIR}/input_uvc.so
+
+# The output library.
+OUTPUT_HTTP_LIB=${LIB_DIR}/output_http.so
+
+# WWW directory.
+WWW_ROOT=/var/local/www
+
+# Umask of files mjpg-streamer generates, Change this to 022 if *not* running
+# mjpg-streamer as its own, separate user.
+UMASK=000
+
+# Should we run at startup?
+START=yes
