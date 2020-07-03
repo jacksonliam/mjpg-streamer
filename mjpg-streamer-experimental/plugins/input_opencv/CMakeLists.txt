@@ -4,7 +4,7 @@
 find_package(OpenCV COMPONENTS core imgproc highgui videoio)
 
 MJPG_STREAMER_PLUGIN_OPTION(input_opencv "OpenCV input plugin"
-                            ONLYIF OpenCV_FOUND)
+                            ONLYIF OpenCV_FOUND ${OpenCV_VERSION_MAJOR} EQUAL 3)
 
 if (PLUGIN_INPUT_OPENCV)
     enable_language(CXX)
