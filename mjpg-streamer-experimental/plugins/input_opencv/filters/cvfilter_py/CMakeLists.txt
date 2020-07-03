@@ -9,7 +9,7 @@ find_package(PythonLibs)
 find_package(Numpy)
 
 MJPG_STREAMER_PLUGIN_OPTION(cvfilter_py "OpenCV python filter"
-                            ONLYIF PYTHONLIBS_FOUND NUMPY_FOUND)
+                            ONLYIF PYTHONLIBS_FOUND NUMPY_FOUND ${PYTHON_VERSION_MAJOR} EQUAL 3)
                             
 if (PLUGIN_CVFILTER_PY)
     include_directories(${PYTHON_INCLUDE_DIRS})
