@@ -165,6 +165,7 @@ int input_init(input_parameter *param, int plugin_no)
       {"awbgainR", required_argument, 0, 0},          // 30
       {"awbgainB", required_argument, 0, 0},          // 31
       {"roi", required_argument, 0, 0},               // 32
+      {"mode", required_argument, 0, 0},              // 33
       {0, 0, 0, 0}
     };
 
@@ -307,6 +308,10 @@ int input_init(input_parameter *param, int plugin_no)
       case 32:
         // roi
         sscanf(optarg, "%lf,%lf,%lf,%lf", &c_params.roi.x, &c_params.roi.y, &c_params.roi.w, &c_params.roi.h);
+        break;
+      case 33:
+        // mode
+         sscanf(optarg, "%d", &c_params.sensor_mode);
         break;
       default:
         DBG("default case\n");
@@ -553,23 +558,24 @@ void help(void)
       " [-preview].............: Enable full screen preview\n"\
       " [-timestamp]...........: Get timestamp for each frame\n"
       " \n"\
-      " -sh  : Set image sharpness (-100 to 100)\n"\
-      " -co  : Set image contrast (-100 to 100)\n"\
-      " -br  : Set image brightness (0 to 100)\n"\
-      " -sa  : Set image saturation (-100 to 100)\n"\
-      " -ISO : Set capture ISO\n"\
-      " -vs  : Turn on video stablisation\n"\
-      " -ev  : Set EV compensation\n"\
-      " -ex  : Set exposure mode (see raspistill notes)\n"\
-      " -awb : Set AWB mode (see raspistill notes)\n"\
-      " -ifx : Set image effect (see raspistill notes)\n"\
-      " -cfx : Set colour effect (U:V)\n"\
-      " -mm  : Set metering mode (see raspistill notes)\n"\
-      " -rot : Set image rotation (0-359)\n"\
+      " -sh    : Set image sharpness (-100 to 100)\n"\
+      " -co    : Set image contrast (-100 to 100)\n"\
+      " -br    : Set image brightness (0 to 100)\n"\
+      " -sa    : Set image saturation (-100 to 100)\n"\
+      " -ISO   : Set capture ISO\n"\
+      " -vs    : Turn on video stablisation\n"\
+      " -ev    : Set EV compensation\n"\
+      " -ex    : Set exposure mode (see raspistill notes)\n"\
+      " -awb   : Set AWB mode (see raspistill notes)\n"\
+      " -ifx   : Set image effect (see raspistill notes)\n"\
+      " -cfx   : Set colour effect (U:V)\n"\
+      " -mm    : Set metering mode (see raspistill notes)\n"\
+      " -rot   : Set image rotation (0-359)\n"\
       " -stats : Compute image stats for each picture (reduces noise for -usestills)\n"\
-      " -drc : Dynamic range compensation level (see raspistill notes)\n"\
-      " -hf  : Set horizontal flip\n"\
-      " -vf  : Set vertical flip\n"\
+      " -drc   : Dynamic range compensation level (see raspistill notes)\n"\
+      " -hf    : Set horizontal flip\n"\
+      " -vf    : Set vertical flip\n"\
+      " -mode  : Set sensor mode (0 - auto)\n"\
       " ---------------------------------------------------------------\n");
 
 }
