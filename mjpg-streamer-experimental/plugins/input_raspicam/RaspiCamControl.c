@@ -34,8 +34,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "interface/vmcs_host/vc_vchi_gencmd.h"
 #include "mmal/mmal.h"
 //#include "mmal/mmal_logging.h"
-//#include "mmal/util/mmal_util.h"
-//#include "mmal/util/mmal_util_params.h"
+#include "mmal/util/mmal_util.h"
+#include "mmal/util/mmal_util_params.h"
 #include "mmal/util/mmal_default_components.h"
 #include "RaspiCamControl.h"
 
