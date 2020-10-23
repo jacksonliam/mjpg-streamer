@@ -1207,7 +1207,8 @@ static void raspicamcontrol_get_camera(int *supported, int *detected)
 }
 
 /**
- * Check to see if camera is supported, and we have allocated enough meooryAsk GPU about its camera abilities
+ * Check to see if camera is supported, and we have allocated enough memory
+ * Ask GPU about its camera abilities
  * @param supported None-zero if software supports the camera 
  * @param detected  None-zero if a camera has been detected
  */
