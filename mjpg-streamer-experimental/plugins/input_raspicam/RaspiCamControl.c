@@ -910,7 +910,7 @@ int raspicamcontrol_set_exposure_compensation(MMAL_COMPONENT_T *camera, int exp_
    if (!camera)
       return 1;
 
-   return mmal_status_to_int(mmal_port_parameter_set_int32(camera->control, MMAL_PARAMETER_EXPOSURE_COMP , exp_comp));
+   return mmal_status_to_int(mmal_port_parameter_set_int32(camera->control, MMAL_PARAMETER_EXPOSURE_COMP, exp_comp));
 }
 
 
@@ -1069,7 +1069,7 @@ int raspicamcontrol_set_rotation(MMAL_COMPONENT_T *camera, int rotation)
    mmal_port_parameter_set_int32(camera->output[1], MMAL_PARAMETER_ROTATION, my_rotation);
    mmal_port_parameter_set_int32(camera->output[2], MMAL_PARAMETER_ROTATION, my_rotation);
 
-   return ret;
+   return mmal_status_to_int(ret);
 }
 
 /**
@@ -1095,7 +1095,7 @@ int raspicamcontrol_set_flips(MMAL_COMPONENT_T *camera, int hflip, int vflip)
 
    mmal_port_parameter_set(camera->output[0], &mirror.hdr);
    mmal_port_parameter_set(camera->output[1], &mirror.hdr);
-   return mmal_port_parameter_set(camera->output[2], &mirror.hdr);
+   return mmal_status_to_int(mmal_port_parameter_set(camera->output[2], &mirror.hdr));
 }
 
 /**
@@ -1114,7 +1114,7 @@ int raspicamcontrol_set_ROI(MMAL_COMPONENT_T *camera, PARAM_FLOAT_RECT_T rect)
    crop.rect.width = (65536 * rect.w);
    crop.rect.height = (65536 * rect.h);
 
-   return mmal_port_parameter_set(camera->control, &crop.hdr);
+   return mmal_status_to_int(mmal_port_parameter_set(camera->control, &crop.hdr));
 }
 
 /**
