@@ -87,7 +87,8 @@ static XREF_T awb_map[] =
    {"fluorescent",   MMAL_PARAM_AWBMODE_FLUORESCENT},
    {"incandescent",  MMAL_PARAM_AWBMODE_INCANDESCENT},
    {"flash",         MMAL_PARAM_AWBMODE_FLASH},
-   {"horizon",       MMAL_PARAM_AWBMODE_HORIZON}
+   {"horizon",       MMAL_PARAM_AWBMODE_HORIZON},
+   {"greyworld",     MMAL_PARAM_AWBMODE_GREYWORLD}
 };
 
 static const int awb_map_size = sizeof(awb_map) / sizeof(awb_map[0]);
@@ -98,6 +99,9 @@ static XREF_T imagefx_map[] =
    {"none",          MMAL_PARAM_IMAGEFX_NONE},
    {"negative",      MMAL_PARAM_IMAGEFX_NEGATIVE},
    {"solarise",      MMAL_PARAM_IMAGEFX_SOLARIZE},
+   {"posterize",     MMAL_PARAM_IMAGEFX_POSTERIZE},
+   {"whiteboard",    MMAL_PARAM_IMAGEFX_WHITEBOARD},
+   {"blackboard",    MMAL_PARAM_IMAGEFX_BLACKBOARD},
    {"sketch",        MMAL_PARAM_IMAGEFX_SKETCH},
    {"denoise",       MMAL_PARAM_IMAGEFX_DENOISE},
    {"emboss",        MMAL_PARAM_IMAGEFX_EMBOSS},

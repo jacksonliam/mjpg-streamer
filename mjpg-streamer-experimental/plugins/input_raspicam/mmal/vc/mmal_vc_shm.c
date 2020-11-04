@@ -51,11 +51,24 @@ typedef struct MMAL_VC_PAYLOAD_LIST_T
    VCOS_MUTEX_T lock;
 } MMAL_VC_PAYLOAD_LIST_T;
 
+static int mmal_vc_shm_initialised;
 static MMAL_VC_PAYLOAD_LIST_T mmal_vc_payload_list;
+static VCOS_ONCE_T once = VCOS_ONCE_INIT;
+static VCOS_MUTEX_T refcount_lock;
+
+static void mmal_vc_shm_init_once(void)
+{
+   vcos_mutex_create(&refcount_lock, VCOS_FUNCTION);
+}
 
 static void mmal_vc_payload_list_init()
 {
    vcos_mutex_create(&mmal_vc_payload_list.lock, "mmal_vc_payload_list");
+}
+
+static void mmal_vc_payload_list_exit()
+{
+   vcos_mutex_delete(&mmal_vc_payload_list.lock);
 }
 
 static MMAL_VC_PAYLOAD_ELEM_T *mmal_vc_payload_list_get()
@@ -129,16 +142,45 @@ static MMAL_VC_PAYLOAD_ELEM_T *mmal_vc_payload_list_find_handle(uint8_t *mem)
 /** Initialise the shared memory system */
 MMAL_STATUS_T mmal_vc_shm_init(void)
 {
+   MMAL_STATUS_T ret = MMAL_SUCCESS;
+   vcos_once(&once, mmal_vc_shm_init_once);
+
+   vcos_mutex_lock(&refcount_lock);
+   mmal_vc_shm_initialised++;
+   if (mmal_vc_shm_initialised > 1)
+      goto unlock;
+
 #ifdef ENABLE_MMAL_VCSM
    if (vcsm_init() != 0)
    {
       LOG_ERROR("could not initialize vc shared memory service");
-      return MMAL_EIO;
+      ret = MMAL_EIO;
+      goto unlock;
    }
 #endif /* ENABLE_MMAL_VCSM */
 
    mmal_vc_payload_list_init();
-   return MMAL_SUCCESS;
+unlock:
+   vcos_mutex_unlock(&refcount_lock);
+   return ret;
+}
+
+void mmal_vc_shm_exit(void)
+{
+   if (mmal_vc_shm_initialised <= 0)
+      goto unlock;
+
+   mmal_vc_shm_initialised--;
+   if (mmal_vc_shm_initialised != 0)
+      goto unlock;
+
+#ifdef ENABLE_MMAL_VCSM
+   vcsm_exit();
+#endif
+
+   mmal_vc_payload_list_exit();
+unlock:
+   vcos_mutex_unlock(&refcount_lock);
 }
 
 /** Allocate a shared memory buffer */
@@ -159,8 +201,8 @@ uint8_t *mmal_vc_shm_alloc(uint32_t size)
    mem = (uint8_t *)vcsm_lock( vcsm_handle );
    if (!mem || !vc_handle)
    {
-      LOG_ERROR("could not allocate %i bytes of shared memory (handle %x)",
-                (int)size, vcsm_handle);
+      LOG_ERROR("could not allocate %i bytes of shared memory (handle %x) - mem %p, vc_hdl %08X",
+                (int)size, vcsm_handle, mem, vc_handle);
       if (mem)
          vcsm_unlock_hdl(vcsm_handle);
       if (vcsm_handle)
@@ -176,8 +218,8 @@ uint8_t *mmal_vc_shm_alloc(uint32_t size)
    vcsm_unlock_hdl(vcsm_handle);
 
    payload_elem->mem = mem;
-   payload_elem->handle = (void *)vcsm_handle;
-   payload_elem->vc_handle = (void *)vc_handle;
+   payload_elem->handle = (void *)(intptr_t)vcsm_handle;
+   payload_elem->vc_handle = (void *)(intptr_t)vc_handle;
 #else /* ENABLE_MMAL_VCSM */
    MMAL_PARAM_UNUSED(size);
    mmal_vc_payload_list_release(payload_elem);
@@ -193,7 +235,7 @@ MMAL_STATUS_T mmal_vc_shm_free(uint8_t *mem)
    if (payload_elem)
    {
 #ifdef ENABLE_MMAL_VCSM
-      vcsm_free((unsigned int)payload_elem->handle);
+      vcsm_free((uintptr_t)payload_elem->handle);
 #endif /* ENABLE_MMAL_VCSM */
       mmal_vc_payload_list_release(payload_elem);
       return MMAL_SUCCESS;
@@ -209,8 +251,14 @@ uint8_t *mmal_vc_shm_lock(uint8_t *mem, uint32_t workaround)
    MMAL_VC_PAYLOAD_ELEM_T *elem = mmal_vc_payload_list_find_handle(mem);
    MMAL_PARAM_UNUSED(workaround);
 
-   if (elem)
+   if (elem) {
       mem = elem->mem;
+#ifdef ENABLE_MMAL_VCSM
+      void *p = vcsm_lock((uintptr_t)elem->handle);
+      if (!p)
+         assert(0);
+#endif /* ENABLE_MMAL_VCSM */
+   }
 
    return mem;
 }
