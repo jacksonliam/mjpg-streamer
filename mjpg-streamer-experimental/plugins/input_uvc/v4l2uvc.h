@@ -66,6 +66,10 @@ int xioctl(int fd, int IOCTL_X, void *arg);
 #define CLOSE_VIDEO(fd) close(fd)
 #endif
 
+#ifndef V4L2_EVENT_SOURCE_CHANGE
+#define V4L2_EVENT_SOURCE_CHANGE 5
+#endif
+
 typedef enum _streaming_state streaming_state;
 enum _streaming_state {
     STREAMING_OFF = 0,

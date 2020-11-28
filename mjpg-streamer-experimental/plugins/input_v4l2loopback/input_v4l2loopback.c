@@ -153,6 +153,7 @@ int input_init(input_parameter *param, int id)
         return 1;
     }
 
+    // Calculate out the frames per second to use
 
     struct v4l2_streamparm parm = {0};
     parm.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -164,11 +165,6 @@ int input_init(input_parameter *param, int id)
 
     struct v4l2_fract tf = parm.parm.capture.timeperframe;
 
-
-    // Frames per second: 25.000 (25/1)
-    printf("\tFrames per second from v4l2 device: %.3f (%d/%d)\n",
-            (1.0 * tf.denominator) / tf.numerator,
-            tf.denominator, tf.numerator);
     delay_in_seconds = (1.0 * tf.numerator) / tf.denominator;
 
     // The passed in fps parameter overrides the one taken from the v4l2 device
@@ -176,8 +172,10 @@ int input_init(input_parameter *param, int id)
         delay_in_seconds = 1.0 / fps;
     }
 
-    IPRINT("Initialized the v4l2loopback input plugin");
-    IPRINT("Delay in seconds: %.3f", delay_in_seconds);
+    IPRINT("Initialized the v4l2loopback input plugin\n");
+    IPRINT("Frames per second from v4l2 device: %.3f (%d/%d)\n", 
+        (1.0 * tf.denominator) / tf.numerator, tf.denominator, tf.numerator);
+    IPRINT("Delay in seconds: %.3f\n", delay_in_seconds);
 
     return 0;
 }
