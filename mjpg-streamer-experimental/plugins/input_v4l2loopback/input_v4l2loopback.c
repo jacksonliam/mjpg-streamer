@@ -257,6 +257,14 @@ void *worker_thread(void *arg)
 
     buffer = mmap (NULL, buf.length, PROT_READ | PROT_WRITE, MAP_SHARED, v4l2_device_fd, buf.m.offset);
 
+
+    buf.bytesused = 0;
+    if(xioctl(v4l2_device_fd, VIDIOC_QBUF, &buf) == -1) {
+        perror("Unable to queue up a buffer to the v4l2 device via VIDIOC_QBUF\n");
+        return NULL;
+    }
+
+
     // Tell the device to start streaming (called only once)
     if(xioctl(v4l2_device_fd, VIDIOC_STREAMON, &buf.type) == -1) {
         perror("Unable to start stream using VIDIOC_STREAMON\n");
@@ -266,19 +274,6 @@ void *worker_thread(void *arg)
 
     
     while(!pglobal->stop) {
-
-        // Read a frame from the v4l2loopback device
-        // To grab a frame, we need to queue the buffer to the
-        // device so that it can start writing to it.
-
-        buf.bytesused = 0;
-        if(xioctl(v4l2_device_fd, VIDIOC_QBUF, &buf) == -1) {
-            perror("Unable to queue up a buffer to the v4l2 device via VIDIOC_QBUF\n");
-            return NULL;
-        }
-        DBG("Queued up a buffer for the v4l2 device to write to.\n");
-
-
 
         // After queueing the buffer we need to wait till the camera
         // writes to the image so that we can read from the buffer.
@@ -306,7 +301,34 @@ void *worker_thread(void *arg)
             return NULL;
         }
 
-        DBG("Got a frame from v4l2 device of size %d\n", buf.bytesused);
+        DBG("Got a frame from v4l2 device of size %d at index %d\n", buf.bytesused, buf.index);
+        if (buf.bytesused > 1024*1024) {
+            continue;
+        }
+
+
+        // HACK: We dequeue the buffer and queue it up again.
+        // We are doing this twice to avoid some type of artifact
+        // issue. https://github.com/umlaeute/v4l2loopback/issues/191
+        buf.bytesused = 0;
+        if(xioctl(v4l2_device_fd, VIDIOC_QBUF, &buf) == -1) {
+            perror("Unable to queue up a buffer to the v4l2 device via VIDIOC_QBUF\n");
+            return NULL;
+        }
+        DBG("Queued up a buffer for the v4l2 device to write to.\n");
+
+        r = select(v4l2_device_fd+1, &fds, NULL, NULL, &tv);
+        if(r == -1) {
+            fprintf(stderr, "Error while waiting for frame");
+            return NULL;
+        }
+        if(xioctl(v4l2_device_fd, VIDIOC_DQBUF, &buf) == -1) {
+            perror("Error dequeueing the buffer");
+            return NULL;
+        }
+
+
+
 
         // Copy the frame into the global shared memory buffer
         // Since this is shared it is protected by a mutex
@@ -319,7 +341,8 @@ void *worker_thread(void *arg)
         }
 
 
-        pglobal->in[plugin_number].buf = malloc(buf.bytesused + (1 << 16));
+        // pglobal->in[plugin_number].buf = malloc(buf.bytesused + (1 << 16));
+        pglobal->in[plugin_number].buf = calloc(1, buf.bytesused);
 
         if(pglobal->in[plugin_number].buf == NULL) {
             fprintf(stderr, "Could not allocate memory for buffer.\n");
@@ -335,6 +358,14 @@ void *worker_thread(void *arg)
 
         DBG("New frame copied into buffer of size: %d\n", pglobal->in[plugin_number].size);
 
+        // Enqueue the buffer again.
+        buf.bytesused = 0;
+        if(xioctl(v4l2_device_fd, VIDIOC_QBUF, &buf) == -1) {
+            perror("Unable to queue up a buffer to the v4l2 device via VIDIOC_QBUF\n");
+            return NULL;
+        }
+        DBG("Queued up a buffer for the v4l2 device to write to.\n");
+
 
         // Signal a new video frame has been put into the buffer
         pthread_cond_broadcast(&pglobal->in[plugin_number].db_update);
@@ -342,6 +373,8 @@ void *worker_thread(void *arg)
 
         // Unlock the mutex
         pthread_mutex_unlock(&pglobal->in[plugin_number].db);
+
+
 
         if(delay_in_seconds != 0) {
             usleep(1000 * 1000 * delay_in_seconds);
