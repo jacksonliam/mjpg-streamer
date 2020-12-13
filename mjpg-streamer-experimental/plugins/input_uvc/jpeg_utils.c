@@ -200,6 +200,47 @@ int compress_image_to_jpeg(struct vdIn *vd, unsigned char *buffer, int size, int
             row_pointer[0] = line_buffer;
             jpeg_write_scanlines(&cinfo, row_pointer, 1);
         }
+    } else if (vd->formatIn == V4L2_PIX_FMT_YUV420) {
+        // YU12 format:: https://www.kernel.org/doc/html/v4.9/media/uapi/v4l/pixfmt-yuv420.html
+        
+        // all Y's are first
+        unsigned char* yplane = yuyv;
+
+        int uvdiv = 2;
+        int uvheight = vd->height / uvdiv;
+        int uvwidth = vd->width / uvdiv;
+
+        // all U's are next
+        unsigned char* uplane = yplane + vd->height * vd->width;
+
+        // finally, all V's are next
+        unsigned char* vplane = uplane + uvheight * uvwidth;
+
+        int y = 0;
+        while(cinfo.next_scanline < vd->height) {
+            int x;
+            unsigned char *ptr = line_buffer;
+
+            for(x = 0; x < vd->width; x++) {
+                int r, g, b;
+                int yc, uc, vc;
+                
+                yc = yplane[x + y * vd->width] << 8;
+                uc = uplane[x / uvdiv + y / uvdiv * uvwidth] - 128;
+                vc = vplane[x / uvdiv + y / uvdiv * uvwidth] - 128;
+
+                r = (yc + (359 * vc)) >> 8;
+                g = (yc - (88 * uc) - (183 * vc)) >> 8;
+                b = (yc + (454 * uc)) >> 8;
+
+                *(ptr++) = (r > 255) ? 255 : ((r < 0) ? 0 : r);
+                *(ptr++) = (g > 255) ? 255 : ((g < 0) ? 0 : g);
+                *(ptr++) = (b > 255) ? 255 : ((b < 0) ? 0 : b);
+            }
+            y++;
+            row_pointer[0] = line_buffer;
+            jpeg_write_scanlines(&cinfo, row_pointer, 1);
+        }
     } else if (vd->formatIn == V4L2_PIX_FMT_RGB24) {
         while(cinfo.next_scanline < vd->height) {
             int x;

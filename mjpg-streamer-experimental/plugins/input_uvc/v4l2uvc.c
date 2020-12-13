@@ -248,6 +248,7 @@ static int init_framebuffer(struct vdIn *vd) {
         case V4L2_PIX_FMT_RGB565: // buffer allocation for non varies on frame size formats
         case V4L2_PIX_FMT_YUYV:
         case V4L2_PIX_FMT_UYVY:
+        case V4L2_PIX_FMT_YUV420:
             vd->framebuffer =
                 (unsigned char *) calloc(1, (size_t) vd->framesizeIn);
             break;
@@ -370,6 +371,10 @@ static int init_v4l2(struct vdIn *vd)
         break;
       case V4L2_PIX_FMT_UYVY:
 	fprintf(stderr, "    ... Falling back to UYVY mode (consider using -uyvy option). Note that this requires much more CPU power\n");
+	vd->formatIn = vd->fmt.fmt.pix.pixelformat;
+        break;
+      case V4L2_PIX_FMT_YUV420:
+	fprintf(stderr, "    ... Falling back to YU12 mode (consider using -yu12 option). Note that this requires much more CPU power\n");
 	vd->formatIn = vd->fmt.fmt.pix.pixelformat;
         break;
       case V4L2_PIX_FMT_RGB24:
@@ -663,6 +668,7 @@ int uvcGrab(struct vdIn *vd)
     case V4L2_PIX_FMT_RGB565:
     case V4L2_PIX_FMT_YUYV:
     case V4L2_PIX_FMT_UYVY:
+    case V4L2_PIX_FMT_YUV420:
         if(vd->buf.bytesused > vd->framesizeIn) {
             memcpy(vd->framebuffer, vd->mem[vd->buf.index], (size_t) vd->framesizeIn);
         } else {
