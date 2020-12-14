@@ -434,7 +434,7 @@ int input_init(input_parameter *param, int id)
                 break;
             case V4L2_PIX_FMT_RGB24:
                 fmtString = "RGB24";
-		        break;
+		break;
             case V4L2_PIX_FMT_RGB565:
                 fmtString = "RGB565";
                 break;
