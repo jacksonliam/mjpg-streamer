@@ -104,7 +104,7 @@ do_start()
    if [ $RETVAL != 0 ]; then
        start-stop-daemon --verbose --start --background --pidfile $PIDFILE --make-pidfile \
        --exec $DAEMON --chuid $MJPG_STREAMER_USER --user $MJPG_STREAMER_USER \
-       --umask $UMASK -- -i "${INPUT_UVC_LIB} ${CAMERA_USB_OPTIONS}" -o "${OUTPUT_HTTP_LIB} -w ${WWW_ROOT}"
+       --umask $UMASK -- -i "${INPUT_UVC_LIB} ${CAMERA_OPTIONS}" -o "${OUTPUT_HTTP_LIB} -w ${WWW_ROOT}"
        RETVAL="$?"
    fi
 }
