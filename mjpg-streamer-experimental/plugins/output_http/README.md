@@ -15,6 +15,7 @@ The following parameters can be passed to this plugin:
 [-w | --www ]...........: folder that contains webpages in 
                           flat hierarchy (no subfolders)
 [-p | --port ]..........: TCP port for this HTTP server
+[-l ] --listen ]........: Listen on Hostname / IP
 [-c | --credentials ]...: ask for "username:password" on connect
 [-n | --nocommands ]....: disable execution of commands
 ---------------------------------------------------------------
