@@ -250,7 +250,7 @@ MMAL_PORT_T **mmal_ports_alloc(MMAL_COMPONENT_T *component, unsigned int ports_n
    MMAL_PORT_T **ports;
    unsigned int i;
 
-   ports = vcos_malloc(sizeof(MMAL_PORT_T *) * ports_num, "mmal ports");
+   ports = vcos_calloc(1, sizeof(MMAL_PORT_T *) * ports_num, "mmal ports");
    if (!ports)
       return 0;
 
@@ -724,7 +724,8 @@ MMAL_STATUS_T mmal_port_send_buffer(MMAL_PORT_T *port,
              buffer ? (int)buffer->length : 0);
 #endif
 
-   if (!buffer->data && !(port->capabilities & MMAL_PORT_CAPABILITY_PASSTHROUGH))
+   if (buffer->alloc_size && !buffer->data &&
+       !(port->capabilities & MMAL_PORT_CAPABILITY_PASSTHROUGH))
    {
       LOG_ERROR("%s(%p) received invalid buffer header", port->name, port);
       return MMAL_EINVAL;
@@ -747,11 +748,14 @@ MMAL_STATUS_T mmal_port_send_buffer(MMAL_PORT_T *port,
       buffer->length = 0;
    }
 
+   /* coverity[lock] transit_sema is used for signalling, and is not a lock */
+   /* coverity[lock_order] since transit_sema is not a lock, there is no ordering conflict */
    IN_TRANSIT_INCREMENT(port);
 
    if (port->priv->core->is_paused)
    {
       /* Add buffer to our internal queue */
+      buffer->next = NULL;
       *port->priv->core->queue_last = buffer;
       port->priv->core->queue_last = &buffer->next;
    }
@@ -790,8 +794,17 @@ MMAL_STATUS_T mmal_port_flush(MMAL_PORT_T *port)
    if (!port->priv->pf_flush)
       return MMAL_ENOSYS;
 
+   /* N.B. must take action lock *before* sending lock */
    mmal_component_action_lock(port->component);
    LOCK_SENDING(port);
+
+   if (!port->is_enabled)
+   {
+      UNLOCK_SENDING(port);
+      mmal_component_action_unlock(port->component);
+      return MMAL_SUCCESS;
+   }
+
    status = port->priv->pf_flush(port);
    if (status == MMAL_SUCCESS)
    {
@@ -800,6 +813,7 @@ MMAL_STATUS_T mmal_port_flush(MMAL_PORT_T *port)
       port->priv->core->queue_first = 0;
       port->priv->core->queue_last = &port->priv->core->queue_first;
    }
+
    UNLOCK_SENDING(port);
    mmal_component_action_unlock(port->component);
 
@@ -1268,10 +1282,18 @@ static MMAL_STATUS_T mmal_port_connect_default(MMAL_PORT_T *port, MMAL_PORT_T *o
 /** Connected input port buffer callback */
 static void mmal_port_connected_input_cb(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer)
 {
-   MMAL_PARAM_UNUSED(port);
-
    LOG_TRACE("buffer %p from connected input port %p: data %p, alloc_size %u, length %u",
              buffer, port, buffer->data, buffer->alloc_size, buffer->length);
+
+   /* Clock ports are bi-directional and a buffer coming from an "input"
+    * clock port can potentially have valid payload data, in which case
+    * it should be sent directly to the connected port. */
+   if (port->type == MMAL_PORT_TYPE_CLOCK && buffer->length)
+   {
+      MMAL_PORT_T* connected_port = port->priv->core->connected_port;
+      mmal_port_send_buffer(connected_port, buffer);
+      return;
+   }
 
    /* Simply release buffer back into pool for re-use */
    mmal_buffer_header_release(buffer);
@@ -1347,14 +1369,6 @@ static MMAL_BOOL_T mmal_port_connected_pool_cb(MMAL_POOL_T *pool, MMAL_BUFFER_HE
 
    LOG_TRACE("released buffer %p, data %p alloc_size %u length %u",
              buffer, buffer->data, buffer->alloc_size, buffer->length);
-
-   /* Reset buffer header */
-   buffer->cmd = 0;
-   buffer->length = 0;
-   buffer->offset = 0;
-   buffer->flags = 0;
-   buffer->pts = 0;
-   buffer->dts = 0;
 
    /* Pipe the buffer back to the output port */
    status = mmal_port_send_buffer(port, buffer);
@@ -1487,4 +1501,9 @@ MMAL_STATUS_T mmal_port_pause(MMAL_PORT_T *port, MMAL_BOOL_T pause)
 
    UNLOCK_SENDING(port);
    return status;
+}
+
+MMAL_BOOL_T mmal_port_is_connected(MMAL_PORT_T *port)
+{
+   return !!port->priv->core->connected_port;
 }

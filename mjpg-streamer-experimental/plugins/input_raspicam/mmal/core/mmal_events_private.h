@@ -25,54 +25,43 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "mmal_vc_msgnames.h"
-#include "mmal_vc_msgs.h"
+#ifndef MMAL_EVENTS_PRIVATE_H
+#define MMAL_EVENTS_PRIVATE_H
 
-/** Convert a message id to a name.
-  */
-const char *mmal_msgname(uint32_t id)
-{
-#define MSGNAME(x) { MMAL_WORKER_##x, #x }
-   static struct {
-      uint32_t id;
-      const char *name;
-   } msgnames[] = {
-      MSGNAME(QUIT),
-      MSGNAME(SERVICE_CLOSED),
-      MSGNAME(GET_VERSION),
-      MSGNAME(COMPONENT_CREATE),
-      MSGNAME(COMPONENT_DESTROY),
-      MSGNAME(COMPONENT_ENABLE),
-      MSGNAME(COMPONENT_DISABLE),
-      MSGNAME(PORT_INFO_GET),
-      MSGNAME(PORT_INFO_SET),
-      MSGNAME(PORT_ACTION),
-      MSGNAME(BUFFER_FROM_HOST),
-      MSGNAME(BUFFER_TO_HOST),
-      MSGNAME(GET_STATS),
-      MSGNAME(PORT_PARAMETER_SET),
-      MSGNAME(PORT_PARAMETER_GET),
-      MSGNAME(EVENT_TO_HOST),
-      MSGNAME(GET_CORE_STATS_FOR_PORT),
-      MSGNAME(OPAQUE_ALLOCATOR),
-      MSGNAME(CONSUME_MEM),
-      MSGNAME(LMK),
-      MSGNAME(OPAQUE_ALLOCATOR_DESC),
-      MSGNAME(DRM_GET_LHS32),
-      MSGNAME(DRM_GET_TIME),
-      MSGNAME(BUFFER_FROM_HOST_ZEROLEN),
-      MSGNAME(PORT_FLUSH),
-      MSGNAME(HOST_LOG),
-      MSGNAME(COMPACT),
-      { 0, NULL },
-   };
-   vcos_static_assert(sizeof(msgnames)/sizeof(msgnames[0]) == MMAL_WORKER_MSG_LAST);
-   int i = 0;
-   while (msgnames[i].name)
-   {
-      if (msgnames[i].id == id)
-         return msgnames[i].name;
-      i++;
-   }
-   return "unknown-message";
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include "mmal_events.h"
+
+/** Send an error event through the component's control port.
+ * The error event data will be the MMAL_STATUS_T passed in.
+ *
+ * @param component component to receive the error event.
+ * @param status the error status to be sent.
+ * @return MMAL_SUCCESS or an error if the event could not be sent.
+ */
+MMAL_STATUS_T mmal_event_error_send(MMAL_COMPONENT_T *component, MMAL_STATUS_T status);
+
+/** Send an eos event through a specific port.
+ *
+ * @param port port to receive the error event.
+ * @return MMAL_SUCCESS or an error if the event could not be sent.
+ */
+MMAL_STATUS_T mmal_event_eos_send(MMAL_PORT_T *port);
+
+/** Forward an event onto an output port.
+ * This will allocate a new event buffer on the output port, make a copy
+ * of the event buffer which will then be forwarded.
+ *
+ * @event event to forward.
+ * @param port port to forward event to.
+ * @return MMAL_SUCCESS or an error if the event could not be forwarded.
+ */
+MMAL_STATUS_T mmal_event_forward(MMAL_BUFFER_HEADER_T *event, MMAL_PORT_T *port);
+
+#ifdef __cplusplus
 }
+#endif
+
+#endif /* MMAL_EVENTS_PRIVATE_H */

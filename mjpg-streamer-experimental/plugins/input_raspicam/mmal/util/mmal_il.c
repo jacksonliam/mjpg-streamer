@@ -80,6 +80,23 @@ OMX_U32 mmalil_buffer_flags_to_omx(uint32_t flags)
       omx_flags |= OMX_BUFFERFLAG_CAPTURE_PREVIEW;
    if (flags & MMAL_BUFFER_HEADER_FLAG_CORRUPTED)
       omx_flags |= OMX_BUFFERFLAG_DATACORRUPT;
+   if (flags & MMAL_BUFFER_HEADER_FLAG_DECODEONLY)
+      omx_flags |= OMX_BUFFERFLAG_DECODEONLY;
+   if (flags & MMAL_BUFFER_HEADER_VIDEO_FLAG_INTERLACED)
+      omx_flags |= OMX_BUFFERFLAG_INTERLACED;
+   if (flags & MMAL_BUFFER_HEADER_VIDEO_FLAG_TOP_FIELD_FIRST)
+     omx_flags |= OMX_BUFFERFLAG_TOP_FIELD_FIRST;
+   if (flags & MMAL_BUFFER_HEADER_FLAG_NAL_END)
+     omx_flags |= OMX_BUFFERFLAG_ENDOFNAL;
+
+   if (flags & MMAL_BUFFER_HEADER_FLAG_USER0)
+      omx_flags |= OMX_BUFFERFLAG_USR0;
+   if (flags & MMAL_BUFFER_HEADER_FLAG_USER1)
+      omx_flags |= OMX_BUFFERFLAG_USR1;
+   if (flags & MMAL_BUFFER_HEADER_FLAG_USER2)
+      omx_flags |= OMX_BUFFERFLAG_USR2;
+   if (flags & MMAL_BUFFER_HEADER_FLAG_USER3)
+      omx_flags |= OMX_BUFFERFLAG_USR3;
 
    return omx_flags;
 }
@@ -104,6 +121,47 @@ uint32_t mmalil_buffer_flags_to_mmal(OMX_U32 flags)
       mmal_flags |= MMAL_BUFFER_HEADER_FLAGS_SNAPSHOT;
    if (flags & OMX_BUFFERFLAG_DATACORRUPT)
       mmal_flags |= MMAL_BUFFER_HEADER_FLAG_CORRUPTED;
+   if (flags & OMX_BUFFERFLAG_DECODEONLY)
+      mmal_flags |= MMAL_BUFFER_HEADER_FLAG_DECODEONLY;
+   if (flags & OMX_BUFFERFLAG_INTERLACED)
+      mmal_flags |= MMAL_BUFFER_HEADER_VIDEO_FLAG_INTERLACED;
+   if (flags & OMX_BUFFERFLAG_TOP_FIELD_FIRST)
+      mmal_flags |= MMAL_BUFFER_HEADER_VIDEO_FLAG_TOP_FIELD_FIRST;
+   if (flags & OMX_BUFFERFLAG_ENDOFNAL)
+      mmal_flags |= MMAL_BUFFER_HEADER_FLAG_NAL_END;
+
+   if (flags & OMX_BUFFERFLAG_USR0)
+      mmal_flags |= MMAL_BUFFER_HEADER_FLAG_USER0;
+   if (flags & OMX_BUFFERFLAG_USR1)
+      mmal_flags |= MMAL_BUFFER_HEADER_FLAG_USER1;
+   if (flags & OMX_BUFFERFLAG_USR2)
+      mmal_flags |= MMAL_BUFFER_HEADER_FLAG_USER2;
+   if (flags & OMX_BUFFERFLAG_USR3)
+      mmal_flags |= MMAL_BUFFER_HEADER_FLAG_USER3;
+
+   return mmal_flags;
+}
+
+OMX_U32 mmalil_video_buffer_flags_to_omx(uint32_t flags)
+{
+   OMX_U32 omx_flags = 0;
+
+   if (flags & MMAL_BUFFER_HEADER_VIDEO_FLAG_INTERLACED)
+      omx_flags |= OMX_BUFFERFLAG_INTERLACED;
+   if (flags & MMAL_BUFFER_HEADER_VIDEO_FLAG_TOP_FIELD_FIRST)
+     omx_flags |= OMX_BUFFERFLAG_TOP_FIELD_FIRST;
+
+  return omx_flags;
+}
+
+uint32_t mmalil_video_buffer_flags_to_mmal(OMX_U32 flags)
+{
+   uint32_t mmal_flags = 0;
+
+   if (flags & OMX_BUFFERFLAG_INTERLACED)
+      mmal_flags |= MMAL_BUFFER_HEADER_VIDEO_FLAG_INTERLACED;
+   if (flags & OMX_BUFFERFLAG_TOP_FIELD_FIRST)
+      mmal_flags |= MMAL_BUFFER_HEADER_VIDEO_FLAG_TOP_FIELD_FIRST;
 
    return mmal_flags;
 }
@@ -119,8 +177,16 @@ void mmalil_buffer_header_to_omx(OMX_BUFFERHEADERTYPE *omx, MMAL_BUFFER_HEADER_T
    omx->nTimeStamp = omx_ticks_from_s64(mmal->pts);
    if (mmal->pts == MMAL_TIME_UNKNOWN)
    {
-      omx->nFlags |= OMX_BUFFERFLAG_TIME_UNKNOWN;
-      omx->nTimeStamp = omx_ticks_from_s64(0);
+      if (mmal->dts == MMAL_TIME_UNKNOWN)
+      {
+         omx->nTimeStamp = omx_ticks_from_s64(0);
+         omx->nFlags |= OMX_BUFFERFLAG_TIME_UNKNOWN;
+      }
+      else
+      {
+        omx->nTimeStamp = omx_ticks_from_s64(mmal->dts);
+        omx->nFlags |= OMX_BUFFERFLAG_TIME_IS_DTS;
+      }
    }
 }
 
@@ -131,10 +197,21 @@ void mmalil_buffer_header_to_mmal(MMAL_BUFFER_HEADER_T *mmal, OMX_BUFFERHEADERTY
    mmal->alloc_size = omx->nAllocLen;
    mmal->length = omx->nFilledLen;
    mmal->offset = omx->nOffset;
-   mmal->pts = omx_ticks_to_s64(omx->nTimeStamp);
-   if (omx->nFlags & OMX_BUFFERFLAG_TIME_UNKNOWN)
-      mmal->pts = MMAL_TIME_UNKNOWN;
-   mmal->dts = MMAL_TIME_UNKNOWN;
+   if (omx->nFlags & OMX_BUFFERFLAG_TIME_IS_DTS)
+   {
+     mmal->dts = omx_ticks_to_s64(omx->nTimeStamp);
+     mmal->pts = MMAL_TIME_UNKNOWN;
+   }
+   else if (omx->nFlags & OMX_BUFFERFLAG_TIME_UNKNOWN)
+   {
+     mmal->dts = MMAL_TIME_UNKNOWN;
+     mmal->pts = MMAL_TIME_UNKNOWN;
+   }
+   else
+   {
+     mmal->dts = MMAL_TIME_UNKNOWN;
+     mmal->pts = omx_ticks_to_s64(omx->nTimeStamp);
+   }
    mmal->flags = mmalil_buffer_flags_to_mmal(omx->nFlags);
 }
 
@@ -186,6 +263,9 @@ static struct {
    {MMAL_ENCODING_PCM_UNSIGNED_LE,OMX_AUDIO_CodingPCM},
    {MMAL_ENCODING_PCM_SIGNED_BE,  OMX_AUDIO_CodingPCM},
    {MMAL_ENCODING_PCM_UNSIGNED_BE,OMX_AUDIO_CodingPCM},
+   {MMAL_ENCODING_AC3,            OMX_AUDIO_CodingDDP},
+   {MMAL_ENCODING_EAC3,           OMX_AUDIO_CodingDDP},
+   {MMAL_ENCODING_DTS,            OMX_AUDIO_CodingDTS},
    {MMAL_ENCODING_UNKNOWN,        OMX_AUDIO_CodingUnused}
 };
 
@@ -236,8 +316,19 @@ static struct {
    {OMX_AUDIO_CodingWMA, OMX_IndexParamAudioWma, sizeof(OMX_AUDIO_PARAM_WMATYPE)},
    {OMX_AUDIO_CodingRA, OMX_IndexParamAudioRa, sizeof(OMX_AUDIO_PARAM_RATYPE)},
    {OMX_AUDIO_CodingMIDI, OMX_IndexParamAudioMidi, sizeof(OMX_AUDIO_PARAM_MIDITYPE)},
+   {OMX_AUDIO_CodingDDP, OMX_IndexParamAudioDdp, sizeof(OMX_AUDIO_PARAM_DDPTYPE)},
+   {OMX_AUDIO_CodingDTS, OMX_IndexParamAudioDts, sizeof(OMX_AUDIO_PARAM_DTSTYPE)},
    {OMX_AUDIO_CodingUnused, 0, 0}
 };
+
+OMX_AUDIO_CODINGTYPE mmalil_omx_audio_param_index_to_coding(OMX_INDEXTYPE index)
+{
+   unsigned int i;
+   for(i = 0; mmal_omx_audio_format_table[i].coding != OMX_AUDIO_CodingUnused; i++)
+      if(mmal_omx_audio_format_table[i].index == index) break;
+
+   return mmal_omx_audio_format_table[i].coding;
+}
 
 OMX_INDEXTYPE mmalil_omx_audio_param_index(OMX_AUDIO_CODINGTYPE coding, OMX_U32 *size)
 {
@@ -249,11 +340,41 @@ OMX_INDEXTYPE mmalil_omx_audio_param_index(OMX_AUDIO_CODINGTYPE coding, OMX_U32 
    return mmal_omx_audio_format_table[i].index;
 }
 
+MMAL_STATUS_T mmalil_omx_default_channel_mapping(OMX_AUDIO_CHANNELTYPE *channel_mapping, unsigned int nchannels)
+{
+   static const OMX_AUDIO_CHANNELTYPE default_mapping[][8] = {
+      {OMX_AUDIO_ChannelNone},
+      {OMX_AUDIO_ChannelCF},
+      {OMX_AUDIO_ChannelLF, OMX_AUDIO_ChannelRF},
+      {OMX_AUDIO_ChannelLF, OMX_AUDIO_ChannelRF, OMX_AUDIO_ChannelCF},
+      {OMX_AUDIO_ChannelLF, OMX_AUDIO_ChannelRF, OMX_AUDIO_ChannelCF,
+         OMX_AUDIO_ChannelCS},
+      {OMX_AUDIO_ChannelLF, OMX_AUDIO_ChannelRF, OMX_AUDIO_ChannelCF,
+         OMX_AUDIO_ChannelLR, OMX_AUDIO_ChannelRR},
+      {OMX_AUDIO_ChannelLF, OMX_AUDIO_ChannelRF, OMX_AUDIO_ChannelCF,
+         OMX_AUDIO_ChannelLFE, OMX_AUDIO_ChannelLR, OMX_AUDIO_ChannelRR},
+      {OMX_AUDIO_ChannelLF, OMX_AUDIO_ChannelRF, OMX_AUDIO_ChannelCF,
+         OMX_AUDIO_ChannelLFE, OMX_AUDIO_ChannelLR, OMX_AUDIO_ChannelRR,
+         OMX_AUDIO_ChannelCS},
+      {OMX_AUDIO_ChannelLF, OMX_AUDIO_ChannelRF, OMX_AUDIO_ChannelCF,
+         OMX_AUDIO_ChannelLFE, OMX_AUDIO_ChannelLR, OMX_AUDIO_ChannelRR,
+         OMX_AUDIO_ChannelLS, OMX_AUDIO_ChannelRS}
+   };
+
+   if (!nchannels || nchannels >= MMAL_COUNTOF(default_mapping))
+      return MMAL_EINVAL;
+
+   memcpy(channel_mapping, default_mapping[nchannels],
+      sizeof(default_mapping[0][0]) * nchannels);
+   return MMAL_SUCCESS;
+}
+
 MMAL_FOURCC_T mmalil_omx_audio_param_to_format(MMAL_ES_FORMAT_T *format,
    OMX_AUDIO_CODINGTYPE coding, OMX_FORMAT_PARAM_TYPE *param)
 {
    MMAL_AUDIO_FORMAT_T *audio = &format->es->audio;
-   format->encoding = MMAL_ENCODING_UNKNOWN;
+   format->encoding = mmalil_omx_audio_coding_to_encoding(coding);
+   format->encoding_variant = 0;
 
    switch(coding)
    {
@@ -324,7 +445,6 @@ MMAL_FOURCC_T mmalil_omx_audio_param_to_format(MMAL_ES_FORMAT_T *format,
       }
       break;
    case OMX_AUDIO_CodingVORBIS:
-      format->encoding = MMAL_ENCODING_VORBIS;
       audio->channels = param->vorbis.nChannels;
       audio->sample_rate = param->vorbis.nSampleRate;
       format->bitrate = param->vorbis.nBitRate;
@@ -340,6 +460,18 @@ MMAL_FOURCC_T mmalil_omx_audio_param_to_format(MMAL_ES_FORMAT_T *format,
          param->amr.eAMRBandMode <= OMX_AUDIO_AMRBandModeWB8)
          format->encoding = MMAL_ENCODING_AMRWB;
       break;
+   case OMX_AUDIO_CodingDDP:
+      audio->channels = param->ddp.nChannels;
+      audio->sample_rate = param->ddp.nSampleRate;
+      if(param->ddp.eBitStreamId > OMX_AUDIO_DDPBitStreamIdAC3)
+         format->encoding = MMAL_ENCODING_EAC3;
+      break;
+   case OMX_AUDIO_CodingDTS:
+      audio->channels = param->dts.nChannels;
+      audio->sample_rate = param->dts.nSampleRate;
+      audio->block_align = param->dts.nDtsFrameSizeBytes;
+      break;
+
    case OMX_AUDIO_CodingADPCM:
    case OMX_AUDIO_CodingGSMFR:
    case OMX_AUDIO_CodingGSMEFR:
@@ -386,15 +518,7 @@ OMX_AUDIO_CODINGTYPE mmalil_format_to_omx_audio_param(OMX_FORMAT_PARAM_TYPE *par
       param->pcm.nChannels = audio->channels;
       param->pcm.nSamplingRate = audio->sample_rate;
       param->pcm.nBitPerSample = audio->bits_per_sample;
-      if(audio->channels == 1)
-      {
-         param->pcm.eChannelMapping[0] = OMX_AUDIO_ChannelCF;
-      }
-      else if(audio->channels == 2)
-      {
-         param->pcm.eChannelMapping[0] = OMX_AUDIO_ChannelLF;
-         param->pcm.eChannelMapping[1] = OMX_AUDIO_ChannelRF;
-      }
+      mmalil_omx_default_channel_mapping(param->pcm.eChannelMapping, audio->channels);
       if(format->encoding == MMAL_ENCODING_PCM_SIGNED_BE ||
          format->encoding == MMAL_ENCODING_PCM_SIGNED_LE ||
          format->encoding == MMAL_ENCODING_PCM_UNSIGNED_BE ||
@@ -465,6 +589,24 @@ OMX_AUDIO_CODINGTYPE mmalil_format_to_omx_audio_param(OMX_FORMAT_PARAM_TYPE *par
       if(format->encoding == MMAL_ENCODING_AMRWB)
          param->amr.eAMRBandMode = OMX_AUDIO_AMRBandModeWB0;
       break;
+   case OMX_AUDIO_CodingDDP:
+      param->ddp.nChannels = audio->channels;
+      param->ddp.nSampleRate = audio->sample_rate;
+      param->ddp.eBitStreamId = OMX_AUDIO_DDPBitStreamIdAC3;
+      if(format->encoding == MMAL_ENCODING_EAC3)
+         param->ddp.eBitStreamId = OMX_AUDIO_DDPBitStreamIdEAC3;
+      param->ddp.eBitStreamMode = 0;
+      param->ddp.eDolbySurroundMode = 0;
+      mmalil_omx_default_channel_mapping(param->ddp.eChannelMapping, audio->channels);
+      break;
+   case OMX_AUDIO_CodingDTS:
+      param->dts.nChannels = audio->channels;
+      param->dts.nSampleRate = audio->sample_rate;
+      param->dts.nDtsFrameSizeBytes = audio->block_align;
+      param->dts.nDtsType = 1;
+      param->dts.nFormat = 0;
+      mmalil_omx_default_channel_mapping(param->dts.eChannelMapping, audio->channels);
+      break;
    case OMX_AUDIO_CodingADPCM:
    case OMX_AUDIO_CodingGSMFR:
    case OMX_AUDIO_CodingGSMEFR:
@@ -500,19 +642,21 @@ static struct {
 } mmal_omx_video_coding_table[] =
 {
    {MMAL_ENCODING_H264,           OMX_VIDEO_CodingAVC},
+   {MMAL_ENCODING_MVC,            OMX_VIDEO_CodingMVC},
    {MMAL_ENCODING_MP4V,           OMX_VIDEO_CodingMPEG4},
    {MMAL_ENCODING_MP2V,           OMX_VIDEO_CodingMPEG2},
    {MMAL_ENCODING_MP1V,           OMX_VIDEO_CodingMPEG2},
    {MMAL_ENCODING_H263,           OMX_VIDEO_CodingH263},
+   {MMAL_ENCODING_WVC1,           OMX_VIDEO_CodingWMV},
    {MMAL_ENCODING_WMV3,           OMX_VIDEO_CodingWMV},
    {MMAL_ENCODING_WMV2,           OMX_VIDEO_CodingWMV},
    {MMAL_ENCODING_WMV1,           OMX_VIDEO_CodingWMV},
-   {MMAL_ENCODING_WVC1,           OMX_VIDEO_CodingWMV},
    {MMAL_ENCODING_VP6,            OMX_VIDEO_CodingVP6},
    {MMAL_ENCODING_VP7,            OMX_VIDEO_CodingVP7},
    {MMAL_ENCODING_VP8,            OMX_VIDEO_CodingVP8},
    {MMAL_ENCODING_SPARK,          OMX_VIDEO_CodingSorenson},
    {MMAL_ENCODING_THEORA,         OMX_VIDEO_CodingTheora},
+   {MMAL_ENCODING_MJPEG,          OMX_VIDEO_CodingMJPEG},
    {MMAL_ENCODING_UNKNOWN,        OMX_VIDEO_CodingUnused}
 };
 
@@ -544,6 +688,7 @@ static struct {
    {MMAL_ENCODING_BMP,            OMX_IMAGE_CodingBMP},
    {MMAL_ENCODING_TGA,            OMX_IMAGE_CodingTGA},
    {MMAL_ENCODING_PPM,            OMX_IMAGE_CodingPPM},
+   {MMAL_ENCODING_BRCM_STATS,     OMX_IMAGE_CodingBrcmStatistics},
    {MMAL_ENCODING_UNKNOWN,        OMX_IMAGE_CodingUnused}
 };
 
@@ -602,8 +747,45 @@ static struct {
    {MMAL_ENCODING_RGB24,          OMX_COLOR_Format24bitBGR888},
    {MMAL_ENCODING_ARGB,           OMX_COLOR_Format32bitBGRA8888},
    {MMAL_ENCODING_RGBA,           OMX_COLOR_Format32bitABGR8888},
+   {MMAL_ENCODING_RGB16_SLICE,    OMX_COLOR_Format16bitRGB565},
+   {MMAL_ENCODING_BGR24_SLICE,    OMX_COLOR_Format24bitRGB888},
+   {MMAL_ENCODING_BGRA_SLICE,     OMX_COLOR_Format32bitARGB8888},
+   {MMAL_ENCODING_BGR16_SLICE,    OMX_COLOR_Format16bitBGR565},
+   {MMAL_ENCODING_RGB24_SLICE,    OMX_COLOR_Format24bitBGR888},
+   {MMAL_ENCODING_ARGB_SLICE,     OMX_COLOR_Format32bitBGRA8888},
+   {MMAL_ENCODING_RGBA_SLICE,     OMX_COLOR_Format32bitABGR8888},
    {MMAL_ENCODING_EGL_IMAGE,      OMX_COLOR_FormatBRCMEGL},
+   {MMAL_ENCODING_BAYER_SBGGR8,   OMX_COLOR_FormatRawBayer8bit},
+   {MMAL_ENCODING_BAYER_SGRBG8,   OMX_COLOR_FormatRawBayer8bit},
+   {MMAL_ENCODING_BAYER_SGBRG8,   OMX_COLOR_FormatRawBayer8bit},
+   {MMAL_ENCODING_BAYER_SRGGB8,   OMX_COLOR_FormatRawBayer8bit},
+   {MMAL_ENCODING_BAYER_SBGGR10P, OMX_COLOR_FormatRawBayer10bit},
+   {MMAL_ENCODING_BAYER_SGRBG10P, OMX_COLOR_FormatRawBayer10bit},
+   {MMAL_ENCODING_BAYER_SGBRG10P, OMX_COLOR_FormatRawBayer10bit},
+   {MMAL_ENCODING_BAYER_SRGGB10P, OMX_COLOR_FormatRawBayer10bit},
+   {MMAL_ENCODING_BAYER_SBGGR12P, OMX_COLOR_FormatRawBayer12bit},
+   {MMAL_ENCODING_BAYER_SGRBG12P, OMX_COLOR_FormatRawBayer12bit},
+   {MMAL_ENCODING_BAYER_SGBRG12P, OMX_COLOR_FormatRawBayer12bit},
+   {MMAL_ENCODING_BAYER_SRGGB12P, OMX_COLOR_FormatRawBayer12bit},
+   {MMAL_ENCODING_BAYER_SBGGR16,  OMX_COLOR_FormatRawBayer16bit},
+   {MMAL_ENCODING_BAYER_SGBRG16,  OMX_COLOR_FormatRawBayer16bit},
+   {MMAL_ENCODING_BAYER_SGRBG16,  OMX_COLOR_FormatRawBayer16bit},
+   {MMAL_ENCODING_BAYER_SRGGB16,  OMX_COLOR_FormatRawBayer16bit},
+   {MMAL_ENCODING_BAYER_SBGGR10DPCM8,OMX_COLOR_FormatRawBayer8bitcompressed},
    {MMAL_ENCODING_OPAQUE,         OMX_COLOR_FormatBRCMOpaque},
+   {MMAL_ENCODING_I420_16,        OMX_COLOR_FormatYUV420_16PackedPlanar},
+   {MMAL_ENCODING_I420_S,         OMX_COLOR_FormatYUV420_UVSideBySide},
+   {MMAL_ENCODING_YUVUV64_16,     OMX_COLOR_FormatYUVUV64_16},
+   {MMAL_ENCODING_I420_10,        OMX_COLOR_FormatYUV420_10PackedPlanar},
+   {MMAL_ENCODING_YUVUV64_10,     OMX_COLOR_FormatYUVUV64_10},
+   {MMAL_ENCODING_BGR32,          OMX_COLOR_Format32bitXRGB8888},
+   {MMAL_ENCODING_RGB32,          OMX_COLOR_Format32bitXBGR8888},
+   {MMAL_ENCODING_YUV10_COL,      OMX_COLOR_FormatYUV10bitColumn},
+   {MMAL_ENCODING_GREY,           OMX_COLOR_FormatRawGrey8bit},
+   {MMAL_ENCODING_Y10P,           OMX_COLOR_FormatRawGrey10bit},
+   {MMAL_ENCODING_Y12P,           OMX_COLOR_FormatRawGrey12bit},
+   {MMAL_ENCODING_Y14P,           OMX_COLOR_FormatRawGrey14bit},
+   {MMAL_ENCODING_Y16,            OMX_COLOR_FormatRawGrey16bit},
    {MMAL_ENCODING_UNKNOWN,        OMX_COLOR_FormatUnused}
 };
 
@@ -623,6 +805,60 @@ OMX_COLOR_FORMATTYPE mmalil_encoding_to_omx_color_format(uint32_t encoding)
    return mmal_omx_colorformat_coding_table[i].coding;
 }
 
+static struct {
+   uint32_t encoding;
+   OMX_COLOR_FORMATTYPE color_format;
+   OMX_BAYERORDERTYPE bayer_order;
+} mmal_omx_bayer_order_coding_table[] =
+{
+   //Colour format required for conversion from OMX to MMAL.
+   //Not used for MMAL encoding to OMX color format.
+   {MMAL_ENCODING_BAYER_SBGGR8, OMX_COLOR_FormatRawBayer8bit, OMX_BayerOrderBGGR},
+   {MMAL_ENCODING_BAYER_SGBRG8, OMX_COLOR_FormatRawBayer8bit, OMX_BayerOrderGBRG},
+   {MMAL_ENCODING_BAYER_SGRBG8, OMX_COLOR_FormatRawBayer8bit, OMX_BayerOrderGRBG},
+   {MMAL_ENCODING_BAYER_SRGGB8, OMX_COLOR_FormatRawBayer8bit, OMX_BayerOrderRGGB},
+
+   {MMAL_ENCODING_BAYER_SBGGR10P, OMX_COLOR_FormatRawBayer10bit, OMX_BayerOrderBGGR},
+   {MMAL_ENCODING_BAYER_SGRBG10P, OMX_COLOR_FormatRawBayer10bit, OMX_BayerOrderGRBG},
+   {MMAL_ENCODING_BAYER_SGBRG10P, OMX_COLOR_FormatRawBayer10bit, OMX_BayerOrderGBRG},
+   {MMAL_ENCODING_BAYER_SRGGB10P, OMX_COLOR_FormatRawBayer10bit, OMX_BayerOrderRGGB},
+
+   {MMAL_ENCODING_BAYER_SBGGR12P, OMX_COLOR_FormatRawBayer12bit, OMX_BayerOrderBGGR},
+   {MMAL_ENCODING_BAYER_SGRBG12P, OMX_COLOR_FormatRawBayer12bit, OMX_BayerOrderGRBG},
+   {MMAL_ENCODING_BAYER_SGBRG12P, OMX_COLOR_FormatRawBayer12bit, OMX_BayerOrderGBRG},
+   {MMAL_ENCODING_BAYER_SRGGB12P, OMX_COLOR_FormatRawBayer12bit, OMX_BayerOrderRGGB},
+
+   {MMAL_ENCODING_BAYER_SBGGR16,  OMX_COLOR_FormatRawBayer16bit, OMX_BayerOrderBGGR},
+   {MMAL_ENCODING_BAYER_SGRBG16,  OMX_COLOR_FormatRawBayer16bit, OMX_BayerOrderGRBG},
+   {MMAL_ENCODING_BAYER_SGBRG16,  OMX_COLOR_FormatRawBayer16bit, OMX_BayerOrderGBRG},
+   {MMAL_ENCODING_BAYER_SRGGB16,  OMX_COLOR_FormatRawBayer16bit, OMX_BayerOrderRGGB},
+
+   {MMAL_ENCODING_BAYER_SBGGR10DPCM8,OMX_COLOR_FormatRawBayer8bitcompressed, OMX_BayerOrderBGGR},
+   {MMAL_ENCODING_BAYER_SGRBG10DPCM8,OMX_COLOR_FormatRawBayer8bitcompressed, OMX_BayerOrderGRBG},
+   {MMAL_ENCODING_BAYER_SGBRG10DPCM8,OMX_COLOR_FormatRawBayer8bitcompressed, OMX_BayerOrderGBRG},
+   {MMAL_ENCODING_BAYER_SRGGB10DPCM8,OMX_COLOR_FormatRawBayer8bitcompressed, OMX_BayerOrderRGGB},
+
+   {MMAL_ENCODING_UNKNOWN,        OMX_COLOR_FormatMax,            OMX_BayerOrderMax}
+};
+
+uint32_t mmalil_omx_bayer_format_order_to_encoding(OMX_BAYERORDERTYPE bayer_order, OMX_COLOR_FORMATTYPE color_format)
+{
+   unsigned int i;
+   for(i = 0; mmal_omx_bayer_order_coding_table[i].encoding != MMAL_ENCODING_UNKNOWN; i++)
+      if(mmal_omx_bayer_order_coding_table[i].bayer_order == bayer_order &&
+         mmal_omx_bayer_order_coding_table[i].color_format == color_format)
+         break;
+   return mmal_omx_bayer_order_coding_table[i].encoding;
+}
+
+OMX_BAYERORDERTYPE mmalil_encoding_to_omx_bayer_order(uint32_t encoding)
+{
+   unsigned int i;
+   for(i = 0; mmal_omx_bayer_order_coding_table[i].encoding != MMAL_ENCODING_UNKNOWN; i++)
+      if(mmal_omx_bayer_order_coding_table[i].encoding == encoding) break;
+   return mmal_omx_bayer_order_coding_table[i].bayer_order;
+}
+
 /*****************************************************************************/
 static struct {
    uint32_t mmal;
@@ -637,6 +873,7 @@ static struct {
    {MMAL_COLOR_SPACE_BT470_2_M,     OMX_COLORSPACE_BT470_2_M},
    {MMAL_COLOR_SPACE_BT470_2_BG,    OMX_COLORSPACE_BT470_2_BG},
    {MMAL_COLOR_SPACE_JFIF_Y16_255,  OMX_COLORSPACE_JFIF_Y16_255},
+   {MMAL_COLOR_SPACE_REC2020,       OMX_COLORSPACE_REC_2020},
    {MMAL_COLOR_SPACE_UNKNOWN,       OMX_COLORSPACE_UNKNOWN}
 };
 
@@ -804,4 +1041,26 @@ OMX_VIDEO_CONTROLRATETYPE mmalil_video_ratecontrol_to_omx(MMAL_VIDEO_RATECONTROL
    for(i = 0; mmal_omx_video_ratecontrol_table[i].mmal != MMAL_VIDEO_RATECONTROL_DUMMY; i++)
       if(mmal_omx_video_ratecontrol_table[i].mmal == mmal) break;
    return mmal_omx_video_ratecontrol_table[i].omx;
+}
+
+/*****************************************************************************/
+static struct {
+   MMAL_VIDEO_INTRA_REFRESH_T mmal;
+   OMX_VIDEO_INTRAREFRESHTYPE omx;
+} mmal_omx_video_intrarefresh_table[] =
+{
+   { MMAL_VIDEO_INTRA_REFRESH_CYCLIC,             OMX_VIDEO_IntraRefreshCyclic},
+   { MMAL_VIDEO_INTRA_REFRESH_ADAPTIVE,           OMX_VIDEO_IntraRefreshAdaptive},
+   { MMAL_VIDEO_INTRA_REFRESH_BOTH,               OMX_VIDEO_IntraRefreshBoth},
+   { MMAL_VIDEO_INTRA_REFRESH_KHRONOSEXTENSIONS,  OMX_VIDEO_IntraRefreshKhronosExtensions},
+   { MMAL_VIDEO_INTRA_REFRESH_VENDORSTARTUNUSED,  OMX_VIDEO_IntraRefreshVendorStartUnused},
+   { MMAL_VIDEO_INTRA_REFRESH_DUMMY,              OMX_VIDEO_IntraRefreshMax},
+};
+
+MMAL_VIDEO_INTRA_REFRESH_T mmalil_omx_video_intrarefresh_to_mmal(OMX_VIDEO_INTRAREFRESHTYPE omx)
+{
+   unsigned int i;
+   for(i = 0; mmal_omx_video_intrarefresh_table[i].mmal != MMAL_VIDEO_INTRA_REFRESH_DUMMY; i++)
+      if(mmal_omx_video_intrarefresh_table[i].omx == omx) break;
+   return mmal_omx_video_intrarefresh_table[i].mmal;
 }

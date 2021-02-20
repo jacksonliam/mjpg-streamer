@@ -33,6 +33,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "mmal_logging.h"
 
 #define GRAPH_CONNECTIONS_MAX 16
+#define PROCESSING_TIME_MAX 20000
 
 /*****************************************************************************/
 
@@ -43,15 +44,19 @@ typedef struct MMAL_COMPONENT_MODULE_T
    MMAL_GRAPH_T graph; /**< Must be the first member! */
 
    MMAL_COMPONENT_T *component[GRAPH_CONNECTIONS_MAX];
+   MMAL_GRAPH_TOPOLOGY_T topology[GRAPH_CONNECTIONS_MAX];
    unsigned int component_num;
 
    MMAL_CONNECTION_T *connection[GRAPH_CONNECTIONS_MAX];
    unsigned int connection_num;
+   unsigned int connection_current;
 
    MMAL_PORT_T *input[GRAPH_CONNECTIONS_MAX];
    unsigned int input_num;
    MMAL_PORT_T *output[GRAPH_CONNECTIONS_MAX];
    unsigned int output_num;
+   MMAL_PORT_T *clock[GRAPH_CONNECTIONS_MAX];
+   unsigned int clock_num;
 
    MMAL_COMPONENT_T *graph_component;
 
@@ -69,6 +74,8 @@ typedef MMAL_GRAPH_PRIVATE_T MMAL_COMPONENT_MODULE_T;
 /*****************************************************************************/
 static MMAL_STATUS_T mmal_component_create_from_graph(const char *name, MMAL_COMPONENT_T *component);
 static MMAL_BOOL_T graph_do_processing(MMAL_GRAPH_PRIVATE_T *graph);
+static void graph_process_buffer(MMAL_GRAPH_PRIVATE_T *graph_private,
+   MMAL_CONNECTION_T *connection, MMAL_BUFFER_HEADER_T *buffer);
 
 /*****************************************************************************/
 static void graph_control_cb(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer)
@@ -94,6 +101,15 @@ static void graph_control_cb(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer)
 static void graph_connection_cb(MMAL_CONNECTION_T *connection)
 {
    MMAL_GRAPH_PRIVATE_T *graph = (MMAL_GRAPH_PRIVATE_T *)connection->user_data;
+   MMAL_BUFFER_HEADER_T *buffer;
+
+   if (connection->flags == MMAL_CONNECTION_FLAG_DIRECT &&
+       (buffer = mmal_queue_get(connection->queue)) != NULL)
+   {
+      graph_process_buffer(graph, connection, buffer);
+      return;
+   }
+
    vcos_semaphore_post(&graph->sema);
 }
 
@@ -201,6 +217,36 @@ MMAL_STATUS_T mmal_graph_add_component(MMAL_GRAPH_T *graph, MMAL_COMPONENT_T *co
 }
 
 /*****************************************************************************/
+MMAL_STATUS_T mmal_graph_component_topology(MMAL_GRAPH_T *graph, MMAL_COMPONENT_T *component,
+    MMAL_GRAPH_TOPOLOGY_T topology, int8_t *input, unsigned int input_num,
+    int8_t *output, unsigned int output_num)
+{
+   MMAL_GRAPH_PRIVATE_T *private = (MMAL_GRAPH_PRIVATE_T *)graph;
+   MMAL_PARAM_UNUSED(input); MMAL_PARAM_UNUSED(input_num);
+   MMAL_PARAM_UNUSED(output); MMAL_PARAM_UNUSED(output_num);
+   unsigned int i;
+
+   LOG_TRACE("graph: %p, component: %s(%p)", graph, component ? component->name: 0, component);
+
+   if (!component)
+      return MMAL_EINVAL;
+
+   for (i = 0; i < private->component_num; i++)
+      if (component == private->component[i])
+         break;
+
+   if (i == private->component_num)
+      return MMAL_EINVAL; /* Component not found */
+
+   if (topology > MMAL_GRAPH_TOPOLOGY_STRAIGHT)
+      return MMAL_ENOSYS; /* Currently not supported */
+
+   private->topology[i] = topology;
+
+   return MMAL_SUCCESS;
+}
+
+/*****************************************************************************/
 MMAL_STATUS_T mmal_graph_add_connection(MMAL_GRAPH_T *graph, MMAL_CONNECTION_T *cx)
 {
    MMAL_GRAPH_PRIVATE_T *private = (MMAL_GRAPH_PRIVATE_T *)graph;
@@ -230,11 +276,27 @@ MMAL_STATUS_T mmal_graph_add_port(MMAL_GRAPH_T *graph, MMAL_PORT_T *port)
 
    LOG_TRACE("graph: %p, port: %s(%p)", graph, port ? port->name: 0, port);
 
-   if (!port || (port->type != MMAL_PORT_TYPE_INPUT && port->type != MMAL_PORT_TYPE_OUTPUT))
+   if (!port)
       return MMAL_EINVAL;
 
-   list = port->type == MMAL_PORT_TYPE_INPUT ? private->input : private->output;
-   list_num = port->type == MMAL_PORT_TYPE_INPUT ? &private->input_num : &private->output_num;
+   switch (port->type)
+   {
+   case MMAL_PORT_TYPE_INPUT:
+      list = private->input;
+      list_num = &private->input_num;
+      break;
+   case MMAL_PORT_TYPE_OUTPUT:
+      list = private->output;
+      list_num = &private->output_num;
+      break;
+   case MMAL_PORT_TYPE_CLOCK:
+      list = private->clock;
+      list_num = &private->clock_num;
+      break;
+   default:
+      return MMAL_EINVAL;
+   }
+
    if (*list_num >= GRAPH_CONNECTIONS_MAX)
    {
       LOG_ERROR("no space for port %s", port->name);
@@ -286,8 +348,12 @@ MMAL_STATUS_T mmal_graph_new_connection(MMAL_GRAPH_T *graph, MMAL_PORT_T *out, M
    MMAL_CONNECTION_T *cx;
    MMAL_STATUS_T status;
 
-   if (!out || !in ||
-       out->type != MMAL_PORT_TYPE_OUTPUT || in->type != MMAL_PORT_TYPE_INPUT)
+   if (!out || !in)
+      return MMAL_EINVAL;
+   if (out->type == MMAL_PORT_TYPE_CLOCK && in->type != MMAL_PORT_TYPE_CLOCK)
+      return MMAL_EINVAL;
+   if (out->type != MMAL_PORT_TYPE_CLOCK &&
+       (out->type != MMAL_PORT_TYPE_OUTPUT || in->type != MMAL_PORT_TYPE_INPUT))
       return MMAL_EINVAL;
 
    LOG_TRACE("graph: %p, out: %s(%p), in: %s(%p), flags %x, connection: %p",
@@ -406,7 +472,19 @@ MMAL_STATUS_T mmal_graph_component_constructor(const char *name,
 static void graph_component_control_cb(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer)
 {
    MMAL_COMPONENT_T *graph_component = (MMAL_COMPONENT_T *)port->userdata;
+   MMAL_GRAPH_PRIVATE_T *graph_private = graph_component->priv->module;
+   MMAL_STATUS_T status;
+
    LOG_TRACE("%s(%p),%p,%4.4s", port->name, port, buffer, (char *)&buffer->cmd);
+
+   /* Call user defined function first */
+   if (graph_private->graph.pf_control_callback)
+   {
+      status = graph_private->graph.pf_control_callback(&graph_private->graph,
+         port, buffer);
+      if (status != MMAL_ENOSYS)
+         return;
+   }
 
    /* Forward the event on the graph control port */
    mmal_port_event_send(graph_component->control, buffer);
@@ -416,6 +494,16 @@ static void graph_component_control_cb(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *
 static void graph_component_connection_cb(MMAL_CONNECTION_T *connection)
 {
    MMAL_COMPONENT_T *component = (MMAL_COMPONENT_T *)connection->user_data;
+   MMAL_BUFFER_HEADER_T *buffer;
+
+   if (connection->flags == MMAL_CONNECTION_FLAG_DIRECT &&
+       (buffer = mmal_queue_get(connection->queue)) != NULL)
+   {
+      graph_process_buffer((MMAL_GRAPH_PRIVATE_T *)component->priv->module,
+         connection, buffer);
+      return;
+   }
+
    mmal_component_action_trigger(component);
 }
 
@@ -456,63 +544,95 @@ static void graph_port_event_handler(MMAL_CONNECTION_T *connection,
 }
 
 /*****************************************************************************/
-static MMAL_BOOL_T graph_do_processing(MMAL_GRAPH_PRIVATE_T *graph)
+static void graph_process_buffer(MMAL_GRAPH_PRIVATE_T *graph_private,
+   MMAL_CONNECTION_T *connection, MMAL_BUFFER_HEADER_T *buffer)
+{
+   MMAL_STATUS_T status;
+
+   /* Call user defined function first */
+   if (graph_private->graph.pf_connection_buffer)
+   {
+      status = graph_private->graph.pf_connection_buffer(&graph_private->graph, connection, buffer);
+      if (status != MMAL_ENOSYS)
+         return;
+   }
+
+   if (buffer->cmd)
+   {
+      graph_port_event_handler(connection, connection->out, buffer);
+      return;
+   }
+
+   status = mmal_port_send_buffer(connection->in, buffer);
+   if (status != MMAL_SUCCESS)
+   {
+      LOG_ERROR("%s(%p) could not send buffer to %s(%p) (%s)",
+                connection->out->name, connection->out,
+                connection->in->name, connection->in,
+                mmal_status_to_string(status));
+      mmal_buffer_header_release(buffer);
+      mmal_event_error_send(connection->out->component, status);
+   }
+}
+
+/*****************************************************************************/
+static MMAL_BOOL_T graph_do_processing(MMAL_GRAPH_PRIVATE_T *graph_private)
 {
    MMAL_BUFFER_HEADER_T *buffer;
    MMAL_BOOL_T run_again = 0;
    MMAL_STATUS_T status;
-   unsigned int i;
+   unsigned int i, j;
 
-   /* Loop through all the connections */
-   for (i = 0; i < graph->connection_num; i++)
+   /* Process all the empty buffers first */
+   for (i = 0, j = graph_private->connection_current;
+        i < graph_private->connection_num; i++, j++)
    {
-      MMAL_CONNECTION_T *connection = graph->connection[i];
+      MMAL_CONNECTION_T *connection =
+         graph_private->connection[j%graph_private->connection_num];
 
-      if (connection->flags & MMAL_CONNECTION_FLAG_TUNNELLING)
+      if ((connection->flags & MMAL_CONNECTION_FLAG_TUNNELLING) ||
+          !connection->pool)
          continue; /* Nothing else to do in tunnelling mode */
 
-      /* Send any queued buffer to the next component */
-      buffer = mmal_queue_get(connection->queue);
-      while (buffer)
-      {
-         run_again = 1;
-
-         if (buffer->cmd)
-         {
-            graph_port_event_handler(connection, connection->out, buffer);
-            buffer = mmal_queue_get(connection->queue);
-            continue;
-         }
-
-         status = mmal_port_send_buffer(connection->in, buffer);
-         if (status != MMAL_SUCCESS)
-         {
-            LOG_ERROR("%s(%p) could not send buffer to %s(%p) (%s)",
-                      connection->out->name, connection->out,
-                      connection->in->name, connection->in,
-                      mmal_status_to_string(status));
-            mmal_buffer_header_release(buffer);
-            mmal_event_error_send(connection->out->component, status);
-         }
-         buffer = mmal_queue_get(connection->queue);
-      }
-
       /* Send empty buffers to the output port of the connection */
-      buffer = connection->pool ? mmal_queue_get(connection->pool->queue) : NULL;
-      while (buffer)
+      while ((buffer = mmal_queue_get(connection->pool->queue)) != NULL)
       {
          run_again = 1;
 
          status = mmal_port_send_buffer(connection->out, buffer);
          if (status != MMAL_SUCCESS)
          {
-            LOG_ERROR("mmal_port_send_buffer failed (%i)", status);
+            if (connection->out->is_enabled)
+               LOG_ERROR("mmal_port_send_buffer failed (%i)", status);
             mmal_queue_put_back(connection->pool->queue, buffer);
             run_again = 0;
-            // FIXME: send error ?
             break;
          }
-         buffer = mmal_queue_get(connection->pool->queue);
+      }
+   }
+
+   /* Loop through all the connections */
+   for (i = 0, j = graph_private->connection_current++;
+        i < graph_private->connection_num; i++, j++)
+   {
+      MMAL_CONNECTION_T *connection =
+         graph_private->connection[j%graph_private->connection_num];
+      int64_t duration = vcos_getmicrosecs64();
+
+      if (connection->flags & MMAL_CONNECTION_FLAG_TUNNELLING)
+         continue; /* Nothing else to do in tunnelling mode */
+      if (connection->flags & MMAL_CONNECTION_FLAG_DIRECT)
+         continue; /* Nothing else to do in direct mode */
+
+      /* Send any queued buffer to the next component.
+       * We also make sure no connection can starve the others by
+       * having a timeout. */
+      while (vcos_getmicrosecs64() - duration < PROCESSING_TIME_MAX &&
+             (buffer = mmal_queue_get(connection->queue)) != NULL)
+      {
+         run_again = 1;
+
+         graph_process_buffer(graph_private, connection, buffer);
       }
    }
 
@@ -531,11 +651,24 @@ static MMAL_PORT_T *find_port_from_graph(MMAL_GRAPH_PRIVATE_T *graph, MMAL_PORT_
    MMAL_PORT_T **list;
    unsigned int *list_num;
 
-   if (port->type != MMAL_PORT_TYPE_INPUT && port->type != MMAL_PORT_TYPE_OUTPUT)
+   switch (port->type)
+   {
+   case MMAL_PORT_TYPE_INPUT:
+      list = graph->input;
+      list_num = &graph->input_num;
+      break;
+   case MMAL_PORT_TYPE_OUTPUT:
+      list = graph->output;
+      list_num = &graph->output_num;
+      break;
+   case MMAL_PORT_TYPE_CLOCK:
+      list = graph->clock;
+      list_num = &graph->clock_num;
+      break;
+   default:
       return 0;
+   }
 
-   list = port->type == MMAL_PORT_TYPE_INPUT ? graph->input : graph->output;
-   list_num = port->type == MMAL_PORT_TYPE_INPUT ? &graph->input_num : &graph->output_num;
    if (port->index > *list_num)
       return 0;
 
@@ -545,14 +678,29 @@ static MMAL_PORT_T *find_port_from_graph(MMAL_GRAPH_PRIVATE_T *graph, MMAL_PORT_
 static MMAL_PORT_T *find_port_to_graph(MMAL_GRAPH_PRIVATE_T *graph, MMAL_PORT_T *port)
 {
    MMAL_COMPONENT_T *component = graph->graph_component;
-   MMAL_PORT_T **list;
+   MMAL_PORT_T **list, **component_list;
    unsigned int i, *list_num;
 
-   if (port->type != MMAL_PORT_TYPE_INPUT && port->type != MMAL_PORT_TYPE_OUTPUT)
+   switch (port->type)
+   {
+   case MMAL_PORT_TYPE_INPUT:
+      list = graph->input;
+      list_num = &graph->input_num;
+      component_list = component->input;
+      break;
+   case MMAL_PORT_TYPE_OUTPUT:
+      list = graph->output;
+      list_num = &graph->output_num;
+      component_list = component->output;
+      break;
+   case MMAL_PORT_TYPE_CLOCK:
+      list = graph->clock;
+      list_num = &graph->clock_num;
+      component_list = component->clock;
+      break;
+   default:
       return 0;
-
-   list = port->type == MMAL_PORT_TYPE_INPUT ? graph->input : graph->output;
-   list_num = port->type == MMAL_PORT_TYPE_INPUT ? &graph->input_num : &graph->output_num;
+   }
 
    for (i = 0; i < *list_num; i++)
       if (list[i] == port)
@@ -560,7 +708,7 @@ static MMAL_PORT_T *find_port_to_graph(MMAL_GRAPH_PRIVATE_T *graph, MMAL_PORT_T 
 
    if (i == *list_num)
       return 0;
-   return port->type == MMAL_PORT_TYPE_INPUT ? component->input[i] : component->output[i];
+   return component_list[i];
 }
 
 static MMAL_STATUS_T graph_port_update(MMAL_GRAPH_PRIVATE_T *graph,
@@ -633,6 +781,9 @@ static MMAL_STATUS_T graph_component_destroy(MMAL_COMPONENT_T *component)
    if (component->output_num)
       mmal_ports_free(component->output, component->output_num);
 
+   if (component->clock_num)
+      mmal_ports_clock_free(component->clock, component->clock_num);
+
    /* coverity[address_free] Freeing the first item in the structure is safe */
    mmal_graph_destroy(&graph->graph);
    return MMAL_SUCCESS;
@@ -641,15 +792,27 @@ static MMAL_STATUS_T graph_component_destroy(MMAL_COMPONENT_T *component)
 /** Enable processing on a component */
 static MMAL_STATUS_T graph_component_enable(MMAL_COMPONENT_T *component)
 {
-   MMAL_PARAM_UNUSED(component);
-   return MMAL_SUCCESS;
+   MMAL_GRAPH_PRIVATE_T *graph_private = component->priv->module;
+   MMAL_STATUS_T status = MMAL_ENOSYS;
+
+   /* Call user defined function first */
+   if (graph_private->graph.pf_graph_enable)
+      status = graph_private->graph.pf_graph_enable(&graph_private->graph, MMAL_TRUE);
+
+   return status;
 }
 
 /** Disable processing on a component */
 static MMAL_STATUS_T graph_component_disable(MMAL_COMPONENT_T *component)
 {
-   MMAL_PARAM_UNUSED(component);
-   return MMAL_SUCCESS;
+   MMAL_GRAPH_PRIVATE_T *graph_private = component->priv->module;
+   MMAL_STATUS_T status = MMAL_ENOSYS;
+
+   /* Call user defined function first */
+   if (graph_private->graph.pf_graph_enable)
+      status = graph_private->graph.pf_graph_enable(&graph_private->graph, MMAL_FALSE);
+
+   return status;
 }
 
 /** Callback given to mmal_port_enable() */
@@ -680,6 +843,26 @@ static void graph_port_enable_cb(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer
       mmal_port_event_send(graph_port, buffer);
    else
       mmal_port_buffer_header_callback(graph_port, buffer);
+}
+
+/** Check whether 2 ports of a component are linked */
+static MMAL_BOOL_T graph_component_topology_ports_linked(MMAL_GRAPH_PRIVATE_T *graph,
+   MMAL_PORT_T *port1, MMAL_PORT_T *port2)
+{
+   MMAL_COMPONENT_T *component = port1->component;
+   unsigned int i;
+
+   for (i = 0; i < graph->component_num; i++)
+      if (component == graph->component[i])
+         break;
+
+   if (i == graph->component_num)
+      return MMAL_FALSE; /* Component not found */
+
+   if (graph->topology[i] == MMAL_GRAPH_TOPOLOGY_STRAIGHT)
+      return port1->index == port2->index;
+
+   return MMAL_TRUE;
 }
 
 /** Propagate a port enable */
@@ -717,6 +900,9 @@ static MMAL_STATUS_T graph_port_state_propagate(MMAL_GRAPH_PRIVATE_T *graph,
 
       if (j == graph->connection_num)
          continue; /* No match */
+
+      if (!graph_component_topology_ports_linked(graph, port, component->port[i]))
+            continue; /* Ports are independent */
 
       if (enable)
       {
@@ -760,6 +946,14 @@ static MMAL_STATUS_T graph_port_enable(MMAL_PORT_T *graph_port, MMAL_PORT_BH_CB_
    port->buffer_num = graph_port->buffer_num;
    port->buffer_size = graph_port->buffer_size;
 
+   /* Call user defined function first */
+   if (graph_private->graph.pf_enable)
+   {
+      status = graph_private->graph.pf_enable(&graph_private->graph, graph_port);
+      if (status != MMAL_ENOSYS)
+         return status;
+   }
+
    /* We'll intercept the callback */
    port->userdata = (void *)graph_private;
    status = mmal_port_enable(port, graph_port_enable_cb);
@@ -777,11 +971,20 @@ static MMAL_STATUS_T graph_port_enable(MMAL_PORT_T *graph_port, MMAL_PORT_BH_CB_
 static MMAL_STATUS_T graph_port_disable(MMAL_PORT_T *graph_port)
 {
    MMAL_GRAPH_PRIVATE_T *graph_private = graph_port->component->priv->module;
+   MMAL_STATUS_T status;
    MMAL_PORT_T *port;
 
    port = find_port_from_graph(graph_port->component->priv->module, graph_port);
    if (!port)
       return MMAL_EINVAL;
+
+   /* Call user defined function first */
+   if (graph_private->graph.pf_disable)
+   {
+      status = graph_private->graph.pf_disable(&graph_private->graph, graph_port);
+      if (status != MMAL_ENOSYS)
+         return status;
+   }
 
    /* We need to disable all the connected connections.
     * Since disable does an implicit flush, we only want to do that if
@@ -831,6 +1034,9 @@ static MMAL_STATUS_T graph_port_flush_propagate(MMAL_GRAPH_PRIVATE_T *graph,
 
       if (j == graph->connection_num)
          continue; /* No match */
+
+      if (!graph_component_topology_ports_linked(graph, port, component->port[i]))
+         continue; /* Ports are independent */
 
       /* Flush any buffer waiting in the connection queue */
       if (graph->connection[j]->queue)
@@ -907,7 +1113,7 @@ static MMAL_STATUS_T graph_port_format_commit_propagate(MMAL_GRAPH_PRIVATE_T *gr
 
    LOG_TRACE("graph: %p, port %s(%p)", graph, port->name, port);
 
-   if (port->type == MMAL_PORT_TYPE_OUTPUT)
+   if (port->type == MMAL_PORT_TYPE_OUTPUT || port->type == MMAL_PORT_TYPE_CLOCK)
       return MMAL_SUCCESS; /* Nothing to do */
 
    /* Loop through all the output ports of the component and if they are not enabled and
@@ -926,6 +1132,9 @@ static MMAL_STATUS_T graph_port_format_commit_propagate(MMAL_GRAPH_PRIVATE_T *gr
 
       if (j == graph->connection_num)
          continue; /* No match */
+
+      if (!graph_component_topology_ports_linked(graph, port, component->output[i]))
+         continue; /* Ports are independent */
 
       in = graph->connection[j]->in;
       out = graph->connection[j]->out;
@@ -1242,6 +1451,34 @@ static MMAL_STATUS_T mmal_component_create_from_graph(const char *name, MMAL_COM
       if (status != MMAL_SUCCESS)
          goto error;
    }
+   if(graph->clock_num)
+   {
+      component->clock = mmal_ports_clock_alloc(component, graph->clock_num, 0, NULL);
+      if(!component->clock)
+      {
+         status = MMAL_ENOMEM;
+         goto error;
+      }
+   }
+   component->clock_num = graph->clock_num;
+   for(i = 0; i < component->clock_num; i++)
+   {
+      component->clock[i]->priv->pf_enable = graph_port_enable;
+      component->clock[i]->priv->pf_disable = graph_port_disable;
+      component->clock[i]->priv->pf_flush = graph_port_flush;
+      component->clock[i]->priv->pf_send = graph_port_send;
+      component->clock[i]->priv->pf_set_format = graph_port_format_commit;
+      component->clock[i]->priv->pf_parameter_get = graph_port_parameter_get;
+      component->clock[i]->priv->pf_parameter_set = graph_port_parameter_set;
+      component->clock[i]->priv->pf_connect = NULL; /* FIXME: disabled for now */
+      component->clock[i]->priv->pf_payload_alloc = graph_port_payload_alloc;
+      component->clock[i]->priv->pf_payload_free = graph_port_payload_free;
+
+      /* Mirror the port values */
+      status = graph_port_update(graph, component->clock[i], MMAL_TRUE);
+      if (status != MMAL_SUCCESS)
+         goto error;
+   }
 
    status = mmal_component_action_register(component, graph_do_processing_loop);
    if (status != MMAL_SUCCESS)
@@ -1299,6 +1536,10 @@ MMAL_PORT_T *mmal_graph_find_port(MMAL_GRAPH_T *graph,
             num = comp->output_num;
             ports = comp->output;
          }
+         else if (type == MMAL_PORT_TYPE_CLOCK) {
+            num = comp->clock_num;
+            ports = comp->clock;
+         }
          else if (type == MMAL_PORT_TYPE_CONTROL) {
             num = 1;
             ports = &comp->control;
@@ -1309,6 +1550,7 @@ MMAL_PORT_T *mmal_graph_find_port(MMAL_GRAPH_T *graph,
          }
          if (index < num)
          {
+            /* coverity[ptr_arith] num is 1 at this point */
             return ports[index];
          }
       }

@@ -36,17 +36,18 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 /** Minimum number of buffers required on a clock port */
-#define MMAL_PORT_CLOCK_BUFFERS_MIN  8
+#define MMAL_PORT_CLOCK_BUFFERS_MIN  16
 
 /** Private clock port context */
-typedef struct MMAL_PORT_MODULE_T
+typedef struct MMAL_PORT_CLOCK_T
 {
    MMAL_PORT_CLOCK_EVENT_CB event_cb; /**< callback for notifying the component of clock events */
    MMAL_QUEUE_T *queue;               /**< queue for empty buffers sent to the port */
    MMAL_CLOCK_T *clock;               /**< clock module for scheduling requests */
    MMAL_BOOL_T is_reference;          /**< TRUE -> clock port is a reference, therefore
                                            will forward time updates */
-} MMAL_PORT_MODULE_T;
+   MMAL_BOOL_T buffer_info_reporting; /**< controls buffer info reporting */
+} MMAL_PORT_CLOCK_T;
 
 /*****************************************************************************
  * Private functions
@@ -95,58 +96,86 @@ static void mmal_port_clock_request_cb(MMAL_CLOCK_T* clock, int64_t media_time, 
 /* Process buffers received from other clock ports */
 static MMAL_STATUS_T mmal_port_clock_process_buffer(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer)
 {
+   MMAL_PORT_CLOCK_T *priv_clock = port->priv->clock;
    MMAL_STATUS_T status = MMAL_SUCCESS;
-   MMAL_CLOCK_PAYLOAD_T payload;
+   MMAL_CLOCK_EVENT_T event = MMAL_CLOCK_EVENT_INIT(MMAL_CLOCK_EVENT_INVALID);
 
-   if (buffer->length != sizeof(MMAL_CLOCK_PAYLOAD_T))
+   if (buffer->length != sizeof(MMAL_CLOCK_EVENT_T))
    {
-      LOG_ERROR("invalid buffer length %d", buffer->length);
+      LOG_ERROR("invalid buffer length %d expected %zu",
+                buffer->length, sizeof(MMAL_CLOCK_EVENT_T));
       return MMAL_EINVAL;
    }
 
    mmal_buffer_header_mem_lock(buffer);
-   memcpy(&payload, buffer->data, sizeof(MMAL_CLOCK_PAYLOAD_T));
+   memcpy(&event, buffer->data, sizeof(MMAL_CLOCK_EVENT_T));
    mmal_buffer_header_mem_unlock(buffer);
 
-   if (payload.magic != MMAL_CLOCK_PAYLOAD_MAGIC)
+   if (event.magic != MMAL_CLOCK_EVENT_MAGIC)
    {
-      LOG_ERROR("buffer corrupt (magic %4.4s)", (char*)&payload.magic);
+      LOG_ERROR("buffer corrupt (magic %4.4s)", (char*)&event.magic);
+      buffer->length = 0;
+      mmal_port_buffer_header_callback(port, buffer);
       return MMAL_EINVAL;
    }
 
-   LOG_TRACE("port %s length %d id %4.4s time %"PRIi64,
-         port->name, buffer->length, (char*)&payload.id, payload.time);
+   LOG_TRACE("port %s id %4.4s", port->name, (char*)&event.id);
 
-   switch (payload.id)
+   switch (event.id)
    {
-   case MMAL_CLOCK_PAYLOAD_TIME:
-      mmal_clock_media_time_set(port->priv->module->clock, payload.time);
+   case MMAL_CLOCK_EVENT_ACTIVE:
+      status = mmal_clock_active_set(priv_clock->clock, event.data.enable);
       break;
-   case MMAL_CLOCK_PAYLOAD_SCALE:
-      mmal_clock_scale_set(port->priv->module->clock, payload.data.scale);
+   case MMAL_CLOCK_EVENT_TIME:
+      status = mmal_clock_media_time_set(priv_clock->clock, event.data.media_time);
+      break;
+   case MMAL_CLOCK_EVENT_SCALE:
+      status = mmal_clock_scale_set(priv_clock->clock, event.data.scale);
+      break;
+   case MMAL_CLOCK_EVENT_UPDATE_THRESHOLD:
+      status = mmal_clock_update_threshold_set(priv_clock->clock, &event.data.update_threshold);
+      break;
+   case MMAL_CLOCK_EVENT_DISCONT_THRESHOLD:
+      status = mmal_clock_discont_threshold_set(priv_clock->clock, &event.data.discont_threshold);
+      break;
+   case MMAL_CLOCK_EVENT_REQUEST_THRESHOLD:
+      status = mmal_clock_request_threshold_set(priv_clock->clock, &event.data.request_threshold);
+      break;
+   case MMAL_CLOCK_EVENT_INPUT_BUFFER_INFO:
+   case MMAL_CLOCK_EVENT_OUTPUT_BUFFER_INFO:
+      /* nothing to do - just forward to the client */
       break;
    default:
-      LOG_ERROR("invalid id %4.4s", (char*)&payload.id);
+      LOG_ERROR("invalid event %4.4s", (char*)&event.id);
       status = MMAL_EINVAL;
       break;
    }
 
-   /* Finished with the buffer, so return it */
-   buffer->length = 0;
-   mmal_port_buffer_header_callback(port, buffer);
+   if (priv_clock->event_cb && status == MMAL_SUCCESS)
+   {
+      /* Notify the component, but don't return the buffer */
+      event.buffer = buffer;
+      priv_clock->event_cb(port, &event);
+   }
+   else
+   {
+      /* Finished with the buffer, so return it */
+      buffer->length = 0;
+      mmal_port_buffer_header_callback(port, buffer);
+   }
 
    return status;
 }
 
 static MMAL_STATUS_T mmal_port_clock_send(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer)
 {
-   MMAL_PORT_MODULE_T *module = port->priv->module;
+   MMAL_PORT_CLOCK_T *priv_clock = port->priv->clock;
 
    if (buffer->length)
       return mmal_port_clock_process_buffer(port, buffer);
 
    /* Queue empty buffers to be used later when forwarding clock updates */
-   mmal_queue_put(module->queue, buffer);
+   mmal_queue_put(priv_clock->queue, buffer);
 
    return MMAL_SUCCESS;
 }
@@ -156,11 +185,11 @@ static MMAL_STATUS_T mmal_port_clock_flush(MMAL_PORT_T *port)
    MMAL_BUFFER_HEADER_T *buffer;
 
    /* Flush empty buffers */
-   buffer = mmal_queue_get(port->priv->module->queue);
+   buffer = mmal_queue_get(port->priv->clock->queue);
    while (buffer)
    {
       mmal_port_buffer_header_callback(port, buffer);
-      buffer = mmal_queue_get(port->priv->module->queue);
+      buffer = mmal_queue_get(port->priv->clock->queue);
    }
 
    return MMAL_SUCCESS;
@@ -169,26 +198,23 @@ static MMAL_STATUS_T mmal_port_clock_flush(MMAL_PORT_T *port)
 static MMAL_STATUS_T mmal_port_clock_parameter_set(MMAL_PORT_T *port, const MMAL_PARAMETER_HEADER_T *param)
 {
    MMAL_STATUS_T status = MMAL_SUCCESS;
-   MMAL_PORT_MODULE_T *module = port->priv->module;
-   MMAL_CLOCK_PAYLOAD_T event;
+   MMAL_CLOCK_EVENT_T event = MMAL_CLOCK_EVENT_INIT(MMAL_CLOCK_EVENT_INVALID);
 
    switch (param->id)
    {
       case MMAL_PARAMETER_CLOCK_REFERENCE:
       {
          const MMAL_PARAMETER_BOOLEAN_T *p = (const MMAL_PARAMETER_BOOLEAN_T*)param;
-         module->is_reference = p->enable;
-         event.id = MMAL_CLOCK_PAYLOAD_REFERENCE;
-         event.time = mmal_clock_media_time_get(module->clock);
+         status = mmal_port_clock_reference_set(port, p->enable);
+         event.id = MMAL_CLOCK_EVENT_REFERENCE;
          event.data.enable = p->enable;
       }
       break;
       case MMAL_PARAMETER_CLOCK_ACTIVE:
       {
          const MMAL_PARAMETER_BOOLEAN_T *p = (const MMAL_PARAMETER_BOOLEAN_T*)param;
-         status = mmal_clock_active_set(module->clock, p->enable);
-         event.id = MMAL_CLOCK_PAYLOAD_ACTIVE;
-         event.time = mmal_clock_media_time_get(module->clock);
+         status = mmal_port_clock_active_set(port, p->enable);
+         event.id = MMAL_CLOCK_EVENT_ACTIVE;
          event.data.enable = p->enable;
       }
       break;
@@ -196,8 +222,7 @@ static MMAL_STATUS_T mmal_port_clock_parameter_set(MMAL_PORT_T *port, const MMAL
       {
          const MMAL_PARAMETER_RATIONAL_T *p = (const MMAL_PARAMETER_RATIONAL_T*)param;
          status = mmal_port_clock_scale_set(port, p->value);
-         event.id = MMAL_CLOCK_PAYLOAD_SCALE;
-         event.time = mmal_clock_media_time_get(module->clock);
+         event.id = MMAL_CLOCK_EVENT_SCALE;
          event.data.scale = p->value;
       }
       break;
@@ -205,106 +230,113 @@ static MMAL_STATUS_T mmal_port_clock_parameter_set(MMAL_PORT_T *port, const MMAL
       {
          const MMAL_PARAMETER_INT64_T *p = (const MMAL_PARAMETER_INT64_T*)param;
          status = mmal_port_clock_media_time_set(port, p->value);
-         event.id = MMAL_CLOCK_PAYLOAD_INVALID;
-      }
-      break;
-      case MMAL_PARAMETER_CLOCK_TIME_OFFSET:
-      {
-         const MMAL_PARAMETER_INT64_T *p = (const MMAL_PARAMETER_INT64_T*)param;
-         status = mmal_port_clock_media_time_offset_set(port, p->value);
-         event.id = MMAL_CLOCK_PAYLOAD_INVALID;
+         event.id = MMAL_CLOCK_EVENT_TIME;
+         event.data.media_time = p->value;
       }
       break;
       case MMAL_PARAMETER_CLOCK_UPDATE_THRESHOLD:
       {
-         const MMAL_PARAMETER_CLOCK_UPDATE_THRESHOLD_T *p = (MMAL_PARAMETER_CLOCK_UPDATE_THRESHOLD_T *)param;
-         status = mmal_clock_update_threshold_set(module->clock, p);
-         event.id = MMAL_CLOCK_PAYLOAD_INVALID;
+         const MMAL_PARAMETER_CLOCK_UPDATE_THRESHOLD_T *p = (const MMAL_PARAMETER_CLOCK_UPDATE_THRESHOLD_T *)param;
+         status = mmal_port_clock_update_threshold_set(port, &p->value);
+         event.id = MMAL_CLOCK_EVENT_UPDATE_THRESHOLD;
+         event.data.update_threshold = p->value;
       }
       break;
       case MMAL_PARAMETER_CLOCK_DISCONT_THRESHOLD:
       {
-         const MMAL_PARAMETER_CLOCK_DISCONT_THRESHOLD_T *p = (MMAL_PARAMETER_CLOCK_DISCONT_THRESHOLD_T *)param;
-         status = mmal_clock_discont_threshold_set(module->clock, p);
-         event.id = MMAL_CLOCK_PAYLOAD_INVALID;
+         const MMAL_PARAMETER_CLOCK_DISCONT_THRESHOLD_T *p = (const MMAL_PARAMETER_CLOCK_DISCONT_THRESHOLD_T *)param;
+         status = mmal_port_clock_discont_threshold_set(port, &p->value);
+         event.id = MMAL_CLOCK_EVENT_DISCONT_THRESHOLD;
+         event.data.discont_threshold = p->value;
       }
       break;
       case MMAL_PARAMETER_CLOCK_REQUEST_THRESHOLD:
       {
-         const MMAL_PARAMETER_CLOCK_REQUEST_THRESHOLD_T *p = (MMAL_PARAMETER_CLOCK_REQUEST_THRESHOLD_T *)param;
-         status = mmal_clock_request_threshold_set(module->clock, p);
-         event.id = MMAL_CLOCK_PAYLOAD_INVALID;
+         const MMAL_PARAMETER_CLOCK_REQUEST_THRESHOLD_T *p = (const MMAL_PARAMETER_CLOCK_REQUEST_THRESHOLD_T *)param;
+         status = mmal_port_clock_request_threshold_set(port, &p->value);
+         event.id = MMAL_CLOCK_EVENT_REQUEST_THRESHOLD;
+         event.data.request_threshold = p->value;
       }
       break;
+      case MMAL_PARAMETER_CLOCK_ENABLE_BUFFER_INFO:
+      {
+         const MMAL_PARAMETER_BOOLEAN_T *p = (const MMAL_PARAMETER_BOOLEAN_T*)param;
+         port->priv->clock->buffer_info_reporting = p->enable;
+         return MMAL_SUCCESS;
+      }
       default:
+         LOG_ERROR("unsupported clock parameter 0x%x", param->id);
          return MMAL_ENOSYS;
    }
 
    /* Notify the component */
-   if (module->event_cb && status == MMAL_SUCCESS && event.id != MMAL_CLOCK_PAYLOAD_INVALID)
-      module->event_cb(port, &event);
+   if (port->priv->clock->event_cb && status == MMAL_SUCCESS)
+      port->priv->clock->event_cb(port, &event);
 
    return status;
 }
 
 static MMAL_STATUS_T mmal_port_clock_parameter_get(MMAL_PORT_T *port, MMAL_PARAMETER_HEADER_T *param)
 {
-   MMAL_PORT_MODULE_T *module = port->priv->module;
+   MMAL_PORT_CLOCK_T *priv_clock = port->priv->clock;
+   MMAL_STATUS_T status = MMAL_SUCCESS;
 
    switch (param->id)
    {
       case MMAL_PARAMETER_CLOCK_REFERENCE:
       {
          MMAL_PARAMETER_BOOLEAN_T *p = (MMAL_PARAMETER_BOOLEAN_T*)param;
-         p->enable = module->is_reference;
+         p->enable = priv_clock->is_reference;
       }
       break;
       case MMAL_PARAMETER_CLOCK_ACTIVE:
       {
          MMAL_PARAMETER_BOOLEAN_T *p = (MMAL_PARAMETER_BOOLEAN_T*)param;
-         p->enable = mmal_clock_is_active(module->clock);
+         p->enable = mmal_clock_is_active(priv_clock->clock);
       }
       break;
       case MMAL_PARAMETER_CLOCK_SCALE:
       {
          MMAL_PARAMETER_RATIONAL_T *p = (MMAL_PARAMETER_RATIONAL_T*)param;
-         p->value = mmal_clock_scale_get(module->clock);
+         p->value = mmal_clock_scale_get(priv_clock->clock);
       }
       break;
       case MMAL_PARAMETER_CLOCK_TIME:
       {
          MMAL_PARAMETER_INT64_T *p = (MMAL_PARAMETER_INT64_T*)param;
-         p->value = mmal_clock_media_time_get(module->clock);
-      }
-      break;
-      case MMAL_PARAMETER_CLOCK_TIME_OFFSET:
-      {
-         MMAL_PARAMETER_INT64_T *p = (MMAL_PARAMETER_INT64_T*)param;
-         p->value = mmal_clock_media_time_offset_get(module->clock);
+         p->value = mmal_clock_media_time_get(priv_clock->clock);
       }
       break;
       case MMAL_PARAMETER_CLOCK_UPDATE_THRESHOLD:
       {
          MMAL_PARAMETER_CLOCK_UPDATE_THRESHOLD_T *p = (MMAL_PARAMETER_CLOCK_UPDATE_THRESHOLD_T *)param;
-         mmal_clock_update_threshold_get(module->clock, p);
+         status = mmal_clock_update_threshold_get(priv_clock->clock, &p->value);
       }
       break;
       case MMAL_PARAMETER_CLOCK_DISCONT_THRESHOLD:
       {
          MMAL_PARAMETER_CLOCK_DISCONT_THRESHOLD_T *p = (MMAL_PARAMETER_CLOCK_DISCONT_THRESHOLD_T *)param;
-         mmal_clock_discont_threshold_get(module->clock, p);
+         status = mmal_clock_discont_threshold_get(priv_clock->clock, &p->value);
       }
       break;
       case MMAL_PARAMETER_CLOCK_REQUEST_THRESHOLD:
       {
          MMAL_PARAMETER_CLOCK_REQUEST_THRESHOLD_T *p = (MMAL_PARAMETER_CLOCK_REQUEST_THRESHOLD_T *)param;
-         mmal_clock_request_threshold_get(module->clock, p);
+         status = mmal_clock_request_threshold_get(priv_clock->clock, &p->value);
+      }
+      break;
+      case MMAL_PARAMETER_CLOCK_ENABLE_BUFFER_INFO:
+      {
+         MMAL_PARAMETER_BOOLEAN_T *p = (MMAL_PARAMETER_BOOLEAN_T*)param;
+         p->enable = priv_clock->buffer_info_reporting;
       }
       break;
       default:
+         LOG_ERROR("unsupported clock parameter 0x%x", param->id);
          return MMAL_ENOSYS;
    }
-   return MMAL_SUCCESS;
+
+   return status;
 }
 
 static MMAL_STATUS_T mmal_port_clock_enable(MMAL_PORT_T *port, MMAL_PORT_BH_CB_T cb)
@@ -316,10 +348,10 @@ static MMAL_STATUS_T mmal_port_clock_enable(MMAL_PORT_T *port, MMAL_PORT_BH_CB_T
 
 static MMAL_STATUS_T mmal_port_clock_disable(MMAL_PORT_T *port)
 {
-   MMAL_PORT_MODULE_T *module = port->priv->module;
+   MMAL_PORT_CLOCK_T *priv_clock = port->priv->clock;
 
-   if (mmal_clock_is_active(module->clock))
-      mmal_clock_active_set(module->clock, MMAL_FALSE);
+   if (mmal_clock_is_active(priv_clock->clock))
+      mmal_clock_active_set(priv_clock->clock, MMAL_FALSE);
 
    mmal_port_clock_flush(port);
 
@@ -339,16 +371,16 @@ static MMAL_STATUS_T mmal_port_clock_connect(MMAL_PORT_T *port, MMAL_PORT_T *oth
    return MMAL_ENOSYS;
 }
 
-/* Send a payload buffer to a connected port/client */
-static MMAL_STATUS_T mmal_port_clock_forward_payload(MMAL_PORT_T *port, const MMAL_CLOCK_PAYLOAD_T *payload)
+/* Send an event buffer to a connected port */
+static MMAL_STATUS_T mmal_port_clock_forward_event(MMAL_PORT_T *port, const MMAL_CLOCK_EVENT_T *event)
 {
    MMAL_STATUS_T status;
    MMAL_BUFFER_HEADER_T *buffer;
 
-   buffer = mmal_queue_get(port->priv->module->queue);
+   buffer = mmal_queue_get(port->priv->clock->queue);
    if (!buffer)
    {
-      LOG_ERROR("no free buffers available");
+      LOG_INFO("%s: no free event buffers available for event %4.4s", port->name, (const char*)&event->id);
       return MMAL_ENOSPC;
    }
 
@@ -356,11 +388,11 @@ static MMAL_STATUS_T mmal_port_clock_forward_payload(MMAL_PORT_T *port, const MM
    if (status != MMAL_SUCCESS)
    {
       LOG_ERROR("failed to lock buffer %s", mmal_status_to_string(status));
-      mmal_queue_put_back(port->priv->module->queue, buffer);
+      mmal_queue_put_back(port->priv->clock->queue, buffer);
       goto end;
    }
-   buffer->length = sizeof(MMAL_CLOCK_PAYLOAD_T);
-   memcpy(buffer->data, payload, buffer->length);
+   buffer->length = sizeof(MMAL_CLOCK_EVENT_T);
+   memcpy(buffer->data, event, buffer->length);
    mmal_buffer_header_mem_unlock(buffer);
 
    mmal_port_buffer_header_callback(port, buffer);
@@ -369,54 +401,132 @@ end:
    return status;
 }
 
-/* Send a clock time update to a connected port/client */
-static MMAL_STATUS_T mmal_port_clock_forward_media_time(MMAL_PORT_T *port, int64_t media_time)
+/* Send a clock active state to a connected port */
+static MMAL_STATUS_T mmal_port_clock_forward_active_state(MMAL_PORT_T *port, MMAL_BOOL_T active)
 {
-   MMAL_CLOCK_PAYLOAD_T payload;
+   MMAL_CLOCK_EVENT_T event;
 
-   payload.id = MMAL_CLOCK_PAYLOAD_TIME;
-   payload.magic = MMAL_CLOCK_PAYLOAD_MAGIC;
-   payload.time = media_time;
+   event.id = MMAL_CLOCK_EVENT_ACTIVE;
+   event.magic = MMAL_CLOCK_EVENT_MAGIC;
+   event.data.enable = active;
 
-   return mmal_port_clock_forward_payload(port, &payload);
+   return mmal_port_clock_forward_event(port, &event);
 }
 
-/* Send a clock scale update to a connected port/client */
+/* Send a clock scale update to a connected port */
 static MMAL_STATUS_T mmal_port_clock_forward_scale(MMAL_PORT_T *port, MMAL_RATIONAL_T scale)
 {
-   MMAL_CLOCK_PAYLOAD_T payload;
+   MMAL_CLOCK_EVENT_T event;
 
-   payload.id = MMAL_CLOCK_PAYLOAD_SCALE;
-   payload.magic = MMAL_CLOCK_PAYLOAD_MAGIC;
-   payload.time = mmal_clock_media_time_get(port->priv->module->clock);
-   payload.data.scale = scale;
+   event.id = MMAL_CLOCK_EVENT_SCALE;
+   event.magic = MMAL_CLOCK_EVENT_MAGIC;
+   event.data.scale = scale;
 
-   return mmal_port_clock_forward_payload(port, &payload);
+   return mmal_port_clock_forward_event(port, &event);
+}
+
+/* Send a clock time update to a connected port */
+static MMAL_STATUS_T mmal_port_clock_forward_media_time(MMAL_PORT_T *port, int64_t media_time)
+{
+   MMAL_CLOCK_EVENT_T event;
+
+   event.id = MMAL_CLOCK_EVENT_TIME;
+   event.magic = MMAL_CLOCK_EVENT_MAGIC;
+   event.data.media_time = media_time;
+
+   return mmal_port_clock_forward_event(port, &event);
+}
+
+/* Send a clock update threshold to a connected port */
+static MMAL_STATUS_T mmal_port_clock_forward_update_threshold(MMAL_PORT_T *port,
+      const MMAL_CLOCK_UPDATE_THRESHOLD_T *threshold)
+{
+   MMAL_CLOCK_EVENT_T event;
+
+   event.id = MMAL_CLOCK_EVENT_UPDATE_THRESHOLD;
+   event.magic = MMAL_CLOCK_EVENT_MAGIC;
+   event.data.update_threshold = *threshold;
+
+   return mmal_port_clock_forward_event(port, &event);
+}
+
+/* Send a clock discontinuity threshold to a connected port */
+static MMAL_STATUS_T mmal_port_clock_forward_discont_threshold(MMAL_PORT_T *port,
+      const MMAL_CLOCK_DISCONT_THRESHOLD_T *threshold)
+{
+   MMAL_CLOCK_EVENT_T event;
+
+   event.id = MMAL_CLOCK_EVENT_DISCONT_THRESHOLD;
+   event.magic = MMAL_CLOCK_EVENT_MAGIC;
+   event.data.discont_threshold = *threshold;
+
+   return mmal_port_clock_forward_event(port, &event);
+}
+
+/* Send a clock request threshold to a connected port */
+static MMAL_STATUS_T mmal_port_clock_forward_request_threshold(MMAL_PORT_T *port,
+      const MMAL_CLOCK_REQUEST_THRESHOLD_T *threshold)
+{
+   MMAL_CLOCK_EVENT_T event;
+
+   event.id = MMAL_CLOCK_EVENT_REQUEST_THRESHOLD;
+   event.magic = MMAL_CLOCK_EVENT_MAGIC;
+   event.data.request_threshold = *threshold;
+
+   return mmal_port_clock_forward_event(port, &event);
+}
+
+/* Send information regarding an input buffer to connected port */
+static MMAL_STATUS_T mmal_port_clock_forward_input_buffer_info(MMAL_PORT_T *port, const MMAL_CLOCK_BUFFER_INFO_T *info)
+{
+   MMAL_CLOCK_EVENT_T event;
+
+   event.id = MMAL_CLOCK_EVENT_INPUT_BUFFER_INFO;
+   event.magic = MMAL_CLOCK_EVENT_MAGIC;
+   event.data.buffer = *info;
+
+   return mmal_port_clock_forward_event(port, &event);
+}
+
+/* Send information regarding an output buffer to connected port */
+static MMAL_STATUS_T mmal_port_clock_forward_output_buffer_info(MMAL_PORT_T *port, const MMAL_CLOCK_BUFFER_INFO_T *info)
+{
+   MMAL_CLOCK_EVENT_T event;
+
+   event.id = MMAL_CLOCK_EVENT_OUTPUT_BUFFER_INFO;
+   event.magic = MMAL_CLOCK_EVENT_MAGIC;
+   event.data.buffer = *info;
+
+   return mmal_port_clock_forward_event(port, &event);
 }
 
 /* Initialise all callbacks and setup internal resources */
-static MMAL_STATUS_T mmal_port_clock_setup(MMAL_PORT_T *port, MMAL_PORT_CLOCK_EVENT_CB event_cb)
+static MMAL_STATUS_T mmal_port_clock_setup(MMAL_PORT_T *port, unsigned int extra_size,
+                                           MMAL_PORT_CLOCK_EVENT_CB event_cb)
 {
    MMAL_STATUS_T status;
 
-   status = mmal_clock_create(&port->priv->module->clock);
+   port->priv->clock = (MMAL_PORT_CLOCK_T*)((char*)(port->priv->module) + extra_size);
+
+   status = mmal_clock_create(&port->priv->clock->clock);
    if (status != MMAL_SUCCESS)
    {
-      LOG_ERROR("failed to create clock module on port %s (%s)", port->name, mmal_status_to_string(status));
+      LOG_ERROR("failed to create clock module on port %s (%s)",
+                port->name, mmal_status_to_string(status));
       return status;
    }
-   port->priv->module->clock->user_data = port;
+   port->priv->clock->clock->user_data = port;
 
-   port->buffer_size = sizeof(MMAL_CLOCK_PAYLOAD_T);
-   port->buffer_size_min = sizeof(MMAL_CLOCK_PAYLOAD_T);
+   port->buffer_size = sizeof(MMAL_CLOCK_EVENT_T);
+   port->buffer_size_min = sizeof(MMAL_CLOCK_EVENT_T);
    port->buffer_num_min = MMAL_PORT_CLOCK_BUFFERS_MIN;
    port->buffer_num_recommended = MMAL_PORT_CLOCK_BUFFERS_MIN;
 
-   port->priv->module->event_cb = event_cb;
-   port->priv->module->queue = mmal_queue_create();
-   if (!port->priv->module->queue)
+   port->priv->clock->event_cb = event_cb;
+   port->priv->clock->queue = mmal_queue_create();
+   if (!port->priv->clock->queue)
    {
-      mmal_clock_destroy(port->priv->module->clock);
+      mmal_clock_destroy(port->priv->clock->clock);
       return MMAL_ENOMEM;
    }
 
@@ -442,23 +552,25 @@ static void mmal_port_clock_teardown(MMAL_PORT_T *port)
 {
    if (!port)
       return;
-   mmal_queue_destroy(port->priv->module->queue);
-   mmal_clock_destroy(port->priv->module->clock);
+   mmal_queue_destroy(port->priv->clock->queue);
+   mmal_clock_destroy(port->priv->clock->clock);
 }
 
 /*****************************************************************************
  * Public functions
  *****************************************************************************/
 /* Allocate a clock port */
-MMAL_PORT_T* mmal_port_clock_alloc(MMAL_COMPONENT_T *component, MMAL_PORT_CLOCK_EVENT_CB event_cb)
+MMAL_PORT_T* mmal_port_clock_alloc(MMAL_COMPONENT_T *component, unsigned int extra_size,
+                                   MMAL_PORT_CLOCK_EVENT_CB event_cb)
 {
    MMAL_PORT_T *port;
 
-   port = mmal_port_alloc(component, MMAL_PORT_TYPE_CLOCK, sizeof(MMAL_PORT_MODULE_T));
+   port = mmal_port_alloc(component, MMAL_PORT_TYPE_CLOCK,
+                          extra_size + sizeof(MMAL_PORT_CLOCK_T));
    if (!port)
       return NULL;
 
-   if (mmal_port_clock_setup(port, event_cb) != MMAL_SUCCESS)
+   if (mmal_port_clock_setup(port, extra_size, event_cb) != MMAL_SUCCESS)
    {
       mmal_port_free(port);
       return NULL;
@@ -475,18 +587,20 @@ void mmal_port_clock_free(MMAL_PORT_T *port)
 }
 
 /* Allocate an array of clock ports */
-MMAL_PORT_T **mmal_ports_clock_alloc(MMAL_COMPONENT_T *component, unsigned int ports_num, MMAL_PORT_CLOCK_EVENT_CB event_cb)
+MMAL_PORT_T **mmal_ports_clock_alloc(MMAL_COMPONENT_T *component, unsigned int ports_num,
+                                     unsigned int extra_size, MMAL_PORT_CLOCK_EVENT_CB event_cb)
 {
    unsigned int i;
    MMAL_PORT_T **ports;
 
-   ports = mmal_ports_alloc(component, ports_num, MMAL_PORT_TYPE_CLOCK, sizeof(MMAL_PORT_MODULE_T));
+   ports = mmal_ports_alloc(component, ports_num, MMAL_PORT_TYPE_CLOCK,
+                            extra_size + sizeof(MMAL_PORT_CLOCK_T));
    if (!ports)
       return NULL;
 
    for (i = 0; i < ports_num; i++)
    {
-      if (mmal_port_clock_setup(ports[i], event_cb) != MMAL_SUCCESS)
+      if (mmal_port_clock_setup(ports[i], extra_size, event_cb) != MMAL_SUCCESS)
          break;
    }
 
@@ -512,86 +626,178 @@ void mmal_ports_clock_free(MMAL_PORT_T **ports, unsigned int ports_num)
 }
 
 /* Register a callback request */
-MMAL_STATUS_T mmal_port_clock_request_add(MMAL_PORT_T *port, int64_t media_time, int64_t offset,
+MMAL_STATUS_T mmal_port_clock_request_add(MMAL_PORT_T *port, int64_t media_time,
       MMAL_PORT_CLOCK_REQUEST_CB cb, void *cb_data)
 {
-   return mmal_clock_request_add(port->priv->module->clock, media_time, offset,
+   return mmal_clock_request_add(port->priv->clock->clock, media_time,
                                  mmal_port_clock_request_cb, cb_data, (MMAL_CLOCK_VOID_FP)cb);
 }
 
 /* Flush all pending clock requests */
 MMAL_STATUS_T mmal_port_clock_request_flush(MMAL_PORT_T *port)
 {
-   return mmal_clock_request_flush(port->priv->module->clock);
+   return mmal_clock_request_flush(port->priv->clock->clock);
 }
 
-/* Set the media-time on the clock port */
-MMAL_STATUS_T mmal_port_clock_media_time_set(MMAL_PORT_T *port, int64_t media_time)
+/* Set the clock port's reference state */
+MMAL_STATUS_T mmal_port_clock_reference_set(MMAL_PORT_T *port, MMAL_BOOL_T reference)
+{
+   port->priv->clock->is_reference = reference;
+   return MMAL_SUCCESS;
+}
+
+/* Get the clock port's reference state */
+MMAL_BOOL_T mmal_port_clock_reference_get(MMAL_PORT_T *port)
+{
+   return port->priv->clock->is_reference;
+}
+
+/* Set the clock port's active state */
+MMAL_STATUS_T mmal_port_clock_active_set(MMAL_PORT_T *port, MMAL_BOOL_T active)
 {
    MMAL_STATUS_T status;
 
-   status = mmal_clock_media_time_set(port->priv->module->clock, media_time);
+   status = mmal_clock_active_set(port->priv->clock->clock, active);
    if (status != MMAL_SUCCESS)
-   {
-      LOG_DEBUG("clock update ignored");
       return status;
-   }
 
-   /* Only forward time updates if this port is set as a reference clock port */
-   if (port->priv->module->is_reference)
-      mmal_port_clock_forward_media_time(port, mmal_clock_media_time_get(port->priv->module->clock));
+   if (port->priv->clock->is_reference)
+      status = mmal_port_clock_forward_active_state(port, active);
 
    return status;
 }
 
-/* Set the media-time offset on the clock port */
-MMAL_STATUS_T mmal_port_clock_media_time_offset_set(MMAL_PORT_T *port, int64_t offset)
+/* Get the clock port's active state */
+MMAL_BOOL_T mmal_port_clock_active_get(MMAL_PORT_T *port)
 {
-   MMAL_STATUS_T status;
-
-   status = mmal_clock_media_time_offset_set(port->priv->module->clock, offset);
-
-   /* The media-time has effectively changed, so need to inform connected clock ports */
-   if (port->priv->module->is_reference)
-      mmal_port_clock_forward_media_time(port, mmal_clock_media_time_get(port->priv->module->clock));
-
-   return status;
+   return mmal_clock_is_active(port->priv->clock->clock);
 }
 
-/* Return the current media-time */
-int64_t mmal_port_clock_media_time_get(MMAL_PORT_T *port)
-{
-   return mmal_clock_media_time_get(port->priv->module->clock);
-}
-
-/* Return the media-time offset */
-int64_t mmal_port_clock_media_time_offset_get(MMAL_PORT_T *port)
-{
-   return mmal_clock_media_time_offset_get(port->priv->module->clock);
-}
-
-/* Set the clock scale factor */
+/* Set the clock port's scale */
 MMAL_STATUS_T mmal_port_clock_scale_set(MMAL_PORT_T *port, MMAL_RATIONAL_T scale)
 {
    MMAL_STATUS_T status;
 
-   status = mmal_clock_scale_set(port->priv->module->clock, scale);
+   status = mmal_clock_scale_set(port->priv->clock->clock, scale);
+   if (status != MMAL_SUCCESS)
+      return status;
 
-   if (port->priv->module->is_reference)
-      mmal_port_clock_forward_scale(port, scale);
+   if (port->priv->clock->is_reference)
+      status = mmal_port_clock_forward_scale(port, scale);
 
    return status;
 }
 
-/* Return the clock scale factor */
+/* Get the clock port's scale */
 MMAL_RATIONAL_T mmal_port_clock_scale_get(MMAL_PORT_T *port)
 {
-   return mmal_clock_scale_get(port->priv->module->clock);
+   return mmal_clock_scale_get(port->priv->clock->clock);
 }
 
-/* Return TRUE if clock is running (media-time is advancing) */
-MMAL_BOOL_T mmal_port_clock_is_active(MMAL_PORT_T *port)
+/* Set the clock port's media-time */
+MMAL_STATUS_T mmal_port_clock_media_time_set(MMAL_PORT_T *port, int64_t media_time)
 {
-   return mmal_clock_is_active(port->priv->module->clock);
+   MMAL_STATUS_T status;
+
+   status = mmal_clock_media_time_set(port->priv->clock->clock, media_time);
+   if (status != MMAL_SUCCESS)
+   {
+      LOG_DEBUG("clock media-time update ignored");
+      return status;
+   }
+
+   if (port->priv->clock->is_reference)
+      status = mmal_port_clock_forward_media_time(port, media_time);
+
+   return status;
+}
+
+/* Get the clock port's media-time */
+int64_t mmal_port_clock_media_time_get(MMAL_PORT_T *port)
+{
+   return mmal_clock_media_time_get(port->priv->clock->clock);
+}
+
+/* Set the clock port's update threshold */
+MMAL_STATUS_T mmal_port_clock_update_threshold_set(MMAL_PORT_T *port,
+                                                   const MMAL_CLOCK_UPDATE_THRESHOLD_T *threshold)
+{
+   MMAL_STATUS_T status;
+
+   status = mmal_clock_update_threshold_set(port->priv->clock->clock, threshold);
+   if (status != MMAL_SUCCESS)
+      return status;
+
+   if (port->priv->clock->is_reference)
+      status = mmal_port_clock_forward_update_threshold(port, threshold);
+
+   return status;
+}
+
+/* Get the clock port's update threshold */
+MMAL_STATUS_T mmal_port_clock_update_threshold_get(MMAL_PORT_T *port,
+                                          MMAL_CLOCK_UPDATE_THRESHOLD_T *threshold)
+{
+   return mmal_clock_update_threshold_get(port->priv->clock->clock, threshold);
+}
+
+/* Set the clock port's discontinuity threshold */
+MMAL_STATUS_T mmal_port_clock_discont_threshold_set(MMAL_PORT_T *port,
+                                                    const MMAL_CLOCK_DISCONT_THRESHOLD_T *threshold)
+{
+   MMAL_STATUS_T status;
+
+   status = mmal_clock_discont_threshold_set(port->priv->clock->clock, threshold);
+   if (status != MMAL_SUCCESS)
+      return status;
+
+   if (port->priv->clock->is_reference)
+      status = mmal_port_clock_forward_discont_threshold(port, threshold);
+
+   return status;
+}
+
+/* Get the clock port's discontinuity threshold */
+MMAL_STATUS_T mmal_port_clock_discont_threshold_get(MMAL_PORT_T *port,
+                                           MMAL_CLOCK_DISCONT_THRESHOLD_T *threshold)
+{
+   return mmal_clock_discont_threshold_get(port->priv->clock->clock, threshold);
+}
+
+/* Set the clock port's request threshold */
+MMAL_STATUS_T mmal_port_clock_request_threshold_set(MMAL_PORT_T *port,
+                                                    const MMAL_CLOCK_REQUEST_THRESHOLD_T *threshold)
+{
+   MMAL_STATUS_T status;
+
+   status = mmal_clock_request_threshold_set(port->priv->clock->clock, threshold);
+   if (status != MMAL_SUCCESS)
+      return status;
+
+   if (port->priv->clock->is_reference)
+      status = mmal_port_clock_forward_request_threshold(port, threshold);
+
+   return status;
+}
+
+/* Get the clock port's request threshold */
+MMAL_STATUS_T mmal_port_clock_request_threshold_get(MMAL_PORT_T *port,
+                                           MMAL_CLOCK_REQUEST_THRESHOLD_T *threshold)
+{
+   return mmal_clock_request_threshold_get(port->priv->clock->clock, threshold);
+}
+
+/* Provide input buffer information */
+void mmal_port_clock_input_buffer_info(MMAL_PORT_T *port, const MMAL_CLOCK_BUFFER_INFO_T *info)
+{
+   if (port->priv->clock->buffer_info_reporting)
+      mmal_port_clock_forward_input_buffer_info(port, info);
+}
+
+/* Provide output buffer information */
+void mmal_port_clock_output_buffer_info(MMAL_PORT_T *port, const MMAL_CLOCK_BUFFER_INFO_T *info)
+{
+   if (port->priv->clock->buffer_info_reporting)
+      mmal_port_clock_forward_output_buffer_info(port, info);
 }
 

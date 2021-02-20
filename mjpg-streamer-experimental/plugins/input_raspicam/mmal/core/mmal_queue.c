@@ -38,6 +38,23 @@ struct MMAL_QUEUE_T
    VCOS_SEMAPHORE_T semaphore;
 };
 
+// Only sanity check if asserts are enabled
+#if VCOS_ASSERT_ENABLED
+static void mmal_queue_sanity_check(MMAL_QUEUE_T *queue, MMAL_BUFFER_HEADER_T *buffer)
+{
+  MMAL_BUFFER_HEADER_T *q;
+  int len = 0;
+  for (q = queue->first; q && len<queue->length; q = q->next)
+  {
+    vcos_assert(buffer != q);
+    len++;
+  }
+  vcos_assert(len == queue->length && !q);
+}
+#else
+#define mmal_queue_sanity_check(q,b)
+#endif
+
 /** Create a QUEUE of MMAL_BUFFER_HEADER_T */
 MMAL_QUEUE_T *mmal_queue_create(void)
 {
@@ -59,22 +76,37 @@ MMAL_QUEUE_T *mmal_queue_create(void)
       return 0;
    }
 
+   /* gratuitous lock for coverity */ vcos_mutex_lock(&queue->lock);
    queue->length = 0;
    queue->first = 0;
    queue->last = &queue->first;
+   mmal_queue_sanity_check(queue, NULL);
+   /* gratuitous unlock for coverity */ vcos_mutex_unlock(&queue->lock);
+
    return queue;
 }
 
 /** Put a MMAL_BUFFER_HEADER_T into a QUEUE */
 void mmal_queue_put(MMAL_QUEUE_T *queue, MMAL_BUFFER_HEADER_T *buffer)
 {
+   vcos_assert(queue && buffer);
    if(!queue || !buffer) return;
 
-	vcos_mutex_lock(&queue->lock);
+   vcos_mutex_lock(&queue->lock);
+   mmal_queue_sanity_check(queue, buffer);
    queue->length++;
    *queue->last = buffer;
    buffer->next = 0;
    queue->last = &buffer->next;
+   // There is a possible advantage to putting the semaphore_post outside
+   // the lock as that would avoid the case where we set the semaphore, causing
+   // a task switch to a waiting get thread which then blocks because we still
+   // have the lock.  However this allows a race condition if we have (legit) code
+   // of the (simplified) form:
+   // if (mmal_queue_length(q) > 0) b = mmal_queue_get(q);
+   // where the _get should always succeed
+   // This has an easy fix if we have a fn that returns the count in a semaphore
+   // but by not all OSs support that (e.g. Win32)
    vcos_semaphore_post(&queue->semaphore);
    vcos_mutex_unlock(&queue->lock);
 }
@@ -84,7 +116,8 @@ void mmal_queue_put_back(MMAL_QUEUE_T *queue, MMAL_BUFFER_HEADER_T *buffer)
 {
    if(!queue || !buffer) return;
 
-	vcos_mutex_lock(&queue->lock);
+   vcos_mutex_lock(&queue->lock);
+   mmal_queue_sanity_check(queue, buffer);
    queue->length++;
    buffer->next = queue->first;
    queue->first = buffer;
@@ -93,23 +126,16 @@ void mmal_queue_put_back(MMAL_QUEUE_T *queue, MMAL_BUFFER_HEADER_T *buffer)
    vcos_mutex_unlock(&queue->lock);
 }
 
-/** Get a MMAL_BUFFER_HEADER_T from a QUEUE. */
-MMAL_BUFFER_HEADER_T *mmal_queue_get(MMAL_QUEUE_T *queue)
-{
-   MMAL_BUFFER_HEADER_T *buffer;
 
-	if(!queue) return 0;
+/** Get a MMAL_BUFFER_HEADER_T from a QUEUE. Semaphore already claimed */
+static MMAL_BUFFER_HEADER_T *mmal_queue_get_core(MMAL_QUEUE_T *queue)
+{
+   MMAL_BUFFER_HEADER_T * buffer;
 
    vcos_mutex_lock(&queue->lock);
+   mmal_queue_sanity_check(queue, NULL);
    buffer = queue->first;
-   if(!buffer)
-   {
-      vcos_mutex_unlock(&queue->lock);
-      return 0;
-   }
-
-   /* coverity[lock] This semaphore isn't being used as a mutex */
-   vcos_semaphore_wait(&queue->semaphore); /* Will always succeed */
+   vcos_assert(buffer != NULL);
 
    queue->first = buffer->next;
    if(!queue->first) queue->last = &queue->first;
@@ -120,14 +146,38 @@ MMAL_BUFFER_HEADER_T *mmal_queue_get(MMAL_QUEUE_T *queue)
    return buffer;
 }
 
+/** Get a MMAL_BUFFER_HEADER_T from a QUEUE. */
+MMAL_BUFFER_HEADER_T *mmal_queue_get(MMAL_QUEUE_T *queue)
+{
+   vcos_assert(queue);
+   if(!queue) return 0;
+
+   if(vcos_semaphore_trywait(&queue->semaphore) != VCOS_SUCCESS)
+       return NULL;
+
+   return mmal_queue_get_core(queue);
+}
+
 /** Wait for a MMAL_BUFFER_HEADER_T from a QUEUE. */
 MMAL_BUFFER_HEADER_T *mmal_queue_wait(MMAL_QUEUE_T *queue)
 {
 	if(!queue) return 0;
 
-	vcos_semaphore_wait(&queue->semaphore);
-   vcos_semaphore_post(&queue->semaphore);
-   return mmal_queue_get(queue);
+   if (vcos_semaphore_wait(&queue->semaphore) != VCOS_SUCCESS)
+       return NULL;
+
+   return mmal_queue_get_core(queue);
+}
+
+MMAL_BUFFER_HEADER_T *mmal_queue_timedwait(MMAL_QUEUE_T *queue, VCOS_UNSIGNED timeout)
+{
+    if (!queue)
+        return NULL;
+
+    if (vcos_semaphore_wait_timeout(&queue->semaphore, timeout) != VCOS_SUCCESS)
+        return NULL;
+
+    return mmal_queue_get_core(queue);
 }
 
 /** Get the number of MMAL_BUFFER_HEADER_T currently in a QUEUE */
