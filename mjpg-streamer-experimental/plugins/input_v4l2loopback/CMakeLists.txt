@@ -1,0 +1,3 @@
+
+MJPG_STREAMER_PLUGIN_OPTION(input_v4l2loopback "v4l2loopback inputplugin")
+MJPG_STREAMER_PLUGIN_COMPILE(input_v4l2loopback input_v4l2loopback.c)
