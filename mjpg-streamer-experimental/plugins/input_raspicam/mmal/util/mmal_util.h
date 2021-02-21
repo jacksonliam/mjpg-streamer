@@ -28,7 +28,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef MMAL_UTIL_H
 #define MMAL_UTIL_H
 
-#include "../mmal.h"
+#include "interface/mmal/mmal.h"
 
 /** \defgroup MmalUtilities Utility functions
  * The utility functions provide helpers for common functionality that is not part
@@ -65,6 +65,13 @@ uint32_t mmal_encoding_stride_to_width(uint32_t encoding, uint32_t stride);
  * @return The stride in bytes.
  */
 uint32_t mmal_encoding_width_to_stride(uint32_t encoding, uint32_t width);
+
+/** Return the 16 line high sliced version of a given pixel encoding
+ *
+ * @param encoding The pixel encoding (such as one of the \ref MmalEncodings "pre-defined encodings")
+ * @return The sliced equivalent, or MMAL_ENCODING_UNKNOWN if not supported.
+ */
+uint32_t mmal_encoding_get_slice_variant(uint32_t encoding);
 
 /** Convert a port type to a string.
  *
@@ -163,6 +170,17 @@ MMAL_PORT_T *mmal_util_get_port(MMAL_COMPONENT_T *comp, MMAL_PORT_TYPE_T type, u
  */
 char *mmal_4cc_to_string(char *buf, size_t len, uint32_t fourcc);
 
+
+/** On FW prior to June 2016, camera and video_splitter
+ *  had BGR24 and RGB24 support reversed.
+ *  This is now fixed, and this function will return whether the
+ *  FW has the fix or not.
+ *
+ * @param port   MMAL port to check (on camera or video_splitter)
+ * @return 0 if old firmware, 1 if new.
+ *
+ */
+int mmal_util_rgb_order_fixed(MMAL_PORT_T *port);
 
 #ifdef __cplusplus
 }

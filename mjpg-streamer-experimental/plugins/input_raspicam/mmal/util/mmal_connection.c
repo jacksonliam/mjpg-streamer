@@ -43,11 +43,35 @@ typedef struct
 
 } MMAL_CONNECTION_PRIVATE_T;
 
+/** Callback from a clock port. Buffer is immediately sent to next component. */
+static void mmal_connection_bh_clock_cb(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer)
+{
+   MMAL_STATUS_T status = MMAL_SUCCESS;
+   MMAL_CONNECTION_T *connection = (MMAL_CONNECTION_T *)port->userdata;
+   MMAL_PORT_T *other_port = (port == connection->in) ? connection->out : connection->in;
+
+   LOG_TRACE("(%s)%p,%p,%p,%i", port->name, port, buffer, buffer->data, (int)buffer->length);
+
+   if (other_port->is_enabled)
+   {
+      status = mmal_port_send_buffer(other_port, buffer);
+      if (status != MMAL_SUCCESS)
+      {
+         LOG_ERROR("error sending buffer to clock port (%i)", status);
+         mmal_buffer_header_release(buffer);
+      }
+   }
+   else
+   {
+      mmal_buffer_header_release(buffer);
+   }
+}
+
 /** Callback from an input port. Buffer is released. */
 static void mmal_connection_bh_in_cb(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer)
 {
-   MMAL_PARAM_UNUSED(port);
    LOG_TRACE("(%s)%p,%p,%p,%i", port->name, port, buffer, buffer->data, (int)buffer->length);
+
    /* We're done with the buffer, just recycle it */
    mmal_buffer_header_release(buffer);
 }
@@ -56,7 +80,7 @@ static void mmal_connection_bh_in_cb(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *bu
 static void mmal_connection_bh_out_cb(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer)
 {
    MMAL_CONNECTION_T *connection = (MMAL_CONNECTION_T *)port->userdata;
-   MMAL_PARAM_UNUSED(port);
+
    LOG_TRACE("(%s)%p,%p,%p,%i", port->name, port, buffer, buffer->data, (int)buffer->length);
 
    /* Queue the buffer produced by the output port */
@@ -167,14 +191,17 @@ MMAL_STATUS_T mmal_connection_create(MMAL_CONNECTION_T **cx,
 
    connection->time_setup = vcos_getmicrosecs();
 
-   /* Set the format of the input port to match the output one */
-   status = mmal_format_full_copy(in->format, out->format);
-   if (status == MMAL_SUCCESS)
-      status = mmal_port_format_commit(in);
-   if (status != MMAL_SUCCESS)
+   if (!(connection->flags & MMAL_CONNECTION_FLAG_KEEP_PORT_FORMATS))
    {
-      LOG_ERROR("format not set on input port");
-      goto error;
+      /* Set the format of the input port to match the output one */
+      status = mmal_format_full_copy(in->format, out->format);
+      if (status == MMAL_SUCCESS)
+         status = mmal_port_format_commit(in);
+      if (status != MMAL_SUCCESS)
+      {
+         LOG_ERROR("format not set on input port");
+         goto error;
+      }
    }
 
    /* In pass-through mode we need to propagate the buffer requirements of the
@@ -191,6 +218,7 @@ MMAL_STATUS_T mmal_connection_create(MMAL_CONNECTION_T **cx,
          LOG_ERROR("failed to propagate buffer requirements");
          goto error;
       }
+      status = MMAL_SUCCESS;
    }
 
    /* Special case for tunnelling */
@@ -226,6 +254,7 @@ MMAL_STATUS_T mmal_connection_create(MMAL_CONNECTION_T **cx,
    return status;
 
  error:
+   /* coverity[var_deref_model] mmal_connection_destroy_internal will check connection->pool correctly */
    mmal_connection_destroy_internal(connection);
    return status == MMAL_SUCCESS ? MMAL_ENOMEM : status;
 }
@@ -268,14 +297,17 @@ MMAL_STATUS_T mmal_connection_enable(MMAL_CONNECTION_T *connection)
    connection->time_enable = vcos_getmicrosecs();
 
    /* Override the buffer values with the recommended ones (the port probably knows best) */
-   if (out->buffer_num_recommended)
-      out->buffer_num = out->buffer_num_recommended;
-   if (out->buffer_size_recommended)
-      out->buffer_size = out->buffer_size_recommended;
-   if (in->buffer_num_recommended)
-      in->buffer_num = in->buffer_num_recommended;
-   if (in->buffer_size_recommended)
-      in->buffer_size = in->buffer_size_recommended;
+   if (!(connection->flags & MMAL_CONNECTION_FLAG_KEEP_BUFFER_REQUIREMENTS))
+   {
+      if (out->buffer_num_recommended)
+         out->buffer_num = out->buffer_num_recommended;
+      if (out->buffer_size_recommended)
+         out->buffer_size = out->buffer_size_recommended;
+      if (in->buffer_num_recommended)
+         in->buffer_num = in->buffer_num_recommended;
+      if (in->buffer_size_recommended)
+         in->buffer_size = in->buffer_size_recommended;
+   }
 
    /* Special case for tunnelling */
    if (connection->flags & MMAL_CONNECTION_FLAG_TUNNELLING)
@@ -308,7 +340,8 @@ MMAL_STATUS_T mmal_connection_enable(MMAL_CONNECTION_T *connection)
 
    /* Enable output port. The callback specified here is the function which
     * will be called when an empty buffer header comes back to the port. */
-   status = mmal_port_enable(out, mmal_connection_bh_out_cb);
+   status = mmal_port_enable(out, (out->type == MMAL_PORT_TYPE_CLOCK) ?
+                             mmal_connection_bh_clock_cb : mmal_connection_bh_out_cb);
    if(status)
    {
       LOG_ERROR("output port couldn't be enabled");
@@ -317,7 +350,8 @@ MMAL_STATUS_T mmal_connection_enable(MMAL_CONNECTION_T *connection)
 
    /* Enable input port. The callback specified here is the function which
     * will be called when an empty buffer header comes back to the port. */
-   status = mmal_port_enable(in, mmal_connection_bh_in_cb);
+   status = mmal_port_enable(in, (in->type == MMAL_PORT_TYPE_CLOCK) ?
+                             mmal_connection_bh_clock_cb : mmal_connection_bh_in_cb);
    if(status)
    {
       LOG_ERROR("input port couldn't be enabled");
@@ -468,7 +502,7 @@ MMAL_STATUS_T mmal_connection_event_format_changed(MMAL_CONNECTION_T *connection
     * to the next component (so it gets configured properly) */
    if ((connection->in->capabilities & MMAL_PORT_CAPABILITY_SUPPORTS_EVENT_FORMAT_CHANGE) &&
        event->buffer_size_min <= connection->out->buffer_size &&
-       event->buffer_num_min <= connection->out->buffer_num_min)
+       event->buffer_num_min <= connection->out->buffer_num)
    {
       status = mmal_format_full_copy(connection->out->format, event->format);
       if (status == MMAL_SUCCESS)
