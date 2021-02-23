@@ -34,8 +34,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "interface/vmcs_host/vc_vchi_gencmd.h"
 #include "mmal/mmal.h"
 //#include "mmal/mmal_logging.h"
-//#include "mmal/util/mmal_util.h"
-//#include "mmal/util/mmal_util_params.h"
+#include "mmal/util/mmal_util.h"
+#include "mmal/util/mmal_util_params.h"
 #include "mmal/util/mmal_default_components.h"
 #include "RaspiCamControl.h"
 
@@ -148,32 +148,34 @@ static XREF_T stereo_mode_map[] =
 
 static const int stereo_mode_map_size = sizeof(stereo_mode_map)/sizeof(stereo_mode_map[0]);
 
-
-#define CommandSharpness   0
-#define CommandContrast    1
-#define CommandBrightness  2
-#define CommandSaturation  3
-#define CommandISO         4
-#define CommandVideoStab   5
-#define CommandEVComp      6
-#define CommandExposure    7
-#define CommandAWB         8
-#define CommandImageFX     9
-#define CommandColourFX    10
-#define CommandMeterMode   11
-#define CommandRotation    12
-#define CommandHFlip       13
-#define CommandVFlip       14
-#define CommandROI         15
-#define CommandShutterSpeed 16
-#define CommandAwbGains    17
-#define CommandDRCLevel    18
-#define CommandStatsPass   19
-#define CommandAnnotate    20
-#define CommandStereoMode  21
-#define CommandStereoDecimate 22
-#define CommandStereoSwap  23
-#define CommandAnnotateExtras 24
+enum
+{
+  CommandSharpness,
+  CommandContrast,
+  CommandBrightness,
+  CommandSaturation,
+  CommandISO,
+  CommandVideoStab,
+  CommandEVComp,
+  CommandExposure,
+  CommandAWB,
+  CommandImageFX,
+  CommandColourFX,
+  CommandMeterMode,
+  CommandRotation,
+  CommandHFlip,
+  CommandVFlip,
+  CommandROI,
+  CommandShutterSpeed,
+  CommandAwbGains,
+  CommandDRCLevel,
+  CommandStatsPass,
+  CommandAnnotate,
+  CommandStereoMode,
+  CommandStereoDecimate,
+  CommandStereoSwap,
+  CommandAnnotateExtras
+};
 
 static COMMAND_LIST  cmdline_commands[] =
 {
@@ -910,7 +912,7 @@ int raspicamcontrol_set_exposure_compensation(MMAL_COMPONENT_T *camera, int exp_
    if (!camera)
       return 1;
 
-   return mmal_status_to_int(mmal_port_parameter_set_int32(camera->control, MMAL_PARAMETER_EXPOSURE_COMP , exp_comp));
+   return mmal_status_to_int(mmal_port_parameter_set_int32(camera->control, MMAL_PARAMETER_EXPOSURE_COMP, exp_comp));
 }
 
 
@@ -1069,7 +1071,7 @@ int raspicamcontrol_set_rotation(MMAL_COMPONENT_T *camera, int rotation)
    mmal_port_parameter_set_int32(camera->output[1], MMAL_PARAMETER_ROTATION, my_rotation);
    mmal_port_parameter_set_int32(camera->output[2], MMAL_PARAMETER_ROTATION, my_rotation);
 
-   return ret;
+   return mmal_status_to_int(ret);
 }
 
 /**
@@ -1095,7 +1097,7 @@ int raspicamcontrol_set_flips(MMAL_COMPONENT_T *camera, int hflip, int vflip)
 
    mmal_port_parameter_set(camera->output[0], &mirror.hdr);
    mmal_port_parameter_set(camera->output[1], &mirror.hdr);
-   return mmal_port_parameter_set(camera->output[2], &mirror.hdr);
+   return mmal_status_to_int(mmal_port_parameter_set(camera->output[2], &mirror.hdr));
 }
 
 /**
@@ -1114,7 +1116,7 @@ int raspicamcontrol_set_ROI(MMAL_COMPONENT_T *camera, PARAM_FLOAT_RECT_T rect)
    crop.rect.width = (65536 * rect.w);
    crop.rect.height = (65536 * rect.h);
 
-   return mmal_port_parameter_set(camera->control, &crop.hdr);
+   return mmal_status_to_int(mmal_port_parameter_set(camera->control, &crop.hdr));
 }
 
 /**
@@ -1207,7 +1209,8 @@ static void raspicamcontrol_get_camera(int *supported, int *detected)
 }
 
 /**
- * Check to see if camera is supported, and we have allocated enough meooryAsk GPU about its camera abilities
+ * Check to see if camera is supported, and we have allocated enough memory
+ * Ask GPU about its camera abilities
  * @param supported None-zero if software supports the camera 
  * @param detected  None-zero if a camera has been detected
  */
