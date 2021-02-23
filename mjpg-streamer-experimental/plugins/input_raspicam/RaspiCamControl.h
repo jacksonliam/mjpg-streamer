@@ -157,6 +157,7 @@ typedef struct
    int annotate_text_colour;  // Text colour for annotation
    int annotate_bg_colour;    // Background colour for annotation
    MMAL_PARAMETER_STEREOSCOPIC_MODE_T stereo_mode;
+   int sensor_mode;                  // Camera mode
 } RASPICAM_CAMERA_PARAMETERS;
 
 
@@ -197,6 +198,7 @@ int raspicamcontrol_set_stats_pass(MMAL_COMPONENT_T *camera, int stats_pass);
 int raspicamcontrol_set_annotate(MMAL_COMPONENT_T *camera, const int bitmask, const char *string,
                                  const int text_size, const int text_colour, const int bg_colour);
 int raspicamcontrol_set_stereo_mode(MMAL_PORT_T *port, MMAL_PARAMETER_STEREOSCOPIC_MODE_T *stereo_mode);
+int raspicamcontrol_set_sensor_mode(MMAL_COMPONENT_T *camera, int ISO);
 
 //Individual getting functions
 int raspicamcontrol_get_saturation(MMAL_COMPONENT_T *camera);
@@ -212,6 +214,6 @@ MMAL_PARAM_EXPOSUREMODE_T raspicamcontrol_get_exposure_mode(MMAL_COMPONENT_T *ca
 MMAL_PARAM_AWBMODE_T raspicamcontrol_get_awb_mode(MMAL_COMPONENT_T *camera);
 MMAL_PARAM_IMAGEFX_T raspicamcontrol_get_imageFX(MMAL_COMPONENT_T *camera);
 MMAL_PARAM_COLOURFX_T raspicamcontrol_get_colourFX(MMAL_COMPONENT_T *camera);
-
+int raspicamcontrol_get_mode(MMAL_COMPONENT_T *camera);
 
 #endif /* RASPICAMCONTROL_H_ */
