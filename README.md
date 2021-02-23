@@ -44,6 +44,11 @@ Output plugins:
 * output_viewer ([documentation](mjpg-streamer-experimental/plugins/output_viewer/README.md))
 * output_zmqserver ([documentation](mjpg-streamer-experimental/plugins/output_zmqserver/README.md))
 
+Automatic Build & Install
+=========================
+
+    sudo bash -c "apt-get update && apt-get install curl -y && curl -s https://raw.githubusercontent.com/jacksonliam/mjpg-streamer/master/apt-installer.sh | bash -s"
+
 Building & Installation
 =======================
 
