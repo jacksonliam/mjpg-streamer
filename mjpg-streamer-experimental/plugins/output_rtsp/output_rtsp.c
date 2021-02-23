@@ -132,13 +132,12 @@ void *worker_thread(void *arg)
         OPRINT("a valid UDP port must be provided\n");
         return NULL;
     }
-    struct sockaddr_in addr;
+    struct sockaddr_in addr = {};
     int sd;
     int bytes;
     unsigned int addr_len = sizeof(addr);
     char udpbuffer[1024] = {0};
     sd = socket(PF_INET, SOCK_DGRAM, 0);
-    bzero(&addr, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
     addr.sin_port = htons(port);

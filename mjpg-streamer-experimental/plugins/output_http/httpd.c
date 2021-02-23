@@ -1453,7 +1453,7 @@ void *server_thread(void *arg)
     int on;
     pthread_t client;
     struct addrinfo *aip, *aip2;
-    struct addrinfo hints;
+    struct addrinfo hints = {};
     struct sockaddr_storage client_addr;
     socklen_t addr_len = sizeof(struct sockaddr_storage);
     fd_set selectfds;
@@ -1468,7 +1468,6 @@ void *server_thread(void *arg)
     /* set cleanup handler to cleanup resources */
     pthread_cleanup_push(server_cleanup, pcontext);
 
-    bzero(&hints, sizeof(hints));
     hints.ai_family = PF_UNSPEC;
     hints.ai_flags = AI_PASSIVE;
     hints.ai_socktype = SOCK_STREAM;
