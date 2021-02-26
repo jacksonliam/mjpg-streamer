@@ -44,7 +44,6 @@ static MMAL_STATUS_T parse_enum(int *dest, string_pair_t *pairs, size_t n_pairs,
          *dest = pairs[i].value;
          return MMAL_SUCCESS;
       }
-      i++;
    }
    return MMAL_EINVAL;
 }

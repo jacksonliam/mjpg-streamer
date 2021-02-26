@@ -27,6 +27,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "mmal_types.h"
 #include "mmal_format.h"
+#include "util/mmal_util_rational.h"
 
 #define MMAL_ES_FORMAT_MAGIC MMAL_FOURCC('m','a','g','f')
 #define EXTRADATA_SIZE_DEFAULT 32
@@ -128,9 +129,9 @@ uint32_t mmal_format_compare(MMAL_ES_FORMAT_T *fmt1, MMAL_ES_FORMAT_T *fmt2)
          result |= MMAL_ES_FORMAT_COMPARE_FLAG_VIDEO_RESOLUTION;
       if (memcmp(&video1->crop, &video2->crop, sizeof(video1->crop)))
          result |= MMAL_ES_FORMAT_COMPARE_FLAG_VIDEO_CROPPING;
-      if (memcmp(&video1->par, &video2->par, sizeof(video1->par)))
+      if (!mmal_rational_equal(video1->par, video2->par))
          result |= MMAL_ES_FORMAT_COMPARE_FLAG_VIDEO_ASPECT_RATIO;
-      if (memcmp(&video1->frame_rate, &video2->frame_rate, sizeof(video1->frame_rate)))
+      if (!mmal_rational_equal(video1->frame_rate, video2->frame_rate))
          result |= MMAL_ES_FORMAT_COMPARE_FLAG_VIDEO_FRAME_RATE;
       if (video1->color_space != video2->color_space)
          result |= MMAL_ES_FORMAT_COMPARE_FLAG_VIDEO_COLOR_SPACE;

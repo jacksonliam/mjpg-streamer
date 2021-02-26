@@ -50,6 +50,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # define MMAL_COMPONENT_DEFAULT_AUDIO_DECODER    "avcodec.audio_decode"
 # define MMAL_COMPONENT_DEFAULT_AUDIO_RENDERER   "sdl.audio_render"
 # define MMAL_COMPONENT_DEFAULT_MIRACAST         "miracast"
+# define MMAL_COMPONENT_DEFAULT_CLOCK            "clock"
 #elif defined(__VIDEOCORE__)
 # define MMAL_COMPONENT_DEFAULT_VIDEO_DECODER    "ril.video_decode"
 # define MMAL_COMPONENT_DEFAULT_VIDEO_ENCODER    "ril.video_encode"
@@ -65,6 +66,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # define MMAL_COMPONENT_DEFAULT_AUDIO_DECODER    "none"
 # define MMAL_COMPONENT_DEFAULT_AUDIO_RENDERER   "ril.audio_render"
 # define MMAL_COMPONENT_DEFAULT_MIRACAST         "miracast"
+# define MMAL_COMPONENT_DEFAULT_CLOCK            "clock"
+# define MMAL_COMPONENT_DEFAULT_CAMERA_INFO      "camera_info"
 #else
 # define MMAL_COMPONENT_DEFAULT_VIDEO_DECODER    "vc.ril.video_decode"
 # define MMAL_COMPONENT_DEFAULT_VIDEO_ENCODER    "vc.ril.video_encode"
@@ -80,6 +83,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # define MMAL_COMPONENT_DEFAULT_AUDIO_DECODER    "none"
 # define MMAL_COMPONENT_DEFAULT_AUDIO_RENDERER   "vc.ril.audio_render"
 # define MMAL_COMPONENT_DEFAULT_MIRACAST         "vc.miracast"
+# define MMAL_COMPONENT_DEFAULT_CLOCK            "vc.clock"
+# define MMAL_COMPONENT_DEFAULT_CAMERA_INFO      "vc.camera_info"
 #endif
 
 /** @} */

@@ -63,6 +63,7 @@ const char *mmal_msgname(uint32_t id)
       MSGNAME(BUFFER_FROM_HOST_ZEROLEN),
       MSGNAME(PORT_FLUSH),
       MSGNAME(HOST_LOG),
+      MSGNAME(COMPACT),
       { 0, NULL },
    };
    vcos_static_assert(sizeof(msgnames)/sizeof(msgnames[0]) == MMAL_WORKER_MSG_LAST);

@@ -105,20 +105,20 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 // There isn't actually a MMAL structure for the following, so make one
-typedef struct
+typedef struct mmal_param_colourfx_s
 {
    int enable;       /// Turn colourFX on or off
    int u,v;          /// U and V to use
 } MMAL_PARAM_COLOURFX_T;
 
-typedef struct
+typedef struct mmal_param_thumbnail_config_s
 {
    int enable;
    int width,height;
    int quality;
 } MMAL_PARAM_THUMBNAIL_CONFIG_T;
 
-typedef struct
+typedef struct param_float_rect_s
 {
    double x;
    double y;
@@ -127,7 +127,7 @@ typedef struct
 } PARAM_FLOAT_RECT_T;
 
 /// struct contain camera settings
-typedef struct
+typedef struct raspicam_camera_parameters_s
 {
    int sharpness;             /// -100 to 100
    int contrast;              /// -100 to 100

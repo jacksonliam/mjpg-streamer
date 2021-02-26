@@ -128,20 +128,28 @@ typedef struct MMAL_BUFFER_HEADER_T
 #define MMAL_BUFFER_HEADER_FLAG_CORRUPTED              (1<<9)
 /** Signals that a buffer failed to be transmitted */
 #define MMAL_BUFFER_HEADER_FLAG_TRANSMISSION_FAILED    (1<<10)
+/** Signals the output buffer won't be used, just update reference frames */
+#define MMAL_BUFFER_HEADER_FLAG_DECODEONLY             (1<<11)
+/** User flags - can be passed in and will get returned */
+#define MMAL_BUFFER_HEADER_FLAG_USER0                  (1<<28)
+#define MMAL_BUFFER_HEADER_FLAG_USER1                  (1<<29)
+#define MMAL_BUFFER_HEADER_FLAG_USER2                  (1<<30)
+#define MMAL_BUFFER_HEADER_FLAG_USER3                  (1<<31)
 /* @} */
 
 /** \name Video buffer header flags
  * \anchor videobufferheaderflags
  * The following flags describe properties of a video buffer header */
+#define MMAL_BUFFER_HEADER_FLAG_FORMAT_SPECIFIC_START (1<<16)
 /* @{ */
 /** Signals an interlaced video frame */
-#define MMAL_BUFFER_HEADER_VIDEO_FLAG_INTERLACED       (1<<0)
+#define MMAL_BUFFER_HEADER_VIDEO_FLAG_INTERLACED       (MMAL_BUFFER_HEADER_FLAG_FORMAT_SPECIFIC_START<<0)
 /** Signals that the top field of the current interlaced frame should be displayed first */
-#define MMAL_BUFFER_HEADER_VIDEO_FLAG_TOP_FIELD_FIRST  (1<<2)
+#define MMAL_BUFFER_HEADER_VIDEO_FLAG_TOP_FIELD_FIRST  (MMAL_BUFFER_HEADER_FLAG_FORMAT_SPECIFIC_START<<1)
 /** Signals that the buffer should be displayed on external display if attached. */
-#define MMAL_BUFFER_HEADER_VIDEO_FLAG_DISPLAY_EXTERNAL (1<<3)
+#define MMAL_BUFFER_HEADER_VIDEO_FLAG_DISPLAY_EXTERNAL (MMAL_BUFFER_HEADER_FLAG_FORMAT_SPECIFIC_START<<3)
 /** Signals that contents of the buffer requires copy protection. */
-#define MMAL_BUFFER_HEADER_VIDEO_FLAG_PROTECTED        (1<<4)
+#define MMAL_BUFFER_HEADER_VIDEO_FLAG_PROTECTED        (MMAL_BUFFER_HEADER_FLAG_FORMAT_SPECIFIC_START<<4)
 /* @} */
 
 /** Acquire a buffer header.

@@ -96,11 +96,10 @@ typedef struct MMAL_CLOCK_REQUEST_T
    MMAL_CLOCK_VOID_FP priv;  /**< client-supplied function pointer */
    MMAL_CLOCK_REQUEST_CB cb; /**< client-supplied callback to invoke */
    void *cb_data;            /**< client-supplied callback data */
-   int64_t offset;           /**< time offset requested by the client (microseconds) */
    int64_t media_time;       /**< media-time requested by the client (microseconds) */
-   int64_t media_time_adj;   /**< adjusted media-time at which the request will be
-                                  serviced in microseconds (this takes the client-supplied
-                                  offset and CLOCK_TARGET_OFFSET into account) */
+   int64_t media_time_adj;   /**< adjusted media-time at which the request will
+                                  be serviced in microseconds (this takes
+                                  CLOCK_TARGET_OFFSET into account) */
 } MMAL_CLOCK_REQUEST_T;
 
 typedef struct MMAL_CLOCK_PRIVATE_T
@@ -109,13 +108,13 @@ typedef struct MMAL_CLOCK_PRIVATE_T
 
    MMAL_BOOL_T is_active;     /**< TRUE -> media-time is advancing */
 
+   MMAL_BOOL_T scheduling;    /**< TRUE -> client request scheduling is enabled */
    MMAL_BOOL_T stop_thread;
    VCOS_SEMAPHORE_T event;
-   VCOS_THREAD_T thread;
+   VCOS_THREAD_T thread;      /**< processing thread for client requests */
+   MMAL_TIMER_T timer;        /**< used for scheduling client requests */
 
    VCOS_MUTEX_T lock;         /**< lock access to the request lists */
-
-   MMAL_TIMER_T timer;        /**< used for scheduling client requests */
 
    int32_t scale;             /**< media-time scale factor (Q16 format) */
    int32_t scale_inv;         /**< 1/scale (Q16 format) */
@@ -125,7 +124,6 @@ typedef struct MMAL_CLOCK_PRIVATE_T
 
    int64_t  average_ref_diff; /**< media-time moving average adjustment */
    int64_t  media_time;       /**< current local media-time in microseconds */
-   int64_t  media_time_offset;/**< media-time offset in microseconds */
    uint32_t media_time_frac;  /**< media-time fraction in microseconds (Q24 format) */
    int64_t  wall_time;        /**< current local wall-time (microseconds) */
    uint32_t rtc_at_update;    /**< real-time clock value at local time update (microseconds) */
@@ -229,26 +227,29 @@ static inline void mmal_clock_timer_cancel(MMAL_TIMER_T *timer)
  * Clock module private functions
  *****************************************************************************/
 /* Update the internal wall-time and media-time */
-static void mmal_clock_update_local_time(MMAL_CLOCK_PRIVATE_T *private)
+static void mmal_clock_update_local_time_locked(MMAL_CLOCK_PRIVATE_T *private)
 {
    uint32_t time_now = vcos_getmicrosecs();
    uint32_t time_diff = (time_now > private->rtc_at_update) ? (time_now - private->rtc_at_update) : 0;
 
    private->wall_time += time_diff;
 
-   /* Only update the media-time if the clock is active */
-   if (private->is_active)
-   {
-      /* For small clock scale values (i.e. slow motion), the media-time increment
-       * could potentially be rounded down when doing lots of updates, so also keep
-       * track of the fractional increment. */
-      int64_t media_diff = ((int64_t)time_diff) * (int64_t)(private->scale << 8) + private->media_time_frac;
+   /* For small clock scale values (i.e. slow motion), the media-time increment
+    * could potentially be rounded down when doing lots of updates, so also keep
+    * track of the fractional increment. */
+   int64_t media_diff = ((int64_t)time_diff) * (int64_t)(private->scale << 8) + private->media_time_frac;
 
-      private->media_time += media_diff >> 24;
-      private->media_time_frac = media_diff & ((1<<24)-1);
-   }
+   private->media_time += media_diff >> 24;
+   private->media_time_frac = media_diff & ((1<<24)-1);
 
    private->rtc_at_update = time_now;
+}
+
+/* Return the current local media-time */
+static int64_t mmal_clock_media_time_get_locked(MMAL_CLOCK_PRIVATE_T *private)
+{
+   mmal_clock_update_local_time_locked(private);
+   return private->media_time;
 }
 
 /* Comparison function used for inserting a request into
@@ -334,7 +335,7 @@ static void mmal_clock_process_requests(MMAL_CLOCK_PRIVATE_T *private)
    /* Detect discontinuity */
    if (private->media_time_at_timer != 0)
    {
-      media_time_now = mmal_clock_media_time_get(&private->clock);
+      media_time_now = mmal_clock_media_time_get_locked(private);
       /* Currently only applied to forward speeds */
       if (private->scale > 0 &&
           media_time_now + private->discont_threshold < private->media_time_at_timer)
@@ -357,12 +358,10 @@ static void mmal_clock_process_requests(MMAL_CLOCK_PRIVATE_T *private)
    next = (MMAL_CLOCK_REQUEST_T*)mmal_list_pop_front(pending);
    while (next)
    {
-      media_time_now = mmal_clock_media_time_get(&private->clock);
+      media_time_now = mmal_clock_media_time_get_locked(private);
 
       if (private->discont_expiry != 0 && private->wall_time > private->discont_expiry)
-      {
          private->discont_expiry = 0;
-      }
 
       /* Fire the request if it matches the pending discontinuity or if its requested media time
        * has been reached. */
@@ -405,10 +404,11 @@ static void mmal_clock_process_requests(MMAL_CLOCK_PRIVATE_T *private)
    UNLOCK(private);
 }
 
-/* Trigger the worker thread */
+/* Trigger the worker thread (if present) */
 static void mmal_clock_wake_thread(MMAL_CLOCK_PRIVATE_T *private)
 {
-   vcos_semaphore_post(&private->event);
+   if (private->scheduling)
+      vcos_semaphore_post(&private->event);
 }
 
 /* Stop the worker thread */
@@ -439,47 +439,13 @@ static void* mmal_clock_worker_thread(void *ctx)
    return NULL;
 }
 
-/* Start the media-time */
-static void mmal_clock_start(MMAL_CLOCK_T *clock)
+/* Create scheduling resources */
+static MMAL_STATUS_T mmal_clock_create_scheduling(MMAL_CLOCK_PRIVATE_T *private)
 {
-   MMAL_CLOCK_PRIVATE_T *private = (MMAL_CLOCK_PRIVATE_T*)clock;
-
-   private->is_active = MMAL_TRUE;
-   mmal_clock_wake_thread(private);
-}
-
-/* Stop the media-time */
-static void mmal_clock_stop(MMAL_CLOCK_T *clock)
-{
-   MMAL_CLOCK_PRIVATE_T *private = (MMAL_CLOCK_PRIVATE_T*)clock;
-
-   private->is_active = MMAL_FALSE;
-}
-
-/*****************************************************************************
- * Clock module public functions
- *****************************************************************************/
-/* Create new clock instance */
-MMAL_STATUS_T mmal_clock_create(MMAL_CLOCK_T **clock)
-{
-   unsigned int i, size = sizeof(MMAL_CLOCK_PRIVATE_T);
+   unsigned int i;
    MMAL_BOOL_T timer_status = MMAL_FALSE;
-   VCOS_STATUS_T lock_status = VCOS_EINVAL;
    VCOS_STATUS_T event_status = VCOS_EINVAL;
-   MMAL_RATIONAL_T scale = { 1, 0 };
    VCOS_UNSIGNED priority;
-   MMAL_CLOCK_PRIVATE_T *private;
-
-   /* Sanity checking */
-   if (clock == NULL)
-      return MMAL_EINVAL;
-
-   private = vcos_calloc(1, size, "mmal-clock");
-   if (!private)
-   {
-      LOG_ERROR("failed to allocate memory");
-      return MMAL_ENOMEM;
-   }
 
    timer_status = mmal_clock_timer_create(&private->timer, private);
    if (!timer_status)
@@ -495,13 +461,6 @@ MMAL_STATUS_T mmal_clock_create(MMAL_CLOCK_T **clock)
       goto error;
    }
 
-   lock_status = vcos_mutex_create(&private->lock, "mmal-clock lock");
-   if (lock_status != VCOS_SUCCESS)
-   {
-      LOG_ERROR("failed to create lock mutex %d", lock_status);
-      goto error;
-   }
-
    private->request.list_free = mmal_list_create();
    private->request.list_pending = mmal_list_create();
    if (!private->request.list_free || !private->request.list_pending)
@@ -510,13 +469,9 @@ MMAL_STATUS_T mmal_clock_create(MMAL_CLOCK_T **clock)
       goto error;
    }
 
-   /* Set the default threshold values */
-   private->update_threshold_lower = CLOCK_UPDATE_THRESHOLD_LOWER;
-   private->update_threshold_upper = CLOCK_UPDATE_THRESHOLD_UPPER;
-   private->discont_threshold      = CLOCK_DISCONT_THRESHOLD;
-   private->discont_duration       = CLOCK_DISCONT_DURATION;
-   private->request_threshold      = 0;
-   private->request_threshold_enable = MMAL_FALSE;
+   /* Populate the list of available request slots */
+   for (i = 0; i < CLOCK_REQUEST_SLOTS; ++i)
+      mmal_list_push_back(private->request.list_free, &private->request.pool[i].link);
 
    if (vcos_thread_create(&private->thread, "mmal-clock thread", NULL,
                           mmal_clock_worker_thread, private) != VCOS_SUCCESS)
@@ -527,24 +482,100 @@ MMAL_STATUS_T mmal_clock_create(MMAL_CLOCK_T **clock)
    priority = vcos_thread_get_priority(&private->thread);
    vcos_thread_set_priority(&private->thread, 1 | (priority & VCOS_AFFINITY_MASK));
 
-   /* Populate the list of available request slots */
-   for (i = 0; i < CLOCK_REQUEST_SLOTS; ++i)
-      mmal_list_push_back(private->request.list_free, &private->request.pool[i].link);
+   private->scheduling = MMAL_TRUE;
+
+   return MMAL_SUCCESS;
+
+error:
+   if (event_status == VCOS_SUCCESS) vcos_semaphore_delete(&private->event);
+   if (timer_status) mmal_clock_timer_destroy(&private->timer);
+   if (private->request.list_free) mmal_list_destroy(private->request.list_free);
+   if (private->request.list_pending) mmal_list_destroy(private->request.list_pending);
+   return MMAL_ENOSPC;
+}
+
+/* Destroy all scheduling resources */
+static void mmal_clock_destroy_scheduling(MMAL_CLOCK_PRIVATE_T *private)
+{
+   mmal_clock_stop_thread(private);
+
+   mmal_clock_request_flush(&private->clock);
+
+   mmal_list_destroy(private->request.list_free);
+   mmal_list_destroy(private->request.list_pending);
+
+   vcos_semaphore_delete(&private->event);
+
+   mmal_clock_timer_destroy(&private->timer);
+}
+
+/* Start the media-time */
+static void mmal_clock_start(MMAL_CLOCK_T *clock)
+{
+   MMAL_CLOCK_PRIVATE_T *private = (MMAL_CLOCK_PRIVATE_T*)clock;
+
+   private->is_active = MMAL_TRUE;
+
+   mmal_clock_wake_thread(private);
+}
+
+/* Stop the media-time */
+static void mmal_clock_stop(MMAL_CLOCK_T *clock)
+{
+   MMAL_CLOCK_PRIVATE_T *private = (MMAL_CLOCK_PRIVATE_T*)clock;
+
+   private->is_active = MMAL_FALSE;
+
+   mmal_clock_wake_thread(private);
+}
+
+static int mmal_clock_is_paused(MMAL_CLOCK_T *clock)
+{
+   MMAL_CLOCK_PRIVATE_T *private = (MMAL_CLOCK_PRIVATE_T*)clock;
+   return private->scale == 0;
+}
+
+/*****************************************************************************
+ * Clock module public functions
+ *****************************************************************************/
+/* Create new clock instance */
+MMAL_STATUS_T mmal_clock_create(MMAL_CLOCK_T **clock)
+{
+   unsigned int size = sizeof(MMAL_CLOCK_PRIVATE_T);
+   MMAL_RATIONAL_T scale = { 1, 1 };
+   MMAL_CLOCK_PRIVATE_T *private;
+
+   /* Sanity checking */
+   if (clock == NULL)
+      return MMAL_EINVAL;
+
+   private = vcos_calloc(1, size, "mmal-clock");
+   if (!private)
+   {
+      LOG_ERROR("failed to allocate memory");
+      return MMAL_ENOMEM;
+   }
+
+   if (vcos_mutex_create(&private->lock, "mmal-clock lock") != VCOS_SUCCESS)
+   {
+      LOG_ERROR("failed to create lock mutex");
+      vcos_free(private);
+      return MMAL_ENOSPC;
+   }
+
+   /* Set the default threshold values */
+   private->update_threshold_lower = CLOCK_UPDATE_THRESHOLD_LOWER;
+   private->update_threshold_upper = CLOCK_UPDATE_THRESHOLD_UPPER;
+   private->discont_threshold      = CLOCK_DISCONT_THRESHOLD;
+   private->discont_duration       = CLOCK_DISCONT_DURATION;
+   private->request_threshold      = 0;
+   private->request_threshold_enable = MMAL_FALSE;
 
    /* Default scale = 1.0, i.e. normal playback speed */
    mmal_clock_scale_set(&private->clock, scale);
 
    *clock = &private->clock;
    return MMAL_SUCCESS;
-
-error:
-   if (lock_status == VCOS_SUCCESS) vcos_mutex_delete(&private->lock);
-   if (event_status == VCOS_SUCCESS) vcos_semaphore_delete(&private->event);
-   if (timer_status) mmal_clock_timer_destroy(&private->timer);
-   if (private->request.list_free) mmal_list_destroy(private->request.list_free);
-   if (private->request.list_pending) mmal_list_destroy(private->request.list_pending);
-   vcos_free(private);
-   return MMAL_ENOSPC;
 }
 
 /* Destroy a clock instance */
@@ -552,18 +583,10 @@ MMAL_STATUS_T mmal_clock_destroy(MMAL_CLOCK_T *clock)
 {
    MMAL_CLOCK_PRIVATE_T *private = (MMAL_CLOCK_PRIVATE_T*)clock;
 
-   mmal_clock_stop_thread(private);
-
-   mmal_clock_request_flush(clock);
-
-   mmal_list_destroy(private->request.list_free);
-   mmal_list_destroy(private->request.list_pending);
-
-   mmal_clock_timer_destroy(&private->timer);
+   if (private->scheduling)
+      mmal_clock_destroy_scheduling(private);
 
    vcos_mutex_delete(&private->lock);
-
-   vcos_semaphore_delete(&private->event);
 
    vcos_free(private);
 
@@ -571,48 +594,65 @@ MMAL_STATUS_T mmal_clock_destroy(MMAL_CLOCK_T *clock)
 }
 
 /* Add new client request to list of pending requests */
-MMAL_STATUS_T mmal_clock_request_add(MMAL_CLOCK_T *clock, int64_t media_time, int64_t offset,
+MMAL_STATUS_T mmal_clock_request_add(MMAL_CLOCK_T *clock, int64_t media_time,
       MMAL_CLOCK_REQUEST_CB cb, void *cb_data, MMAL_CLOCK_VOID_FP priv)
 {
    MMAL_CLOCK_PRIVATE_T *private = (MMAL_CLOCK_PRIVATE_T*)clock;
    MMAL_CLOCK_REQUEST_T *request;
-   MMAL_BOOL_T success;
+   MMAL_BOOL_T wake_thread = MMAL_FALSE;
    int64_t media_time_now;
 
-   LOG_TRACE("media time %"PRIi64" offset %"PRIi64, media_time, offset);
+   LOG_TRACE("media time %"PRIi64, media_time);
+
+   LOCK(private);
+
+   media_time_now = mmal_clock_media_time_get_locked(private);
 
    /* Drop the request if request_threshold_enable and the frame exceeds the request threshold */
-   media_time_now = mmal_clock_media_time_get(&private->clock);
-   LOCK(private);
-   if(private->request_threshold_enable && (media_time > (media_time_now + private->request_threshold))) {
+   if (private->request_threshold_enable && (media_time > (media_time_now + private->request_threshold)))
+   {
       LOG_TRACE("dropping request: media time %"PRIi64" now %"PRIi64, media_time, media_time_now);
       UNLOCK(private);
       return MMAL_ECORRUPT;
    }
-   UNLOCK(private);
+
+   /* The clock module is usually only used for time-keeping, so all the
+    * objects needed to process client requests are not allocated by default
+    * and need to be created on the first client request received */
+   if (!private->scheduling)
+   {
+      if (mmal_clock_create_scheduling(private) != MMAL_SUCCESS)
+      {
+         LOG_ERROR("failed to create scheduling objects");
+         UNLOCK(private);
+         return MMAL_ENOSPC;
+      }
+   }
+
    request = (MMAL_CLOCK_REQUEST_T*)mmal_list_pop_front(private->request.list_free);
    if (request == NULL)
    {
       LOG_ERROR("no more free clock request slots");
+      UNLOCK(private);
       return MMAL_ENOSPC;
    }
 
    request->cb = cb;
    request->cb_data = cb_data;
    request->priv = priv;
-   request->offset = offset;
    request->media_time = media_time;
-   request->media_time_adj = media_time - (int64_t)(private->scale * (request->offset + CLOCK_TARGET_OFFSET) >> 16);
+   request->media_time_adj = media_time - (int64_t)(private->scale * CLOCK_TARGET_OFFSET >> 16);
 
-   LOCK(private);
-   success = mmal_clock_request_insert(private, request);
+   if (mmal_clock_request_insert(private, request))
+      wake_thread = private->is_active;
+
    UNLOCK(private);
 
    /* Notify the worker thread */
-   if (success)
+   if (wake_thread)
       mmal_clock_wake_thread(private);
 
-   return success ? MMAL_SUCCESS : MMAL_EINVAL;
+   return MMAL_SUCCESS;
 }
 
 /* Flush all pending requests */
@@ -621,7 +661,8 @@ MMAL_STATUS_T mmal_clock_request_flush(MMAL_CLOCK_T *clock)
    MMAL_CLOCK_PRIVATE_T *private = (MMAL_CLOCK_PRIVATE_T*)clock;
 
    LOCK(private);
-   mmal_clock_request_flush_locked(private, MMAL_TIME_UNKNOWN);
+   if (private->scheduling)
+      mmal_clock_request_flush_locked(private, MMAL_TIME_UNKNOWN);
    UNLOCK(private);
 
    return MMAL_SUCCESS;
@@ -634,8 +675,29 @@ MMAL_STATUS_T mmal_clock_media_time_set(MMAL_CLOCK_T *clock, int64_t media_time)
    MMAL_BOOL_T wake_thread = MMAL_TRUE;
    int64_t time_diff;
 
+   LOCK(private);
+
+   if (!private->is_active)
+   {
+      uint32_t time_now = vcos_getmicrosecs();
+      private->wall_time = time_now;
+      private->media_time = media_time;
+      private->media_time_frac = 0;
+      private->rtc_at_update = time_now;
+
+      UNLOCK(private);
+      return MMAL_SUCCESS;
+   }
+
+   if (mmal_clock_is_paused(clock))
+   {
+      LOG_TRACE("clock is paused; ignoring update");
+      UNLOCK(private);
+      return MMAL_SUCCESS;
+   }
+
    /* Reset the local media-time with the given time reference */
-   mmal_clock_update_local_time(private);
+   mmal_clock_update_local_time_locked(private);
 
    time_diff = private->media_time - media_time;
    if (time_diff >  private->update_threshold_upper ||
@@ -665,22 +727,10 @@ MMAL_STATUS_T mmal_clock_media_time_set(MMAL_CLOCK_T *clock, int64_t media_time)
       }
    }
 
+   UNLOCK(private);
+
    if (wake_thread)
       mmal_clock_wake_thread(private);
-
-   return wake_thread ? MMAL_SUCCESS : MMAL_EINVAL;
-}
-
-/* Set a media-time offset */
-MMAL_STATUS_T mmal_clock_media_time_offset_set(MMAL_CLOCK_T *clock, int64_t offset)
-{
-   MMAL_CLOCK_PRIVATE_T *private = (MMAL_CLOCK_PRIVATE_T*)clock;
-
-   LOG_TRACE("new offset %"PRIi64, offset);
-
-   private->media_time_offset = offset;
-
-   mmal_clock_wake_thread(private);
 
    return MMAL_SUCCESS;
 }
@@ -692,9 +742,9 @@ MMAL_STATUS_T mmal_clock_scale_set(MMAL_CLOCK_T *clock, MMAL_RATIONAL_T scale)
 
    LOG_TRACE("new scale %d/%d", scale.num, scale.den);
 
-   mmal_clock_update_local_time(private);
-
    LOCK(private);
+
+   mmal_clock_update_local_time_locked(private);
 
    private->scale_rational = scale;
    private->scale = mmal_rational_to_fixed_16_16(scale);
@@ -738,17 +788,14 @@ MMAL_RATIONAL_T mmal_clock_scale_get(MMAL_CLOCK_T *clock)
 /* Return the current local media-time */
 int64_t mmal_clock_media_time_get(MMAL_CLOCK_T *clock)
 {
+   int64_t media_time;
    MMAL_CLOCK_PRIVATE_T *private = (MMAL_CLOCK_PRIVATE_T*)clock;
 
-   mmal_clock_update_local_time(private);
+   LOCK(private);
+   media_time = mmal_clock_media_time_get_locked(private);
+   UNLOCK(private);
 
-   return private->media_time + (private->scale * private->media_time_offset >> 16);
-}
-
-/* Return the media-time offset */
-int64_t mmal_clock_media_time_offset_get(MMAL_CLOCK_T *clock)
-{
-   return ((MMAL_CLOCK_PRIVATE_T*)clock)->media_time_offset;
+   return media_time;
 }
 
 /* Get the clock's state */
@@ -758,7 +805,7 @@ MMAL_BOOL_T mmal_clock_is_active(MMAL_CLOCK_T *clock)
 }
 
 /* Get the clock's media-time update threshold values */
-MMAL_STATUS_T mmal_clock_update_threshold_get(MMAL_CLOCK_T *clock, MMAL_PARAMETER_CLOCK_UPDATE_THRESHOLD_T *update_threshold)
+MMAL_STATUS_T mmal_clock_update_threshold_get(MMAL_CLOCK_T *clock, MMAL_CLOCK_UPDATE_THRESHOLD_T *update_threshold)
 {
    MMAL_CLOCK_PRIVATE_T *private = (MMAL_CLOCK_PRIVATE_T *)clock;
 
@@ -771,7 +818,7 @@ MMAL_STATUS_T mmal_clock_update_threshold_get(MMAL_CLOCK_T *clock, MMAL_PARAMETE
 }
 
 /* Set the clock's media-time update threshold values */
-MMAL_STATUS_T mmal_clock_update_threshold_set(MMAL_CLOCK_T *clock, const MMAL_PARAMETER_CLOCK_UPDATE_THRESHOLD_T *update_threshold)
+MMAL_STATUS_T mmal_clock_update_threshold_set(MMAL_CLOCK_T *clock, const MMAL_CLOCK_UPDATE_THRESHOLD_T *update_threshold)
 {
    MMAL_CLOCK_PRIVATE_T *private = (MMAL_CLOCK_PRIVATE_T *)clock;
 
@@ -787,7 +834,7 @@ MMAL_STATUS_T mmal_clock_update_threshold_set(MMAL_CLOCK_T *clock, const MMAL_PA
 }
 
 /* Get the clock's discontinuity threshold values */
-MMAL_STATUS_T mmal_clock_discont_threshold_get(MMAL_CLOCK_T *clock, MMAL_PARAMETER_CLOCK_DISCONT_THRESHOLD_T *discont)
+MMAL_STATUS_T mmal_clock_discont_threshold_get(MMAL_CLOCK_T *clock, MMAL_CLOCK_DISCONT_THRESHOLD_T *discont)
 {
    MMAL_CLOCK_PRIVATE_T *private = (MMAL_CLOCK_PRIVATE_T *)clock;
 
@@ -800,7 +847,7 @@ MMAL_STATUS_T mmal_clock_discont_threshold_get(MMAL_CLOCK_T *clock, MMAL_PARAMET
 }
 
 /* Set the clock's discontinuity threshold values */
-MMAL_STATUS_T mmal_clock_discont_threshold_set(MMAL_CLOCK_T *clock, const MMAL_PARAMETER_CLOCK_DISCONT_THRESHOLD_T *discont)
+MMAL_STATUS_T mmal_clock_discont_threshold_set(MMAL_CLOCK_T *clock, const MMAL_CLOCK_DISCONT_THRESHOLD_T *discont)
 {
    MMAL_CLOCK_PRIVATE_T *private = (MMAL_CLOCK_PRIVATE_T *)clock;
 
@@ -816,7 +863,7 @@ MMAL_STATUS_T mmal_clock_discont_threshold_set(MMAL_CLOCK_T *clock, const MMAL_P
 }
 
 /* Get the clock's request threshold values */
-MMAL_STATUS_T mmal_clock_request_threshold_get(MMAL_CLOCK_T *clock, MMAL_PARAMETER_CLOCK_REQUEST_THRESHOLD_T *req)
+MMAL_STATUS_T mmal_clock_request_threshold_get(MMAL_CLOCK_T *clock, MMAL_CLOCK_REQUEST_THRESHOLD_T *req)
 {
    MMAL_CLOCK_PRIVATE_T *private = (MMAL_CLOCK_PRIVATE_T *)clock;
 
@@ -829,7 +876,7 @@ MMAL_STATUS_T mmal_clock_request_threshold_get(MMAL_CLOCK_T *clock, MMAL_PARAMET
 }
 
 /* Set the clock's request threshold values */
-MMAL_STATUS_T mmal_clock_request_threshold_set(MMAL_CLOCK_T *clock, const MMAL_PARAMETER_CLOCK_REQUEST_THRESHOLD_T *req)
+MMAL_STATUS_T mmal_clock_request_threshold_set(MMAL_CLOCK_T *clock, const MMAL_CLOCK_REQUEST_THRESHOLD_T *req)
 {
    MMAL_CLOCK_PRIVATE_T *private = (MMAL_CLOCK_PRIVATE_T *)clock;
 
