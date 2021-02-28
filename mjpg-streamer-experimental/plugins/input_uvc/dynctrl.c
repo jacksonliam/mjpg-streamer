@@ -36,52 +36,6 @@
 #define LENGTH_OF_XU_CTR (6)
 #define LENGTH_OF_XU_MAP (10)
 
-static struct uvc_xu_control_info xu_ctrls[] = {
-    {
-        .entity   = UVC_GUID_LOGITECH_MOTOR_CONTROL,
-        .selector = XU_MOTORCONTROL_PANTILT_RELATIVE,
-        .index    = 0,
-        .size     = 4,
-        .flags    = UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_DEF | UVC_CONTROL_AUTO_UPDATE
-    },
-    {
-        .entity   = UVC_GUID_LOGITECH_MOTOR_CONTROL,
-        .selector = XU_MOTORCONTROL_PANTILT_RESET,
-        .index    = 1,
-        .size     = 1,
-        .flags    = UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_RES | UVC_CONTROL_GET_DEF | UVC_CONTROL_AUTO_UPDATE
-    },
-    {
-        .entity   = UVC_GUID_LOGITECH_MOTOR_CONTROL,
-        .selector = XU_MOTORCONTROL_FOCUS,
-        .index    = 2,
-        .size     = 6,
-        .flags    = UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_CUR | UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_DEF | UVC_CONTROL_AUTO_UPDATE
-    },
-    {
-        .entity   = UVC_GUID_LOGITECH_VIDEO_PIPE,
-        .selector = XU_COLOR_PROCESSING_DISABLE,
-        .index    = 4,
-        .size     = 1,
-        .flags    = UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_CUR | UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_RES | UVC_CONTROL_GET_DEF | UVC_CONTROL_AUTO_UPDATE
-    },
-    {
-        .entity   = UVC_GUID_LOGITECH_VIDEO_PIPE,
-        .selector = XU_RAW_DATA_BITS_PER_PIXEL,
-        .index    = 7,
-        .size     = 1,
-        .flags    = UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_CUR | UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_RES | UVC_CONTROL_GET_DEF | UVC_CONTROL_AUTO_UPDATE
-    },
-    {
-        .entity   = UVC_GUID_LOGITECH_USER_HW_CONTROL,
-        .selector = XU_HW_CONTROL_LED1,
-        .index    = 0,
-        .size     = 3,
-        .flags    = UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_CUR | UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_RES | UVC_CONTROL_GET_DEF | UVC_CONTROL_AUTO_UPDATE
-    },
-
-};
-
 /* mapping for Pan/Tilt/Focus */
 static struct uvc_xu_control_mapping xu_mappings[] = {
     {
@@ -191,16 +145,6 @@ int initDynCtrls(int fd)
 {
     int i = 0;
     int err = 0;
-    /* try to add all controls listed above */
-    for(i = 0; i < LENGTH_OF_XU_CTR; i++) {
-        if((err = xioctl(fd, UVCIOC_CTRL_ADD, &xu_ctrls[i])) < 0) {
-            if(errno == EEXIST)
-                fprintf(stderr,"Control exists\n");
-            else if (errno != 0)
-                fprintf(stderr, "UVCIOC_CTRL_ADD - Error at %s: %s (%d)\n", xu_mappings[i].name, strerror(errno), errno);
-        }
-    }
-
     /* after adding the controls, add the mapping now */
     for(i = 0; i < LENGTH_OF_XU_MAP; i++) {
         if((err = xioctl(fd, UVCIOC_CTRL_MAP, &xu_mappings[i])) < 0) {
