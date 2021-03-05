@@ -64,7 +64,7 @@ This will build and install all plugins that can be compiled.
     cd mjpg-streamer-experimental
     make
     sudo make install
-    
+
 By default, everything will be compiled in "release" mode. If you wish to compile
 with debugging symbols enabled, you can do this:
 
@@ -72,7 +72,7 @@ with debugging symbols enabled, you can do this:
     make distclean
     make CMAKE_BUILD_TYPE=Debug
     sudo make install
-    
+
 Advanced compilation (via CMake)
 --------------------------------
 
@@ -86,6 +86,23 @@ shows the basic steps to enable the experimental HTTP management feature:
     make
     sudo make install
 
+Debian package generation and installation for Raspberry Pi (Raspbian)
+----------------------------------------------------------------------
+
+To build and create a Debian package for installation on a Raspberry Pi
+
+    cd mjpg-streamer-experimental
+    mkdir _build
+    cd _build
+    cmake -DRASPBIAN_PACKAGING=TRUE ..
+    make
+    cpack -G DEB
+
+To install package
+
+    sudo dpkg -i mjpg-streamer_2.0_armhf.deb
+
+
 Usage
 =====
 From the mjpeg streamer experimental
@@ -96,6 +113,27 @@ export LD_LIBRARY_PATH=.
 ```
 
 See [README.md](mjpg-streamer-experimental/README.md) or the individual plugin's documentation for more details.
+
+
+Usage with systemd
+==================
+
+To start mjpg-streamer with a camera on `/dev/video0` for example
+
+    sudo systemctl start mjpg_streamer@video0
+
+To stop mjpg-streamer
+
+    sudo systemctl stop mjpg_streamer@video0
+
+To enable mjpg-streamer on startup
+
+    sudo systemctl enable mjpg_streamer@video0
+
+To disable mjpg-streamer on startup
+
+    sudo systemctl disable mjpg_streamer@video0
+
 
 Discussion / Questions / Help
 =============================
@@ -119,5 +157,5 @@ the Free Software Foundation; version 2 of the License.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the 
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
