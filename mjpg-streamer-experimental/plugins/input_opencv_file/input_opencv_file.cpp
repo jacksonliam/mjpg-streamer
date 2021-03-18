@@ -1,7 +1,7 @@
 /*******************************************************************************
 #                                                                              #
-# OpenCV input plugin                                                          #
-# Copyright (C) 2016 Dustin Spicuzza                                           #
+# OpenCV video file input plugin                                               #
+# Copyright (C) 2018 Akihiko Yamaguchi                                         #
 #                                                                              #
 # This program is free software; you can redistribute it and/or modify         #
 # it under the terms of the GNU General Public License as published by         #
@@ -16,6 +16,7 @@
 # along with this program; if not, write to the Free Software                  #
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA    #
 #                                                                              #
+# The code is mainly based on input_opencv by Dustin Spicuzza                  #
 *******************************************************************************/
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,8 +24,9 @@
 #include <getopt.h>
 #include <dlfcn.h>
 #include <pthread.h>
+#include <sys/time.h>
 
-#include "input_opencv.h"
+#include "input_opencv_file.h"
 
 #include "opencv2/opencv.hpp"
 
@@ -78,6 +80,89 @@ enum VideoCaptureProperties {
      };
 #endif
 
+inline double GetCurrentTime(void)
+{
+  struct timeval time;
+  gettimeofday (&time, NULL);
+  return static_cast<double>(time.tv_sec) + static_cast<double>(time.tv_usec)*1.0e-6;
+}
+
+typedef double Duration;
+typedef double Time;
+
+// The code of the class Rate is from
+// http://docs.ros.org/diamondback/api/rostime/html/classros_1_1Rate.html
+
+class Rate
+{
+public:
+  Rate(double frequency);
+
+  bool sleep();
+
+  void reset();
+
+  Duration cycleTime();
+
+  Duration expectedCycleTime() { return expected_cycle_time_; }
+
+private:
+  Time start_;
+  Duration expected_cycle_time_, actual_cycle_time_;
+};
+
+Rate::Rate(double frequency)
+: start_(GetCurrentTime())
+, expected_cycle_time_(1.0 / frequency)
+, actual_cycle_time_(0.0)
+{}
+
+bool Rate::sleep()
+{
+  Time expected_end = start_ + expected_cycle_time_;
+
+  Time actual_end = GetCurrentTime();
+
+  // detect backward jumps in time
+  if (actual_end < start_)
+  {
+    expected_end = actual_end + expected_cycle_time_;
+  }
+
+  //calculate the time we'll sleep for
+  Duration sleep_time = expected_end - actual_end;
+
+  //set the actual amount of time the loop took in case the user wants to know
+  actual_cycle_time_ = actual_end - start_;
+
+  //make sure to reset our start time
+  start_ = expected_end;
+
+  //if we've taken too much time we won't sleep
+  if(sleep_time <= Duration(0.0))
+  {
+    // if we've jumped forward in time, or the loop has taken more than a full extra
+    // cycle, reset our cycle
+    if (actual_end > expected_end + expected_cycle_time_)
+    {
+      start_ = actual_end;
+    }
+    return true;
+  }
+
+  return usleep(sleep_time*1.0e6);
+}
+
+void Rate::reset()
+{
+  start_ = GetCurrentTime();
+}
+
+Duration Rate::cycleTime()
+{
+  return actual_cycle_time_;
+}
+
 using namespace cv;
 using namespace std;
 
@@ -122,7 +207,7 @@ typedef struct {
 void *worker_thread(void *);
 void worker_cleanup(void *);
 
-#define INPUT_PLUGIN_NAME "OpenCV Input plugin"
+#define INPUT_PLUGIN_NAME "OpenCV Video File Input plugin"
 static char plugin_name[] = INPUT_PLUGIN_NAME;
 
 static void null_filter(void* filter_ctx, Mat &src, Mat &dst) {
@@ -136,28 +221,11 @@ static void help() {
     " Help for input plugin..: "INPUT_PLUGIN_NAME"\n" \
     " ---------------------------------------------------------------\n" \
     " The following parameters can be passed to this plugin:\n\n" \
-    " [-d | --device ].......: video device to open (your camera)\n" \
-    " [-r | --resolution ]...: the resolution of the video device,\n" \
-    "                          can be one of the following strings:\n" \
-    "                          ");
-    
-    resolutions_help("                          ");
+    " [-d | --device ].......: video file to open (your video file)\n");
     
     fprintf(stderr,
     " [-f | --fps ]..........: frames per second\n" \
     " [-q | --quality ] .....: set quality of JPEG encoding\n" \
-    " ---------------------------------------------------------------\n" \
-    " Optional parameters (may not be supported by all cameras):\n\n"
-    " [-br ].................: Set image brightness (integer)\n"\
-    " [-co ].................: Set image contrast (integer)\n"\
-    " [-sh ].................: Set image sharpness (integer)\n"\
-    " [-sa ].................: Set image saturation (integer)\n"\
-    " [-ex ].................: Set exposure (off, or integer)\n"\
-    " [-gain ]...............: Set gain (integer)\n"
-    " ---------------------------------------------------------------\n" \
-    " Optional filter plugin:\n" \
-    " [ -filter ]............: filter plugin .so\n" \
-    " [ -fargs ].............: filter plugin arguments\n" \
     " ---------------------------------------------------------------\n\n"\
     );
 }
@@ -300,17 +368,10 @@ int input_init(input_parameter *param, int plugin_no)
     }
 
     IPRINT("device........... : %s\n", device);
-    IPRINT("Desired Resolution: %i x %i\n", width, height);
     
-    // need to allocate a VideoCapture object: default device is 0
+    // need to allocate a VideoCapture object
     try {
-        if (!strcasecmp(device, "default")) {
-            pctx->capture.open(0);
-        } else if (sscanf(device, "%d", &device_idx) == 1) {
-            pctx->capture.open(device_idx);
-        } else {
-            pctx->capture.open(device);
-        }
+        pctx->capture.open(device);
     } catch (Exception e) {
         IPRINT("VideoCapture::open() failed: %s\n", e.what());
         goto fatal_error;
@@ -322,11 +383,11 @@ int input_init(input_parameter *param, int plugin_no)
         goto fatal_error;
     }
     
-    pctx->capture.set(CAP_PROP_FRAME_WIDTH, width);
-    pctx->capture.set(CAP_PROP_FRAME_HEIGHT, height);
+    // pctx->capture.set(CAP_PROP_FRAME_WIDTH, width);
+    // pctx->capture.set(CAP_PROP_FRAME_HEIGHT, height);
     
-    if (settings->fps_set)
-        pctx->capture.set(CAP_PROP_FPS, settings->fps);
+    // if (settings->fps_set)
+        // pctx->capture.set(CAP_PROP_FPS, settings->fps);
     
     /* filter stuff goes here */
     if (filter != NULL) {
@@ -434,30 +495,33 @@ void *worker_thread(void *arg)
     pthread_cleanup_push(worker_cleanup, arg);
 
     /* set VideoCapture options */
-    #define CVOPT_OPT(prop, var, desc) \
+    /*#define CVOPT_OPT(prop, var, desc) \
         if (!pctx->capture.set(prop, settings->var)) {\
             IPRINT("%-18s: %d\n", desc, settings->var); \
         } else {\
             fprintf(stderr, "Failed to set " desc "\n"); \
         }
-    
+
     #define CVOPT_SET(prop, var, desc) \
         if (settings->var##_set) { \
             CVOPT_OPT(prop, var,desc) \
         }
-    
+
     CVOPT_SET(CAP_PROP_FPS, fps, "frames per second")
     CVOPT_SET(CAP_PROP_BRIGHTNESS, co, "contrast")
     CVOPT_SET(CAP_PROP_CONTRAST, br, "brightness")
     CVOPT_SET(CAP_PROP_SATURATION, sa, "saturation")
     CVOPT_SET(CAP_PROP_GAIN, gain, "gain")
-    CVOPT_SET(CAP_PROP_EXPOSURE, ex, "exposure")
-    
+    CVOPT_SET(CAP_PROP_EXPOSURE, ex, "exposure")*/
+
     /* setup imencode options */
     vector<int> compression_params;
     compression_params.push_back(CV_IMWRITE_JPEG_QUALITY);
     compression_params.push_back(settings->quality); // 1-100
-    
+
+    // Setup the rate adjuster.
+    Rate rate(settings->fps_set ? settings->fps : 30);
+
     free(settings);
     pctx->init_settings = NULL;
     settings = NULL;
@@ -472,7 +536,10 @@ void *worker_thread(void *arg)
     
     while (!pglobal->stop) {
         if (!pctx->capture.read(src))
-            break; // TODO
+        {
+          pctx->capture.set(CAP_PROP_POS_AVI_RATIO, 0);  // reset the video position to loop.
+          continue;
+        }
             
         // call the filter function
         pctx->filter_process(pctx->filter_ctx, src, dst);
@@ -492,6 +559,8 @@ void *worker_thread(void *arg)
         /* signal fresh_frame */
         pthread_cond_broadcast(&in->db_update);
         pthread_mutex_unlock(&in->db);
+
+        rate.sleep();
     }
     
     IPRINT("leaving input thread, calling cleanup function now\n");
