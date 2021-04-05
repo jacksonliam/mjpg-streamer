@@ -1,0 +1,5 @@
+mjpg-streamer-dbgsym_0.1-1_armhf.deb debug optional automatic=yes
+mjpg-streamer-pugins-dbgsym_0.1-1_armhf.deb debug optional automatic=yes
+mjpg-streamer-pugins_0.1-1_armhf.deb utilities optional
+mjpg-streamer_0.1-1_armhf.buildinfo utilities optional
+mjpg-streamer_0.1-1_armhf.deb utilities optional

@@ -1,0 +1,3 @@
+shlibs:Depends=libc6 (>= 2.17), libgphoto2-6 (>= 2.5.10), libgphoto2-port12 (>= 2.5.10), libjpeg62-turbo (>= 1.3.1)
+misc:Depends=
+misc:Pre-Depends=
