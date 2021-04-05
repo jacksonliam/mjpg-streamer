@@ -1,0 +1,18 @@
+Source: mjpg-streamer
+Section: utilities
+Priority: optional
+Maintainer: Jackson Liam
+Uploader: Giulio Sorrentino <gsorre84@gmail.com>
+Build-Depends: cmake, libjpeg62-turbo-dev
+
+Package: mjpg-streamer
+Architecture: armhf
+Depends: ${shlibs:Depends}, ${misc:Depends}, mpjepg-streamer-plugins
+Description: Webcam streamer
+ Configurable webcam streamer
+
+Package: mjpg-streamer-pugins
+Architecture: armhf
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Webcam streamer plugins
+ Configurable webcam streamer plugins
