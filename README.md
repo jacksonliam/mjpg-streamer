@@ -29,7 +29,7 @@ Plugins
 Input plugins:
 
 * input_file
-* input_http
+* input_http ([documentation](mjpg-streamer-experimental/plugins/input_http/README.md))
 * input_opencv ([documentation](mjpg-streamer-experimental/plugins/input_opencv/README.md))
 * input_ptp2
 * input_raspicam ([documentation](mjpg-streamer-experimental/plugins/input_raspicam/README.md))

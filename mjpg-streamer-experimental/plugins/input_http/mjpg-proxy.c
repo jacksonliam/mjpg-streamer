@@ -45,22 +45,97 @@
 #define FALSE 0
 
 const char * CONTENT_LENGTH = "Content-Length:";
-// TODO: this must be decoupled from mjpeg-streamer
-const char * BOUNDARY =     "--boundarydonotcross";
+char request_str[256];
+unsigned char * encoded = NULL;
+static const unsigned char base64_table[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+/**
+ * Base64 encoding/decoding (RFC1341)
+ * Copyright (c) 2005-2011, Jouni Malinen <j@w1.fi>
+ *
+ * base64_encode - Base64 encode
+ * @src: Data to be encoded
+ * @len: Length of the data to be encoded
+ * @out_len: Pointer to output length variable, or %NULL if not used
+ * Returns: Allocated buffer of out_len bytes of encoded data,
+ * or %NULL on failure
+ *
+ * Caller is responsible for freeing the returned buffer. Returned buffer is
+ * nul terminated to make it easier to use as a C string. The nul terminator is
+ * not included in out_len.
+ */
+unsigned char * base64_encode(const unsigned char *src, size_t len, size_t *out_len)
+{
+	unsigned char *out, *pos;
+	const unsigned char *end, *in;
+	size_t olen;
+	int line_len;
+
+	olen = len * 4 / 3 + 4; /* 3-byte blocks to 4-byte */
+	olen += olen / 72; /* line feeds */
+	olen++; /* nul termination */
+	if (olen < len)
+		return NULL; /* integer overflow */
+	out = malloc(olen);
+	if (out == NULL)
+		return NULL;
+
+	end = src + len;
+	in = src;
+	pos = out;
+	line_len = 0;
+	while (end - in >= 3) {
+		*pos++ = base64_table[in[0] >> 2];
+		*pos++ = base64_table[((in[0] & 0x03) << 4) | (in[1] >> 4)];
+		*pos++ = base64_table[((in[1] & 0x0f) << 2) | (in[2] >> 6)];
+		*pos++ = base64_table[in[2] & 0x3f];
+		in += 3;
+		line_len += 4;
+		if (line_len >= 72) {
+			*pos++ = '\n';
+			line_len = 0;
+		}
+	}
+
+	if (end - in) {
+		*pos++ = base64_table[in[0] >> 2];
+		if (end - in == 1) {
+			*pos++ = base64_table[(in[0] & 0x03) << 4];
+			*pos++ = '=';
+		} else {
+			*pos++ = base64_table[((in[0] & 0x03) << 4) |
+					      (in[1] >> 4)];
+			*pos++ = base64_table[(in[1] & 0x0f) << 2];
+		}
+		*pos++ = '=';
+		line_len += 4;
+	}
+
+	if (line_len)
+		*pos++ = '\n';
+
+	*pos = '\0';
+	if (out_len)
+		*out_len = pos - out;
+	return out;
+}
 
 void init_extractor_state(struct extractor_state * state) {
     state->length = 0;
     state->part = HEADER;
     state->last_four_bytes = 0;
-    state->contentlength.string = CONTENT_LENGTH;
-    state->boundary.string = BOUNDARY;
-    search_pattern_reset(&state->contentlength);
-    search_pattern_reset(&state->boundary);
+    state->contentlength_pattern.string = CONTENT_LENGTH;
+    state->boundary_pattern.string = state->boundary;
+    search_pattern_reset(&state->contentlength_pattern);
+    search_pattern_reset(&state->boundary_pattern);
 }
 
 void init_mjpg_proxy(struct extractor_state * state){
     state->hostname = strdup("localhost");
     state->port = strdup("8080");
+    state->request = strdup("/?action=stream");
+    state->credentials = NULL;
+    state->boundary = strdup("--boundarydonotcross");
 
     init_extractor_state(state);
 }
@@ -79,12 +154,12 @@ void extract_data(struct extractor_state * state, char * buffer, int length) {
             if (is_crlfcrlf(state->last_four_bytes))
                 state->part = CONTENT;
             else if (is_crlf(state->last_four_bytes))
-                search_pattern_reset(&state->contentlength);
+                search_pattern_reset(&state->contentlength_pattern);
             else {
-                search_pattern_compare(&state->contentlength, buffer[i]);
-                if (search_pattern_matches(&state->contentlength)) {
+                search_pattern_compare(&state->contentlength_pattern, buffer[i]);
+                if (search_pattern_matches(&state->contentlength_pattern)) {
                     DBG("Content length found\n");
-                    search_pattern_reset(&state->contentlength);
+                    search_pattern_reset(&state->contentlength_pattern);
                 }
             }
             break;
@@ -95,9 +170,9 @@ void extract_data(struct extractor_state * state, char * buffer, int length) {
                 break;
             }
             state->buffer[state->length++] = buffer[i];
-            search_pattern_compare(&state->boundary, buffer[i]);
-            if (search_pattern_matches(&state->boundary)) {
-                state->length -= (strlen(state->boundary.string)+2); // magic happens here
+            search_pattern_compare(&state->boundary_pattern, buffer[i]);
+            if (search_pattern_matches(&state->boundary_pattern)) {
+                state->length -= (strlen(state->boundary_pattern.string)+2); // magic happens here
                 DBG("Image of length %d received\n", (int)state->length);
                 if (state->on_image_received) // callback
                   state->on_image_received(state->buffer, state->length);
@@ -110,8 +185,6 @@ void extract_data(struct extractor_state * state, char * buffer, int length) {
 
 }
 
-char request [] = "GET /?action=stream HTTP/1.0\r\n\r\n";
-
 void send_request_and_process_response(struct extractor_state * state) {
     int recv_length;
     char netbuffer[NETBUFFER_SIZE];
@@ -119,7 +192,7 @@ void send_request_and_process_response(struct extractor_state * state) {
     init_extractor_state(state);
     
     // send request
-    send(state->sockfd, request, sizeof(request), 0);
+    send(state->sockfd, request_str, strlen(request_str), 0);
 
     // and listen for answer until sockerror or THEY stop us 
     // TODO: we must handle EINTR here, it really might occur
@@ -137,8 +210,11 @@ fprintf(stderr, " --------------------------------------------------------------
                 " The following parameters can be passed to this plugin:\n\n" \
                 " [-v | --version ]........: current SVN Revision\n" \
                 " [-h | --help]............: show this message\n"
-                " [-H | --host]............: select host to data from, localhost is default\n"
+                " [-H | --host]............: host, defaults to localhost\n"
                 " [-p | --port]............: port, defaults to 8080\n"
+                " [-r | --request].........: request, defaults to /?action=stream\n"
+                " [-c | --credentials].....: credentials, defaults to NULL\n"
+                " [-b | --boundary]........: boundary, defaults to --boundarydonotcross\n"
                 " ---------------------------------------------------------------\n", program_name);
 }
 // TODO: this must be reworked, too. I don't know how
@@ -147,17 +223,22 @@ void show_version() {
 }
 
 int parse_cmd_line(struct extractor_state * state, int argc, char * argv []) {
+	size_t encoded_len;
+
     while (TRUE) {
         static struct option long_options [] = {
             {"help", no_argument, 0, 'h'},
             {"version", no_argument, 0, 'v'},
             {"host", required_argument, 0, 'H'},
             {"port", required_argument, 0, 'p'},
+            {"request", required_argument, 0, 'r'},
+            {"credentials", required_argument, 0, 'c'},
+            {"boundary", required_argument, 0, 'b'},
             {0,0,0,0}
         };
 
         int index = 0, c = 0;
-        c = getopt_long_only(argc,argv, "hvH:p:", long_options, &index);
+        c = getopt_long_only(argc,argv, "hvH:p:r:c:b:", long_options, &index);
 
         if (c==-1) break;
 
@@ -183,9 +264,26 @@ int parse_cmd_line(struct extractor_state * state, int argc, char * argv []) {
                 free(state->port);
                 state->port = strdup(optarg);
                 break;
+            case 'r' :
+                free(state->request);
+                state->request = strdup(optarg);
+                break;
+            case 'c' :
+                free(state->credentials);
+                state->credentials = strdup(optarg);
+                break;
+            case 'b' :
+                free(state->boundary);
+                state->boundary = strdup(optarg);
+                break;
             }
     }
-
+    // See if we have credentials and build request accordingly
+    if (state->credentials != NULL) {
+		sprintf(request_str, "GET %s HTTP/1.0\r\nAuthorization: Basic %s\r\n\r\n", state->request, base64_encode(state->credentials, strlen(state->credentials), &encoded_len));
+    } else {
+		sprintf(request_str, "GET %s HTTP/1.0\r\n\r\n", state->request);
+    }
   return 0;
 }
 
@@ -195,6 +293,7 @@ int parse_cmd_line(struct extractor_state * state, int argc, char * argv []) {
 void connect_and_stream(struct extractor_state * state){
     struct addrinfo * info, * rp;
     int errorcode;
+
     while (TRUE) {
         errorcode = getaddrinfo(state->hostname, state->port, NULL, &info);
         if (errorcode) {
@@ -240,5 +339,9 @@ void connect_and_stream(struct extractor_state * state){
 void close_mjpg_proxy(struct extractor_state * state){
     free(state->hostname);
     free(state->port);
+    free(state->request);
+    free(state->credentials);
+    free(state->boundary);
+    free(encoded);
 }
 

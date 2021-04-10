@@ -21,7 +21,7 @@
 #define MJPG_PROXY_H
 
 #include "misc.h"
-
+#include "sys/types.h"
 
 #ifndef DBG
 #ifdef DEBUG
@@ -37,6 +37,9 @@ struct extractor_state {
     
     char * port;
     char * hostname;
+    char * request;
+    char * credentials;
+    char * boundary;
 
     // this is current result
     char buffer [BUFFER_SIZE];
@@ -47,13 +50,15 @@ struct extractor_state {
     int sockfd;
     int part;
     int last_four_bytes;
-    struct search_pattern contentlength;
-    struct search_pattern boundary;
+    struct search_pattern contentlength_pattern;
+    struct search_pattern boundary_pattern;
 
     int * should_stop;
     void (*on_image_received)(char * data, int length);
         
 };
+
+unsigned char * base64_encode(const unsigned char *src, size_t len, size_t *out_len);
 
 void init_mjpg_proxy(struct extractor_state  * state);
 

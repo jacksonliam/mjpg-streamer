@@ -87,6 +87,10 @@ int input_init(input_parameter *param, int plugin_no)
 
     IPRINT("host.............: %s\n", proxy.hostname);
     IPRINT("port.............: %s\n", proxy.port);
+    IPRINT("request..........: %s\n", proxy.request);
+    // Probably should mask this instead of displaying clear text
+    IPRINT("credentials......: %s\n", proxy.credentials);
+    IPRINT("boundary.........: %s\n", proxy.boundary);
 
     return 0;
 }
