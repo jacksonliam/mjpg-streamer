@@ -1,3 +1,5 @@
+This fork enables the -fli parameter to use with input_raspicam 
+
 mjpg-streamer
 =============
 

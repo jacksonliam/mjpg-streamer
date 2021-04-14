@@ -1,3 +1,6 @@
+Note from Marc: I just cloned this repo to be able to add the -fli parameter to input_raspicam
+
+
 mjpg-streamer input plugin: input_raspicam
 ==========================================
 
