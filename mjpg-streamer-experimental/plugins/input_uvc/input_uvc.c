@@ -610,7 +610,7 @@ void *cam_thread(void *arg)
     V4L_INT_OPT(V4L2_CID_ROTATE, rot, "rotation")
     V4L_INT_OPT(V4L2_CID_HFLIP, hf, "hflip")
     V4L_INT_OPT(V4L2_CID_VFLIP, vf, "vflip")
-    V4L_INT_OPT(V4L2_CID_VFLIP, pl, "power line filter")
+    V4L_INT_OPT(V4L2_CID_POWER_LINE_FREQUENCY, pl, "power line filter")
     
     if (settings->br_set) {
         V4L_OPT_SET(V4L2_CID_AUTOBRIGHTNESS, br_auto, "auto brightness mode")
