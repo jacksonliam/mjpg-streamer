@@ -32,100 +32,6 @@
 
 #include "v4l2uvc.h"
 
-#define OUTPUT_BUF_SIZE  4096
-
-typedef struct {
-    struct jpeg_destination_mgr pub; /* public fields */
-
-    JOCTET * buffer;    /* start of buffer */
-
-    unsigned char *outbuffer;
-    int outbuffer_size;
-    unsigned char *outbuffer_cursor;
-    int *written;
-
-} mjpg_destination_mgr;
-
-typedef mjpg_destination_mgr * mjpg_dest_ptr;
-
-/******************************************************************************
-Description.:
-Input Value.:
-Return Value:
-******************************************************************************/
-METHODDEF(void) init_destination(j_compress_ptr cinfo)
-{
-    mjpg_dest_ptr dest = (mjpg_dest_ptr) cinfo->dest;
-
-    /* Allocate the output buffer --- it will be released when done with image */
-    dest->buffer = (JOCTET *)(*cinfo->mem->alloc_small)((j_common_ptr) cinfo, JPOOL_IMAGE, OUTPUT_BUF_SIZE * sizeof(JOCTET));
-
-    *(dest->written) = 0;
-
-    dest->pub.next_output_byte = dest->buffer;
-    dest->pub.free_in_buffer = OUTPUT_BUF_SIZE;
-}
-
-/******************************************************************************
-Description.: called whenever local jpeg buffer fills up
-Input Value.:
-Return Value:
-******************************************************************************/
-METHODDEF(boolean) empty_output_buffer(j_compress_ptr cinfo)
-{
-    mjpg_dest_ptr dest = (mjpg_dest_ptr) cinfo->dest;
-
-    memcpy(dest->outbuffer_cursor, dest->buffer, OUTPUT_BUF_SIZE);
-    dest->outbuffer_cursor += OUTPUT_BUF_SIZE;
-    *(dest->written) += OUTPUT_BUF_SIZE;
-
-    dest->pub.next_output_byte = dest->buffer;
-    dest->pub.free_in_buffer = OUTPUT_BUF_SIZE;
-
-    return TRUE;
-}
-
-/******************************************************************************
-Description.: called by jpeg_finish_compress after all data has been written.
-              Usually needs to flush buffer.
-Input Value.:
-Return Value:
-******************************************************************************/
-METHODDEF(void) term_destination(j_compress_ptr cinfo)
-{
-    mjpg_dest_ptr dest = (mjpg_dest_ptr) cinfo->dest;
-    size_t datacount = OUTPUT_BUF_SIZE - dest->pub.free_in_buffer;
-
-    /* Write any data remaining in the buffer */
-    memcpy(dest->outbuffer_cursor, dest->buffer, datacount);
-    dest->outbuffer_cursor += datacount;
-    *(dest->written) += datacount;
-}
-
-/******************************************************************************
-Description.: Prepare for output to a stdio stream.
-Input Value.: buffer is the already allocated buffer memory that will hold
-              the compressed picture. "size" is the size in bytes.
-Return Value: -
-******************************************************************************/
-GLOBAL(void) dest_buffer(j_compress_ptr cinfo, unsigned char *buffer, int size, int *written)
-{
-    mjpg_dest_ptr dest;
-
-    if(cinfo->dest == NULL) {
-        cinfo->dest = (struct jpeg_destination_mgr *)(*cinfo->mem->alloc_small)((j_common_ptr) cinfo, JPOOL_PERMANENT, sizeof(mjpg_destination_mgr));
-    }
-
-    dest = (mjpg_dest_ptr) cinfo->dest;
-    dest->pub.init_destination = init_destination;
-    dest->pub.empty_output_buffer = empty_output_buffer;
-    dest->pub.term_destination = term_destination;
-    dest->outbuffer = buffer;
-    dest->outbuffer_size = size;
-    dest->outbuffer_cursor = buffer;
-    dest->written = written;
-}
-
 /******************************************************************************
 Description.: yuv2jpeg function is based on compress_yuyv_to_jpeg written by
               Gabriel A. Devenyi.
@@ -145,15 +51,14 @@ int compress_image_to_jpeg(struct vdIn *vd, unsigned char *buffer, int size, int
     JSAMPROW row_pointer[1];
     unsigned char *line_buffer, *yuyv;
     int z;
-    static int written;
+    unsigned long written = size;
 
     line_buffer = calloc(vd->width * 3, 1);
     yuyv = vd->framebuffer;
 
     cinfo.err = jpeg_std_error(&jerr);
     jpeg_create_compress(&cinfo);
-    /* jpeg_stdio_dest (&cinfo, file); */
-    dest_buffer(&cinfo, buffer, size, &written);
+    jpeg_mem_dest(&cinfo, &buffer, &written);
 
     cinfo.image_width = vd->width;
     cinfo.image_height = vd->height;
@@ -271,6 +176,8 @@ int compress_image_to_jpeg(struct vdIn *vd, unsigned char *buffer, int size, int
             row_pointer[0] = line_buffer;
             jpeg_write_scanlines(&cinfo, row_pointer, 1);
         }
+    } else if (vd->formatIn == V4L2_PIX_FMT_RGB24) {
+        jpeg_write_scanlines(&cinfo, (JSAMPROW*)vd->framebuffer, vd->height);
     }
     jpeg_finish_compress(&cinfo);
     jpeg_destroy_compress(&cinfo);
