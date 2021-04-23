@@ -229,7 +229,7 @@ error:
 
 static int init_framebuffer(struct vdIn *vd) {
     /* alloc a temp buffer to reconstruct the pict */
-    vd->framesizeIn = (vd->width * vd->height << 1);
+    vd->framesizeIn = (vd->width * vd->height << 1 * 2);
     switch (vd->formatIn) {
         case V4L2_PIX_FMT_JPEG:
             // Fall-through intentional
