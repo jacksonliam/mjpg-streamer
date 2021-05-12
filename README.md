@@ -1,7 +1,7 @@
 mjpg-streamer-pplite
 ====================
 
-这是http://sourceforge.net/projects/mjpg-streamer/的分支，并通过input_raspicam插件增加了对Raspberry Pi相机的支持。
+这是http://sourceforge.net/projects/mjpg-streamer/ 的分支，并通过input_raspicam插件增加了对Raspberry Pi相机的支持。
 
 此版本嵌入了百度飞桨轻量级深度学习推理框架Paddle Lite，配合OpenCV 3.2，实现了深度学习模型推理视频流的结果通过mjpg-streamer得以在web浏览器上显示。
 
@@ -10,9 +10,13 @@ mjpg-streamer-pplite
 =======================
 
 本人使用的设备：树莓派3B
+
 操作系统 ubuntu-18.04.4-preinstalled-server-arm64+raspi3 （64位系统）
+
 OpenCV版本 3.2.0
+
 CMake版本 3.10.2
+
 Paddle Lite版本2.8
 
 
@@ -34,7 +38,9 @@ Paddle Lite版本2.8
 =======================
 
 克隆项目至树莓派上，
-然后执行脚本`download_pplite2.8_libs.sh`安装Paddle Lite 2.8的预测库
+
+然后执行脚本`download_pplite2.8_libs.sh`安装Paddle Lite 2.8的预测库。
+
 ```bash
 git clone https://github.com/hang245141253/mjpg-streamer-pplite.git
 ```
