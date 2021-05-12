@@ -8,8 +8,7 @@ set(Python_ADDITIONAL_VERSIONS 3.4 3.5)
 find_package(PythonLibs)
 find_package(Numpy)
 
-MJPG_STREAMER_PLUGIN_OPTION(cvfilter_py "OpenCV python filter"
-                            ONLYIF PYTHONLIBS_FOUND NUMPY_FOUND ${PYTHON_VERSION_MAJOR} EQUAL 3)
+MJPG_STREAMER_PLUGIN_OPTION(cvfilter_py "OpenCV python filter")
                             
 if (PLUGIN_CVFILTER_PY)
     include_directories(${PYTHON_INCLUDE_DIRS})
