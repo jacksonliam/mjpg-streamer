@@ -13,6 +13,8 @@ mjpg-streamer-pplite
 
 操作系统 ubuntu-18.04.4-preinstalled-server-arm64+raspi3 （64位系统）
 
+此OS下载链接: https://pan.baidu.com/s/1unTK_lp1XHlVo1U7jYHCsQ 提取码: chp1
+
 OpenCV版本 3.2.0
 
 CMake版本 3.10.2
