@@ -48,7 +48,7 @@ sh download_pplite2.8_libs.sh
 
 make后执行start.sh（注意提前插入摄像头）
 ```bash
-make & ./start.sh
+make && sh start.sh
 ```
 
 然后通过局域网设备使用浏览器访问你树莓派ip的8080端口，即可查看到一个实时口罩检测的画面。
