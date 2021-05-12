@@ -1,4 +1,4 @@
-mjpg-streamer-PPLite
+mjpg-streamer-pplite
 ====================
 
 这是http://sourceforge.net/projects/mjpg-streamer/的分支，并通过input_raspicam插件增加了对Raspberry Pi相机的支持。
