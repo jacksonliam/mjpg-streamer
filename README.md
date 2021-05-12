@@ -36,8 +36,12 @@ Paddle Lite版本2.8
 克隆项目至树莓派上，
 然后执行脚本`download_pplite2.8_libs.sh`安装Paddle Lite 2.8的预测库
 ```bash
-git clone https://github.com/hang245141253/mjpg-streamer-PPLite.git
+git clone https://github.com/hang245141253/mjpg-streamer-pplite.git
+```
+```bash
 cd mjpg-streamer-pplite/mjpg-streamer-experimental/
+```
+```bash
 sh download_pplite2.8_libs.sh
 ```
 
