@@ -121,3 +121,19 @@ This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the 
 GNU General Public License for more details.
+
+
+# FAQ
+
+-- The following OPTIONAL packages have not been found:
+
+ * PythonLibs
+ * Numpy
+ * SDL
+
+CMake Error: The following variables are used in this project, but they are set to NOTFOUND.
+
+
+```bash
+sudo apt install python3-dev
+```
