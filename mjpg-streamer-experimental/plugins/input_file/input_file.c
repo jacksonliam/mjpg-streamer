@@ -28,7 +28,6 @@
 #include <syslog.h>
 #include <sys/types.h>
 #include <sys/inotify.h>
-#include <dirent.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 
@@ -36,11 +35,6 @@
 #include "../../utils.h"
 
 #define INPUT_PLUGIN_NAME "FILE input plugin"
-
-typedef enum _read_mode {
-    NewFilesOnly,
-    ExistingFiles
-} read_mode;
 
 /* private functions and variables to this plugin */
 static pthread_t   worker;
@@ -50,12 +44,11 @@ void *worker_thread(void *);
 void worker_cleanup(void *);
 void help(void);
 
-static double delay = 1.0;
+static int delay = 0;
 static char *folder = NULL;
 static char *filename = NULL;
 static int rm = 0;
 static int plugin_number;
-static read_mode mode = NewFilesOnly;
 
 /* global variables for this plugin */
 static int fd, rc, wd, size;
@@ -89,8 +82,6 @@ int input_init(input_parameter *param, int id)
             {"remove", no_argument, 0, 0},
             {"n", required_argument, 0, 0},
             {"name", required_argument, 0, 0},
-            {"e", no_argument, 0, 0},
-            {"existing", no_argument, 0, 0},
             {0, 0, 0, 0}
         };
 
@@ -118,7 +109,7 @@ int input_init(input_parameter *param, int id)
         case 2:
         case 3:
             DBG("case 2,3\n");
-            delay = atof(optarg);
+            delay = atoi(optarg);
             break;
 
             /* f, folder */
@@ -142,15 +133,10 @@ int input_init(input_parameter *param, int id)
         case 8:
         case 9:
             DBG("case 8,9\n");
-            filename = malloc(strlen(optarg) + 1);
+            filename = malloc(strlen(optarg) + 2);
             strcpy(filename, optarg);
             break;
-            /* e, existing */
-        case 10:
-        case 11:
-            DBG("case 10,11\n");
-            mode = ExistingFiles;
-            break;
+
         default:
             DBG("default case\n");
             help();
@@ -167,12 +153,9 @@ int input_init(input_parameter *param, int id)
     }
 
     IPRINT("folder to watch...: %s\n", folder);
-    IPRINT("forced delay......: %.4f\n", delay);
+    IPRINT("forced delay......: %i\n", delay);
     IPRINT("delete file.......: %s\n", (rm) ? "yes, delete" : "no, do not delete");
     IPRINT("filename must be..: %s\n", (filename == NULL) ? "-no filter for certain filename set-" : filename);
-
-    param->global->in[id].name = malloc((strlen(INPUT_PLUGIN_NAME) + 1) * sizeof(char));
-    sprintf(param->global->in[id].name, INPUT_PLUGIN_NAME);
 
     return 0;
 }
@@ -181,6 +164,7 @@ int input_stop(int id)
 {
     DBG("will cancel input thread\n");
     pthread_cancel(worker);
+
     return 0;
 }
 
@@ -188,25 +172,23 @@ int input_run(int id)
 {
     pglobal->in[id].buf = NULL;
 
-    if (mode == NewFilesOnly) {
-        rc = fd = inotify_init();
-        if(rc == -1) {
-            perror("could not initilialize inotify");
-            return 1;
-        }
+    rc = fd = inotify_init();
+    if(rc == -1) {
+        perror("could not initilialize inotify");
+        return 1;
+    }
 
-        rc = wd = inotify_add_watch(fd, folder, IN_CLOSE_WRITE | IN_MOVED_TO | IN_ONLYDIR);
-        if(rc == -1) {
-            perror("could not add watch");
-            return 1;
-        }
+    rc = wd = inotify_add_watch(fd, folder, IN_CLOSE_WRITE | IN_MOVED_TO | IN_ONLYDIR);
+    if(rc == -1) {
+        perror("could not add watch");
+        return 1;
+    }
 
-        size = sizeof(struct inotify_event) + (1 << 16);
-        ev = malloc(size);
-        if(ev == NULL) {
-            perror("not enough memory");
-            return 1;
-        }
+    size = sizeof(struct inotify_event) + (1 << 16);
+    ev = malloc(size);
+    if(ev == NULL) {
+        perror("not enough memory");
+        return 1;
     }
 
     if(pthread_create(&worker, 0, worker_thread, NULL) != 0) {
@@ -227,11 +209,10 @@ void help(void)
     " Help for input plugin..: "INPUT_PLUGIN_NAME"\n" \
     " ---------------------------------------------------------------\n" \
     " The following parameters can be passed to this plugin:\n\n" \
-    " [-d | --delay ]........: delay (in seconds) to pause between frames\n" \
+    " [-d | --delay ]........: delay to pause between frames\n" \
     " [-f | --folder ].......: folder to watch for new JPEG files\n" \
     " [-r | --remove ].......: remove/delete JPEG file after reading\n" \
     " [-n | --name ].........: ignore changes unless filename matches\n" \
-    " [-e | --existing ].....: serve the existing *.jpg files from the specified directory\n" \
     " ---------------------------------------------------------------\n");
 }
 
@@ -242,75 +223,39 @@ void *worker_thread(void *arg)
     int file;
     size_t filesize = 0;
     struct stat stats;
-    struct dirent **fileList;
-    int fileCount = 0;
-    int currentFileNumber = 0;
-    char hasJpgFile = 0;
-    struct timeval timestamp;
 
-    if (mode == ExistingFiles) {
-        fileCount = scandir(folder, &fileList, 0, alphasort);
-        if (fileCount < 0) {
-           perror("error during scandir\n");
-           return NULL;
-        }
-    }
-
-    /* set cleanup handler to cleanup allocated resources */
+    /* set cleanup handler to cleanup allocated ressources */
     pthread_cleanup_push(worker_cleanup, NULL);
 
     while(!pglobal->stop) {
-        if (mode == NewFilesOnly) {
-            /* wait for new frame, read will block until something happens */
-            rc = read(fd, ev, size);
-            if(rc == -1) {
-                perror("reading inotify events failed\n");
-                break;
-            }
 
-            /* sanity check */
-            if(wd != ev->wd) {
-                fprintf(stderr, "This event is not for the watched directory (%d != %d)\n", wd, ev->wd);
-                continue;
-            }
-
-            if(ev->mask & (IN_IGNORED | IN_Q_OVERFLOW | IN_UNMOUNT)) {
-                fprintf(stderr, "event mask suggests to stop\n");
-                break;
-            }
-
-            /* prepare filename */
-            snprintf(buffer, sizeof(buffer), "%s%s", folder, ev->name);
-
-            /* check if the filename matches specified parameter (if given) */
-            if((filename != NULL) && (strcmp(filename, ev->name) != 0)) {
-                DBG("ignoring this change (specified filename does not match)\n");
-                continue;
-            }
-            DBG("new file detected: %s\n", buffer);
-        } else {
-            if ((strstr(fileList[currentFileNumber]->d_name, ".jpg") != NULL) ||
-                (strstr(fileList[currentFileNumber]->d_name, ".JPG") != NULL)) {
-                hasJpgFile = 1;
-                DBG("serving file: %s\n", fileList[currentFileNumber]->d_name);
-                snprintf(buffer, sizeof(buffer), "%s%s", folder, fileList[currentFileNumber]->d_name);
-                currentFileNumber++;
-                if (currentFileNumber == fileCount)
-                    currentFileNumber = 0;
-            } else {
-                currentFileNumber++;
-                if (currentFileNumber == fileCount) {
-                    if(hasJpgFile == 0) {
-                        perror("No files with jpg/JPG extension in the folder\n");
-                        goto thread_quit;
-                    } else {
-                        // There are some jpeg files, the last one just happens not to be one
-                        currentFileNumber = 0;
-                    }
-                }
-                continue;
-            }
+        /* wait for new frame, read will block until something happens */
+        rc = read(fd, ev, size);
+        if(rc == -1) {
+            perror("reading inotify events failed");
+            break;
         }
+
+        /* sanity check */
+        if(wd != ev->wd) {
+            fprintf(stderr, "This event is not for the watched directory (%d != %d)\n", wd, ev->wd);
+            continue;
+        }
+
+        if(ev->mask & (IN_IGNORED | IN_Q_OVERFLOW | IN_UNMOUNT)) {
+            fprintf(stderr, "event mask suggests to stop\n");
+            break;
+        }
+
+        /* prepare filename */
+        snprintf(buffer, sizeof(buffer), "%s%s", folder, ev->name);
+
+        /* check if the filename matches specified parameter (if given) */
+        if((filename != NULL) && (strcmp(filename, ev->name) != 0)) {
+            DBG("ignoring this change (specified filename does not match)\n");
+            continue;
+        }
+        DBG("new file detected: %s\n", buffer);
 
         /* open file for reading */
         rc = file = open(buffer, O_RDONLY);
@@ -333,11 +278,8 @@ void *worker_thread(void *arg)
         pthread_mutex_lock(&pglobal->in[plugin_number].db);
 
         /* allocate memory for frame */
-        if(pglobal->in[plugin_number].buf != NULL)
-            free(pglobal->in[plugin_number].buf);
-
+        if(pglobal->in[plugin_number].buf != NULL) free(pglobal->in[plugin_number].buf);
         pglobal->in[plugin_number].buf = malloc(filesize + (1 << 16));
-
         if(pglobal->in[plugin_number].buf == NULL) {
             fprintf(stderr, "could not allocate memory\n");
             break;
@@ -351,9 +293,8 @@ void *worker_thread(void *arg)
             break;
         }
 
-        gettimeofday(&timestamp, NULL);
-        pglobal->in[plugin_number].timestamp = timestamp;
         DBG("new frame copied (size: %d)\n", pglobal->in[plugin_number].size);
+
         /* signal fresh_frame */
         pthread_cond_broadcast(&pglobal->in[plugin_number].db_update);
         pthread_mutex_unlock(&pglobal->in[plugin_number].db);
@@ -368,15 +309,8 @@ void *worker_thread(void *arg)
             }
         }
 
-        if(delay != 0)
-            usleep(1000 * 1000 * delay);
+        if(delay != 0) usleep(1000 * delay);
     }
-
-thread_quit:
-    while (fileCount--) {
-       free(fileList[fileCount]);
-    }
-    free(fileList);
 
     DBG("leaving input thread, calling cleanup function now\n");
     /* call cleanup handler, signal with the parameter */
@@ -390,30 +324,27 @@ void worker_cleanup(void *arg)
     static unsigned char first_run = 1;
 
     if(!first_run) {
-        DBG("already cleaned up resources\n");
+        DBG("already cleaned up ressources\n");
         return;
     }
 
     first_run = 0;
-    DBG("cleaning up resources allocated by input thread\n");
+    DBG("cleaning up ressources allocated by input thread\n");
 
     if(pglobal->in[plugin_number].buf != NULL) free(pglobal->in[plugin_number].buf);
 
     free(ev);
 
-    if (mode == NewFilesOnly) {
-        rc = inotify_rm_watch(fd, wd);
-        if(rc == -1) {
-            perror("could not close watch descriptor");
-        }
+    rc = inotify_rm_watch(fd, wd);
+    if(rc == -1) {
+        perror("could not close watch descriptor");
+    }
 
-        rc = close(fd);
-        if(rc == -1) {
-            perror("could not close filedescriptor");
-        }
+    rc = close(fd);
+    if(rc == -1) {
+        perror("could not close filedescriptor");
     }
 }
-
 
 
 

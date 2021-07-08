@@ -26,7 +26,6 @@
 #define _USB_VIDEO_H_
 
 #include <linux/kernel.h>
-#include <linux/types.h>          /* for videodev2.h */
 #include <linux/videodev2.h>
 
 #ifdef USE_LIBV4L2

@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <linux/videodev2.h>
 #include <sys/ioctl.h>
 #include <errno.h>
 #include <signal.h>
@@ -35,9 +36,6 @@
 #include <fcntl.h>
 #include <time.h>
 #include <syslog.h>
-
-#include <linux/types.h>          /* for videodev2.h */
-#include <linux/videodev2.h>
 
 #include "../../utils.h"
 #include "../../mjpg_streamer.h"
@@ -68,7 +66,7 @@ void help(void)
 }
 
 /******************************************************************************
-Description.: clean up allocated resources
+Description.: clean up allocated ressources
 Input Value.: unused argument
 Return Value: -
 ******************************************************************************/
@@ -77,12 +75,12 @@ void worker_cleanup(void *arg)
     static unsigned char first_run = 1;
 
     if(!first_run) {
-        DBG("already cleaned up resources\n");
+        DBG("already cleaned up ressources\n");
         return;
     }
 
     first_run = 0;
-    OPRINT("cleaning up resources allocated by worker thread\n");
+    OPRINT("cleaning up ressources allocated by worker thread\n");
 
     free(frame);
     close(fd);
@@ -107,7 +105,7 @@ void *worker_thread(void *arg)
         exit(EXIT_FAILURE);
     }
 
-    /* set cleanup handler to cleanup allocated resources */
+    /* set cleanup handler to cleanup allocated ressources */
     pthread_cleanup_push(worker_cleanup, NULL);
 
     while(!pglobal->stop) {

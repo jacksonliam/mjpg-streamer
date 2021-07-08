@@ -1,18 +1,15 @@
 #!/bin/sh
 
-# update via git
-git pull
+# update via SVN
+svn up
 
 # find out the current revision
-GITVERSION="$(export LANG=C && export LC_ALL=C && echo $(git show -s --format=%at-%H))"
-
-# run cmake before our checkinstall run
-cmake -DCMAKE_INSTALL_PREFIX:PATH=/usr .
+SVNVERSION="$(export LANG=C && export LC_ALL=C && echo $(svn info | awk '/^Revision:/ { print $2 }'))"
 
 # use checkinstall to create the DEB package
 sudo checkinstall -D \
                   --pkgname "mjpg-streamer" \
-                  --pkgversion "$GITVERSION" \
+                  --pkgversion "r$SVNVERSION" \
                   --pkgrelease "1" \
                   --maintainer "tom_stoeveken@users.sourceforge.net" \
                   --requires "libjpeg62" \

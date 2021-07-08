@@ -28,14 +28,11 @@ export LD_LIBRARY_PATH="$(pwd)"
 #./mjpg_streamer -i "input_uvc.so --help"
 
 ./mjpg_streamer -i "./input_uvc.so" -o "./output_http.so -w ./www"
-#./mjpg_streamer -i "./input_uvc.so -n -f 30 -r 1280x960"  -o "./output_http.so -w ./www" 
-#./mjpg_streamer -i "./input_uvc.so -n -f 30 -r 640x480 -d /dev/video0"  -o "./output_http.so -w ./www" &
 #./mjpg_streamer -i "./input_uvc.so -d /dev/video0" -i "./input_uvc.so -d /dev/video1" -o "./output_http.so -w ./www"
 #valgrind ./mjpg_streamer -i "./input_uvc.so" -o "./output_http.so -w ./www"
 
-#./mjpg_streamer -i "./input_uvc.so -n -f 30 -r 1280x960" -o "./output_udpserver.so --port 2001"
-#./mjpg_streamer -i "./input_uvc.so -n -f 30 -r 640x480" -o "./output_udpserver.so --address epgm://eth0;239.1.1.1:2001"
-#./mjpg_streamer -i "./input_uvc.so -n -f 30 -r 640x480 -d /dev/video0" -o "./output_zmqserver.so --address tcp://*:2001 --buffer_size 2"
+#./mjpg_streamer -i "./input_uvc.so" -o "./output_udp.so -p 2001"
+
 ## pwd echos the current path you are working at,
 ## the backticks open a subshell to execute the command pwd first
 ## the exported variable name configures ldopen() to search a certain
@@ -86,5 +83,4 @@ export LD_LIBRARY_PATH="$(pwd)"
 ## To create a control only interface useful for controlling the pan/tilt throug
 ## a webpage while another program streams video/audio, like skype.
 #./mjpg_streamer -i "./input_control.so" -o "./output_http.so -w ./www"
-
 

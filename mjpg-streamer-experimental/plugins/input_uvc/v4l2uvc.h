@@ -28,7 +28,6 @@
 
 
 #include <stdio.h>
-#include <stdint.h>
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -36,10 +35,7 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/select.h>
-
-#include <linux/types.h>          /* for videodev2.h */
 #include <linux/videodev2.h>
-
 #include "../../mjpg_streamer.h"
 #define NB_BUFFER 4
 
@@ -109,32 +105,7 @@ struct vdIn {
     int framecount;
     int recordstart;
     int recordtime;
-    uint32_t tmpbytesused;
-    struct timeval tmptimestamp;
-    v4l2_std_id vstd;
-    unsigned long frame_period_time; // in ms
-    unsigned char soft_framedrop;
-    unsigned int dv_timings;
 };
-
-/* optional initial settings */
-typedef struct {
-    int quality_set, quality,
-        sh_set, sh,
-        co_set, co,
-        br_set, br_auto, br,
-        sa_set, sa,
-        wb_set, wb_auto, wb,
-        ex_set, ex_auto, ex,
-        bk_set, bk,
-        rot_set, rot,
-        hf_set, hf,
-        vf_set, vf,
-        pl_set, pl,
-        gain_set, gain_auto, gain,
-        cagc_set, cagc_auto, cagc,
-        cb_set, cb_auto, cb;
-} context_settings;
 
 /* context of each camera thread */
 typedef struct {
@@ -143,10 +114,11 @@ typedef struct {
     pthread_t threadID;
     pthread_mutex_t controls_mutex;
     struct vdIn *videoIn;
-    context_settings *init_settings;
 } context;
 
-int init_videoIn(struct vdIn *vd, char *device, int width, int height, int fps, int format, int grabmethod, globals *pglobal, int id, v4l2_std_id vstd);
+context cams[MAX_INPUT_PLUGINS];
+
+int init_videoIn(struct vdIn *vd, char *device, int width, int height, int fps, int format, int grabmethod, globals *pglobal, int id);
 void enumerateControls(struct vdIn *vd, globals *pglobal, int id);
 void control_readed(struct vdIn *vd, struct v4l2_queryctrl *ctrl, globals *pglobal, int id);
 int setResolution(struct vdIn *vd, int width, int height);
@@ -154,10 +126,6 @@ int setResolution(struct vdIn *vd, int width, int height);
 int memcpy_picture(unsigned char *out, unsigned char *buf, int size);
 int uvcGrab(struct vdIn *vd);
 int close_v4l2(struct vdIn *vd);
-
-int video_enable(struct vdIn *vd);
-int video_set_dv_timings(struct vdIn *vd);
-int video_handle_event(struct vdIn *vd);
 
 int v4l2GetControl(struct vdIn *vd, int control);
 int v4l2SetControl(struct vdIn *vd, int control, int value, int plugin_number, globals *pglobal);

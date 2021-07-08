@@ -1,7 +1,6 @@
 TODO list:
 
 Core:
-Implement the string type controls handling.
 Add support for runtime resolution change (WIP but broken)
 Put capture timestamp to the EXIF data
 Save and load the configuration from a file. 

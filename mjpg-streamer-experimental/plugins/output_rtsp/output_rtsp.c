@@ -34,6 +34,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <linux/videodev2.h>
 #include <sys/ioctl.h>
 #include <errno.h>
 #include <signal.h>
@@ -49,7 +50,6 @@
 #include <syslog.h>
 
 #include <dirent.h>
-
 
 #include "../../utils.h"
 #include "../../mjpg_streamer.h"
@@ -90,7 +90,7 @@ void help(void)
 }
 
 /******************************************************************************
-Description.: clean up allocated resources
+Description.: clean up allocated ressources
 Input Value.: unused argument
 Return Value: -
 ******************************************************************************/
@@ -99,12 +99,12 @@ void worker_cleanup(void *arg)
     static unsigned char first_run = 1;
 
     if(!first_run) {
-        DBG("already cleaned up resources\n");
+        DBG("already cleaned up ressources\n");
         return;
     }
 
     first_run = 0;
-    OPRINT("cleaning up resources allocated by worker thread\n");
+    OPRINT("cleaning up ressources allocated by worker thread\n");
 
     if(frame != NULL) {
         free(frame);
@@ -124,7 +124,7 @@ void *worker_thread(void *arg)
     char buffer1[1024] = {0};
     unsigned char *tmp_framebuffer = NULL;
 
-    /* set cleanup handler to cleanup allocated resources */
+    /* set cleanup handler to cleanup allocated ressources */
     pthread_cleanup_push(worker_cleanup, NULL);
 
     // set UDP server data structures ---------------------------
@@ -309,7 +309,7 @@ int output_init(output_parameter *param)
     }
 
     OPRINT("input plugin.....: %d: %s\n", input_number, pglobal->in[input_number].plugin);
-    OPRINT("UDP port..........: %d\n", port);
+    OPRINT("UDP port..........: %s\n", "disabled");
     return 0;
 }
 
