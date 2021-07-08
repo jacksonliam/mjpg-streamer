@@ -31,40 +31,6 @@
 
 static int debug = 0;
 
-/* fcc2s - convert pixelformat to string
-* (Obtained from vtl-utils: v4l2-ctl.cpp)
-* args:
-* fmsString - char* to hold string
-* size - size of allocated memory for string
-* pixelformat - v4l2 pixel format identidifier
-*/
-void fcc2s(char* fmtString, unsigned int size, unsigned int pixelformat)
-{
-  if ( size < 8 )
-  {
-    fmtString[0] = '\0';
-    return;
-  }
-  
-
-  fmtString[0] = pixelformat & 0x7f;
-  fmtString[1] = (pixelformat >>  8 ) & 0x7f;
-  fmtString[2] = (pixelformat >>  16 ) & 0x7f;
-  fmtString[3] = (pixelformat >> 24 ) & 0x7f;
-  if (pixelformat & (1 << 31))
-  {
-    fmtString[4] = '-';
-    fmtString[5] = 'B';
-    fmtString[6] = 'E';
-    fmtString[7] = '\0';
-  }
-  else
-  {
-    fmtString[4] = '\0';
-  }
-  return;
-}
-
 /* ioctl with a number of retries in the case of failure
 * args:
 * fd - device descriptor
@@ -87,11 +53,9 @@ int xioctl(int fd, int IOCTL_X, void *arg)
 }
 
 static int init_v4l2(struct vdIn *vd);
-static int init_framebuffer(struct vdIn *vd);
-static void free_framebuffer(struct vdIn *vd);
 
 int init_videoIn(struct vdIn *vd, char *device, int width,
-                 int height, int fps, int format, int grabmethod, globals *pglobal, int id, v4l2_std_id vstd)
+                 int height, int fps, int format, int grabmethod, globals *pglobal, int id)
 {
     if(vd == NULL || device == NULL)
         return -1;
@@ -105,7 +69,7 @@ int init_videoIn(struct vdIn *vd, char *device, int width,
     vd->videodevice = (char *) calloc(1, 16 * sizeof(char));
     vd->status = (char *) calloc(1, 100 * sizeof(char));
     vd->pictName = (char *) calloc(1, 80 * sizeof(char));
-    snprintf(vd->videodevice, (16 - 1), "%s", device);
+    snprintf(vd->videodevice, 12, "%s", device);
     vd->toggleAvi = 0;
     vd->getPict = 0;
     vd->signalquit = 1;
@@ -113,42 +77,26 @@ int init_videoIn(struct vdIn *vd, char *device, int width,
     vd->height = height;
     vd->fps = fps;
     vd->formatIn = format;
-	vd->vstd = vstd;
     vd->grabmethod = grabmethod;
-    vd->soft_framedrop = 0;
-
     if(init_v4l2(vd) < 0) {
-        goto error;
+        fprintf(stderr, " Init v4L2 failed !! exit fatal \n");
+        goto error;;
     }
 
-    // getting the name of the input source
-    struct v4l2_input in_struct;
-    memset(&in_struct, 0, sizeof(struct v4l2_input));
-    in_struct.index = 0;
-    if (xioctl(vd->fd, VIDIOC_ENUMINPUT,  &in_struct) == 0) {
-        int nameLength = strlen((char*)&in_struct.name);
-        pglobal->in[id].name = malloc((1+nameLength)*sizeof(char));
-        sprintf(pglobal->in[id].name, "%s", in_struct.name);
-        DBG("Input name: %s\n", in_struct.name);
-    } else {
-        DBG("VIDIOC_ENUMINPUT failed\n");
-    }
 
     // enumerating formats
-
+    int currentWidth, currentHeight = 0;
     struct v4l2_format currentFormat;
-    memset(&currentFormat, 0, sizeof(struct v4l2_format));
     currentFormat.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    if (xioctl(vd->fd, VIDIOC_G_FMT, &currentFormat) == 0) {
-        DBG("Current size: %dx%d\n",
-             currentFormat.fmt.pix.width,
-             currentFormat.fmt.pix.height);
+    if(xioctl(vd->fd, VIDIOC_G_FMT, &currentFormat) == 0) {
+        currentWidth = currentFormat.fmt.pix.width;
+        currentHeight = currentFormat.fmt.pix.height;
+        DBG("Current size: %dx%d\n", currentWidth, currentHeight);
     }
 
     pglobal->in[id].in_formats = NULL;
     for(pglobal->in[id].formatCount = 0; 1; pglobal->in[id].formatCount++) {
         struct v4l2_fmtdesc fmtdesc;
-        memset(&fmtdesc, 0, sizeof(struct v4l2_fmtdesc));
         fmtdesc.index = pglobal->in[id].formatCount;
         fmtdesc.type  = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         if(xioctl(vd->fd, VIDIOC_ENUM_FMT, &fmtdesc) < 0) {
@@ -162,18 +110,19 @@ int init_videoIn(struct vdIn *vd, char *device, int width,
         }
 
         if (pglobal->in[id].in_formats == NULL) {
-            LOG("Calloc/realloc failed: %s\n", strerror(errno));
+            DBG("Calloc/realloc failed: %s\n", strerror(errno));
             return -1;
         }
 
-        memcpy(&pglobal->in[id].in_formats[pglobal->in[id].formatCount], &fmtdesc, sizeof(struct v4l2_fmtdesc));
+
+        memcpy(&pglobal->in[id].in_formats[pglobal->in[id].formatCount], &fmtdesc, sizeof(input_format));
 
         if(fmtdesc.pixelformat == format)
             pglobal->in[id].currentFormat = pglobal->in[id].formatCount;
 
         DBG("Supported format: %s\n", fmtdesc.description);
         struct v4l2_frmsizeenum fsenum;
-        memset(&fsenum, 0, sizeof(struct v4l2_frmsizeenum));
+        fsenum.index = pglobal->in[id].formatCount;
         fsenum.pixel_format = fmtdesc.pixelformat;
         int j = 0;
         pglobal->in[id].in_formats[pglobal->in[id].formatCount].supportedResolutions = NULL;
@@ -184,17 +133,16 @@ int init_videoIn(struct vdIn *vd, char *device, int width,
             j++;
             if(xioctl(vd->fd, VIDIOC_ENUM_FRAMESIZES, &fsenum) == 0) {
                 pglobal->in[id].in_formats[pglobal->in[id].formatCount].resolutionCount++;
-
                 if (pglobal->in[id].in_formats[pglobal->in[id].formatCount].supportedResolutions == NULL) {
-                    pglobal->in[id].in_formats[pglobal->in[id].formatCount].supportedResolutions = (input_resolution*)
-                            calloc(1, sizeof(input_resolution));
+                    pglobal->in[id].in_formats[pglobal->in[id].formatCount].supportedResolutions =
+                        (input_resolution*)calloc(1, sizeof(input_resolution));
                 } else {
-                    pglobal->in[id].in_formats[pglobal->in[id].formatCount].supportedResolutions = (input_resolution*)
-                            realloc(pglobal->in[id].in_formats[pglobal->in[id].formatCount].supportedResolutions, j * sizeof(input_resolution));
+                    pglobal->in[id].in_formats[pglobal->in[id].formatCount].supportedResolutions =
+                        (input_resolution*)realloc(pglobal->in[id].in_formats[pglobal->in[id].formatCount].supportedResolutions, j * sizeof(input_resolution));
                 }
 
                 if (pglobal->in[id].in_formats[pglobal->in[id].formatCount].supportedResolutions == NULL) {
-                    LOG("Calloc/realloc failed\n");
+                    DBG("Calloc/realloc failed\n");
                     return -1;
                 }
 
@@ -212,59 +160,37 @@ int init_videoIn(struct vdIn *vd, char *device, int width,
         }
     }
 
-    if (init_framebuffer(vd) < 0) {
+    /* alloc a temp buffer to reconstruct the pict */
+    vd->framesizeIn = (vd->width * vd->height << 1);
+    switch(vd->formatIn) {
+    case V4L2_PIX_FMT_MJPEG:
+        vd->tmpbuffer = (unsigned char *) calloc(1, (size_t) vd->framesizeIn);
+        if(!vd->tmpbuffer)
+            goto error;
+        vd->framebuffer =
+            (unsigned char *) calloc(1, (size_t) vd->width * (vd->height + 8) * 2);
+        break;
+    case V4L2_PIX_FMT_YUYV:
+        vd->framebuffer =
+            (unsigned char *) calloc(1, (size_t) vd->framesizeIn);
+        break;
+    default:
+        fprintf(stderr, " should never arrive exit fatal !!\n");
         goto error;
+        break;
+
     }
 
+    if(!vd->framebuffer)
+        goto error;
     return 0;
 error:
-    free_framebuffer(vd);
     free(pglobal->in[id].in_parameters);
     free(vd->videodevice);
     free(vd->status);
     free(vd->pictName);
     CLOSE_VIDEO(vd->fd);
     return -1;
-}
-
-static int init_framebuffer(struct vdIn *vd) {
-    /* alloc a temp buffer to reconstruct the pict */
-    vd->framesizeIn = (vd->width * vd->height << 1);
-    switch (vd->formatIn) {
-        case V4L2_PIX_FMT_JPEG:
-            // Fall-through intentional
-        case V4L2_PIX_FMT_MJPEG: // in JPG mode the frame size is varies at every frame, so we allocate a bit bigger buffer
-            vd->tmpbuffer = (unsigned char *) calloc(1, (size_t) vd->framesizeIn);
-            if(!vd->tmpbuffer)
-                return -1;
-            vd->framebuffer =
-                (unsigned char *) calloc(1, (size_t) vd->width * (vd->height + 8) * 2);
-            break;
-        case V4L2_PIX_FMT_RGB24:
-            vd->framesizeIn = (vd->width * vd->height) * 3;
-            vd->framebuffer =
-                (unsigned char *) calloc(1, (size_t) vd->framesizeIn);
-            break;
-        case V4L2_PIX_FMT_RGB565: // buffer allocation for non varies on frame size formats
-        case V4L2_PIX_FMT_YUYV:
-        case V4L2_PIX_FMT_UYVY:
-            vd->framebuffer =
-                (unsigned char *) calloc(1, (size_t) vd->framesizeIn);
-            break;
-        default:
-            fprintf(stderr, "Unknown vd->formatIn\n");
-            return -1;
-    }
-    return -!vd->framebuffer;
-}
-
-static void free_framebuffer(struct vdIn *vd) {
-    if (vd->tmpbuffer) {
-        free(vd->tmpbuffer);
-    }
-    vd->tmpbuffer = NULL;
-    free(vd->framebuffer);
-    vd->framebuffer = NULL;
 }
 
 static int init_v4l2(struct vdIn *vd)
@@ -302,26 +228,6 @@ static int init_v4l2(struct vdIn *vd)
         }
     }
 
-    if (vd->vstd != V4L2_STD_UNKNOWN) {
-        if (ioctl(vd->fd, VIDIOC_S_STD, &vd->vstd) == -1) {
-            fprintf(stderr, "Can't set video standard: %s\n",strerror(errno));
-            goto fatal;
-        }
-    }
-
-    if (vd->dv_timings) {
-        if (video_set_dv_timings(vd)) {
-            goto fatal;
-        }
-
-        struct v4l2_event_subscription sub;
-        memset(&sub, 0, sizeof(sub));
-        sub.type = V4L2_EVENT_SOURCE_CHANGE;
-        if (ioctl(vd->fd, VIDIOC_SUBSCRIBE_EVENT, &sub) < 0) {
-            IPRINT("Can\'t subscribe to V4L2_EVENT_SOURCE_CHANGE: %s\n", strerror(errno));
-        }
-    }
-
     /*
      * set format in
      */
@@ -337,94 +243,37 @@ static int init_v4l2(struct vdIn *vd)
         goto fatal;
     }
 
-    /* 
-     * Check reoslution 
-     */
     if((vd->fmt.fmt.pix.width != vd->width) ||
             (vd->fmt.fmt.pix.height != vd->height)) {
-       fprintf(stderr, " i: The specified resolution is unavailable, using: width %d height %d instead \n", vd->fmt.fmt.pix.width, vd->fmt.fmt.pix.height);
+        fprintf(stderr, "i: The format asked unavailable, so the width %d height %d \n", vd->fmt.fmt.pix.width, vd->fmt.fmt.pix.height);
         vd->width = vd->fmt.fmt.pix.width;
         vd->height = vd->fmt.fmt.pix.height;
+        /*
+         * look the format is not part of the deal ???
+         */
+        if(vd->formatIn != vd->fmt.fmt.pix.pixelformat) {
+            if(vd->formatIn == V4L2_PIX_FMT_MJPEG) {
+                fprintf(stderr, "The inpout device does not supports MJPEG mode\nYou may also try the YUV mode (-yuv option), but it requires a much more CPU power\n");
+                goto fatal;
+            } else if(vd->formatIn == V4L2_PIX_FMT_YUYV) {
+                fprintf(stderr, "The input device does not supports YUV mode\n");
+                goto fatal;
+            }
+        } else {
+            vd->formatIn = vd->fmt.fmt.pix.pixelformat;
+        }
     }
-    /*
-     * Check format
-     */
-    if(vd->formatIn != vd->fmt.fmt.pix.pixelformat) {
-      char fmtStringRequested[8];
-      char fmtStringObtained[8];
-      fcc2s(fmtStringObtained,8,vd->fmt.fmt.pix.pixelformat);
-      fcc2s(fmtStringRequested,8,vd->formatIn);
-      fprintf(stderr, " i: Could not obtain the requested pixelformat: %s , driver gave us: %s\n",fmtStringRequested,fmtStringObtained);
-      fprintf(stderr, "    ... will try to handle this by checking against supported formats. \n");
 
-      switch(vd->fmt.fmt.pix.pixelformat){
-      case V4L2_PIX_FMT_JPEG:
-	// Fall-through intentional
-      case V4L2_PIX_FMT_MJPEG:
-	fprintf(stderr, "    ... Falling back to the faster MJPG mode (consider changing cmd line options).\n");
-	vd->formatIn = vd->fmt.fmt.pix.pixelformat;
-	break;
-      case V4L2_PIX_FMT_YUYV:
-	fprintf(stderr, "    ... Falling back to YUV mode (consider using -yuv option). Note that this requires much more CPU power\n");
-	vd->formatIn = vd->fmt.fmt.pix.pixelformat;
-        break;
-      case V4L2_PIX_FMT_UYVY:
-	fprintf(stderr, "    ... Falling back to UYVY mode (consider using -uyvy option). Note that this requires much more CPU power\n");
-	vd->formatIn = vd->fmt.fmt.pix.pixelformat;
-        break;
-      case V4L2_PIX_FMT_RGB24:
-	fprintf(stderr, "    ... Falling back to RGB24 mode (consider using -fourcc RGB24 option). Note that this requires much more CPU power\n");
-	vd->formatIn = vd->fmt.fmt.pix.pixelformat;
-	break;
-      case V4L2_PIX_FMT_RGB565:
-	fprintf(stderr, "    ... Falling back to RGB565 mode (consider using -fourcc RGBP option). Note that this requires much more CPU power\n");
-	vd->formatIn = vd->fmt.fmt.pix.pixelformat;
-	break;
-      default:
-	goto fatal;
-	break;
-      }
-    }
- 
     /*
      * set framerate
      */
-
-    if (vd->fps != -1) {
-        struct v4l2_streamparm *setfps;
-        setfps = (struct v4l2_streamparm *) calloc(1, sizeof(struct v4l2_streamparm));
-        memset(setfps, 0, sizeof(struct v4l2_streamparm));
-        setfps->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-
-        /*
-        * first query streaming parameters to determine that the FPS selection is supported
-        */
-        ret = xioctl(vd->fd, VIDIOC_G_PARM, setfps);
-        if (ret == 0) {
-            if (setfps->parm.capture.capability & V4L2_CAP_TIMEPERFRAME) {
-                memset(setfps, 0, sizeof(struct v4l2_streamparm));
-                setfps->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-                setfps->parm.capture.timeperframe.numerator = 1;
-                setfps->parm.capture.timeperframe.denominator = vd->fps==-1?255:vd->fps; // if no default fps set set it to maximum
-
-                ret = xioctl(vd->fd, VIDIOC_S_PARM, setfps);
-                if (ret) {
-                    perror("Unable to set the FPS\n");
-                } else {
-                    if (vd->fps != setfps->parm.capture.timeperframe.denominator) {
-                        IPRINT("FPS coerced ......: from %d to %d\n", vd->fps, setfps->parm.capture.timeperframe.denominator);
-                    }
-                }
-            } else {
-                perror("Setting FPS on the capture device is not supported, fallback to software framedropping\n");
-                vd->soft_framedrop = 1;
-                vd->frame_period_time = 1000/vd->fps; // calcualate frame period time in ms
-                IPRINT("Frame period time ......: %ld ms\n", vd->frame_period_time);
-            }
-        } else {
-            perror("Unable to query that the FPS change is supported\n");
-        }
-    }
+    struct v4l2_streamparm *setfps;
+    setfps = (struct v4l2_streamparm *) calloc(1, sizeof(struct v4l2_streamparm));
+    memset(setfps, 0, sizeof(struct v4l2_streamparm));
+    setfps->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    setfps->parm.capture.timeperframe.numerator = 1;
+    setfps->parm.capture.timeperframe.denominator = vd->fps;
+    ret = xioctl(vd->fd, VIDIOC_S_PARM, setfps);
 
     /*
      * request buffers
@@ -484,12 +333,11 @@ static int init_v4l2(struct vdIn *vd)
     }
     return 0;
 fatal:
-    fprintf(stderr, "Init v4L2 failed !! exit fatal\n");
     return -1;
 
 }
 
-int video_enable(struct vdIn *vd)
+static int video_enable(struct vdIn *vd)
 {
     int type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     int ret;
@@ -515,54 +363,6 @@ static int video_disable(struct vdIn *vd, streaming_state disabledState)
     }
     DBG("STopping capture done\n");
     vd->streamingState = disabledState;
-    return 0;
-}
-
-int video_set_dv_timings(struct vdIn *vd)
-{
-    struct v4l2_dv_timings timings;
-    v4l2_std_id std;
-
-    memset(&timings, 0, sizeof(timings));
-    if (xioctl(vd->fd, VIDIOC_QUERY_DV_TIMINGS, &timings) >= 0) {
-        IPRINT("QUERY_DV_TIMINGS returned %ux%u pixclk %llu\n", timings.bt.width, timings.bt.height, timings.bt.pixelclock);
-        // Can read DV timings, so set them.
-        if (xioctl(vd->fd, VIDIOC_S_DV_TIMINGS, &timings) < 0) {
-            perror("Failed to set DV timings");
-            return -1;
-        } else {
-            vd->width = timings.bt.width;
-            vd->height = timings.bt.height;
-        }
-    } else {
-        memset(&std, 0, sizeof(std));
-        if (xioctl(vd->fd, VIDIOC_QUERYSTD, &std) >= 0) {
-            // Can read standard, so set it.
-            if (xioctl(vd->fd, VIDIOC_S_STD, &std) < 0) {
-                perror("Failed to set standard");
-                return -1;
-            }
-        }
-    }
-    return 0;
-}
-
-int video_handle_event(struct vdIn *vd)
-{
-    struct v4l2_event ev;
-    if (!ioctl(vd->fd, VIDIOC_DQEVENT, &ev)) {
-        switch (ev.type) {
-            case V4L2_EVENT_SOURCE_CHANGE:
-                IPRINT("V4L2_EVENT_SOURCE_CHANGE: Source changed\n");
-                if (setResolution(vd, vd->width, vd->height) < 0) {
-                    return -1;
-                }
-                break;
-            case V4L2_EVENT_EOS:
-                IPRINT("V4L2_EVENT_EOS\n");
-                break;
-        }
-    }
     return 0;
 }
 
@@ -634,14 +434,12 @@ int uvcGrab(struct vdIn *vd)
     }
 
     switch(vd->formatIn) {
-    case V4L2_PIX_FMT_JPEG:
-        // Fall-through intentional
     case V4L2_PIX_FMT_MJPEG:
         if(vd->buf.bytesused <= HEADERFRAME1) {
             /* Prevent crash
-             * on empty image */
+                                                        * on empty image */
             fprintf(stderr, "Ignoring empty buffer ...\n");
-            break;
+            return 0;
         }
 
         /* memcpy(vd->tmpbuffer, vd->mem[vd->buf.index], vd->buf.bytesused);
@@ -652,25 +450,18 @@ int uvcGrab(struct vdIn *vd)
         */
 
         memcpy(vd->tmpbuffer, vd->mem[vd->buf.index], vd->buf.bytesused);
-        vd->tmpbytesused = vd->buf.bytesused;
-        vd->tmptimestamp = vd->buf.timestamp;
 
-        if(debug) {
+        if(debug)
             fprintf(stderr, "bytes in used %d \n", vd->buf.bytesused);
-        }
         break;
-    case V4L2_PIX_FMT_RGB24:
-    case V4L2_PIX_FMT_RGB565:
+
     case V4L2_PIX_FMT_YUYV:
-    case V4L2_PIX_FMT_UYVY:
-        if(vd->buf.bytesused > vd->framesizeIn) {
+        if(vd->buf.bytesused > vd->framesizeIn)
             memcpy(vd->framebuffer, vd->mem[vd->buf.index], (size_t) vd->framesizeIn);
-        } else {
+        else
             memcpy(vd->framebuffer, vd->mem[vd->buf.index], (size_t) vd->buf.bytesused);
-        }
-        vd->tmpbytesused = vd->buf.bytesused;
-        vd->tmptimestamp = vd->buf.timestamp;
         break;
+
     default:
         goto err;
         break;
@@ -693,7 +484,11 @@ int close_v4l2(struct vdIn *vd)
 {
     if(vd->streamingState == STREAMING_ON)
         video_disable(vd, STREAMING_OFF);
-    free_framebuffer(vd);
+    if(vd->tmpbuffer)
+        free(vd->tmpbuffer);
+    vd->tmpbuffer = NULL;
+    free(vd->framebuffer);
+    vd->framebuffer = NULL;
     free(vd->videodevice);
     free(vd->status);
     free(vd->pictName);
@@ -758,7 +553,7 @@ int v4l2SetControl(struct vdIn *vd, int control_id, int value, int plugin_number
     int err;
     int i;
     int got = -1;
-    DBG("Looking for the 0x%08x V4L2 control\n", control_id);
+    DBG("Looking for the %d V4L2 control\n", control_id);
     for (i = 0; i<pglobal->in[plugin_number].parametercount; i++) {
         if (pglobal->in[plugin_number].in_parameters[i].ctrl.id == control_id) {
             got = 0;
@@ -767,7 +562,7 @@ int v4l2SetControl(struct vdIn *vd, int control_id, int value, int plugin_number
     }
 
     if (got == 0) { // we have found the control with the specified id
-        DBG("V4L2 ctrl 0x%08x found\n", control_id);
+        DBG("V4L2 ctrl %d found\n", control_id);
         if (pglobal->in[plugin_number].in_parameters[i].class_id == V4L2_CTRL_CLASS_USER) {
             DBG("Control type: USER\n");
             min = pglobal->in[plugin_number].in_parameters[i].ctrl.minimum;
@@ -780,11 +575,11 @@ int v4l2SetControl(struct vdIn *vd, int control_id, int value, int plugin_number
                     DBG("VIDIOC_S_CTRL failed\n");
                     return -1;
                 } else {
-                    DBG("V4L2 ctrl 0x%08x new value: %d\n", control_id, value);
+                    DBG("V4L2 ctrl %d new value: %d\n", control_id, value);
                     pglobal->in[plugin_number].in_parameters[i].value = value;
                 }
             } else {
-                LOG("Value (%d) out of range (%d .. %d)\n", value, min, max);
+                DBG("Value (%d) out of range (%d .. %d)\n", value, min, max);
             }
             return 0;
         } else { // not user class controls
@@ -815,15 +610,15 @@ int v4l2SetControl(struct vdIn *vd, int control_id, int value, int plugin_number
             ext_ctrls.controls = &ext_ctrl;
             ret = xioctl(vd->fd, VIDIOC_S_EXT_CTRLS, &ext_ctrls);
             if(ret) {
-                LOG("control id: 0x%08x failed to set value (error %i)\n", ext_ctrl.id, ret);
+                DBG("control id: 0x%08x failed to set value (error %i)\n", ext_ctrl.id, ret);
                 return -1;
             } else {
-                DBG("control id: 0x%08x new value: %d\n", ext_ctrl.id, ext_ctrl.value);
+                DBG("control id: %d new value: %d\n", ext_ctrl.id, ext_ctrl.value);
             }
             return 0;
         }
     } else {
-        LOG("Invalid V4L2_set_control request for the id: 0x%08x. Control cannot be found in the list\n", control_id);
+        DBG("Invalid V4L2_set_control request for the id: %d. Control cannot be found in the list\n", control_id);
         return -1;
     }
 }
@@ -847,14 +642,12 @@ int v4l2ResetControl(struct vdIn *vd, int control)
     }
 
     return 0;
-}
+};
 
 void control_readed(struct vdIn *vd, struct v4l2_queryctrl *ctrl, globals *pglobal, int id)
 {
     struct v4l2_control c;
-    memset(&c, 0, sizeof(struct v4l2_control));
     c.id = ctrl->id;
-
     if (pglobal->in[id].in_parameters == NULL) {
         pglobal->in[id].in_parameters = (control*)calloc(1, sizeof(control));
     } else {
@@ -876,7 +669,6 @@ void control_readed(struct vdIn *vd, struct v4l2_queryctrl *ctrl, globals *pglob
         int i;
         for(i = ctrl->minimum; i <= ctrl->maximum; i++) {
             struct v4l2_querymenu qm;
-            memset(&qm, 0 , sizeof(struct v4l2_querymenu));
             qm.id = ctrl->id;
             qm.index = i;
             if(xioctl(vd->fd, VIDIOC_QUERYMENU, &qm) == 0) {
@@ -891,8 +683,9 @@ void control_readed(struct vdIn *vd, struct v4l2_queryctrl *ctrl, globals *pglob
     }
 
     pglobal->in[id].in_parameters[pglobal->in[id].parametercount].value = 0;
+#ifdef V4L2_CTRL_FLAG_NEXT_CTRL
     pglobal->in[id].in_parameters[pglobal->in[id].parametercount].class_id = (ctrl->id & 0xFFFF0000);
-#ifndef V4L2_CTRL_FLAG_NEXT_CTRL
+#else
     pglobal->in[id].in_parameters[pglobal->in[id].parametercount].class_id = V4L2_CTRL_CLASS_USER;
 #endif
 
@@ -921,22 +714,7 @@ void control_readed(struct vdIn *vd, struct v4l2_queryctrl *ctrl, globals *pglob
         ext_ctrls.controls = &ext_ctrl;
         ret = xioctl(vd->fd, VIDIOC_G_EXT_CTRLS, &ext_ctrls);
         if(ret) {
-            switch (ext_ctrl.id) {
-                case V4L2_CID_PAN_RESET:
-                    pglobal->in[id].in_parameters[pglobal->in[id].parametercount].value = 1;
-                    DBG("Setting PAN reset value to 1\n");
-                    break;
-                case V4L2_CID_TILT_RESET:
-                    pglobal->in[id].in_parameters[pglobal->in[id].parametercount].value = 1;
-                    DBG("Setting the Tilt reset value to 2\n");
-                    break;
-                case V4L2_CID_PANTILT_RESET_LOGITECH:
-                    pglobal->in[id].in_parameters[pglobal->in[id].parametercount].value = 3;
-                    DBG("Setting the PAN/TILT reset value to 3\n");
-                    break;
-                default:
-                    DBG("control id: 0x%08x failed to get value (error %i)\n", ext_ctrl.id, ret);
-            }
+            DBG("control id: 0x%08x failed to get value (error %i)\n", ext_ctrl.id, ret);
         } else {
             switch(ctrl->type)
             {
@@ -958,7 +736,7 @@ void control_readed(struct vdIn *vd, struct v4l2_queryctrl *ctrl, globals *pglob
     }
 
     pglobal->in[id].parametercount++;
-}
+};
 
 /*  It should set the capture resolution
     Cheated from the openCV cap_libv4l.cpp the method is the following:
@@ -969,57 +747,43 @@ void control_readed(struct vdIn *vd, struct v4l2_queryctrl *ctrl, globals *pglob
 */
 int setResolution(struct vdIn *vd, int width, int height)
 {
+    int ret;
+    DBG("setResolution(%d, %d)\n", width, height);
+
     vd->streamingState = STREAMING_PAUSED;
-    if (video_disable(vd, STREAMING_PAUSED) < 0) {
-        IPRINT("Unable to disable streaming\n");
+    if(video_disable(vd, STREAMING_PAUSED) == 0) {  // do streamoff
+        DBG("Unmap buffers\n");
+        int i;
+        for(i = 0; i < NB_BUFFER; i++)
+            munmap(vd->mem[i], vd->buf.length);
+
+        if(CLOSE_VIDEO(vd->fd) == 0) {
+            DBG("Device closed successfully\n");
+        }
+
+        vd->width = width;
+        vd->height = height;
+        if(init_v4l2(vd) < 0) {
+            fprintf(stderr, " Init v4L2 failed !! exit fatal \n");
+            return -1;
+        } else {
+            DBG("reinit done\n");
+            video_enable(vd);
+            return 0;
+        }
+    } else {
+        DBG("Unable to disable streaming\n");
         return -1;
     }
-
-    DBG("Unmap buffers\n");
-    int i;
-    for (i = 0; i < NB_BUFFER; i++) {
-        munmap(vd->mem[i], vd->buf.length);
-    }
-
-    if (CLOSE_VIDEO(vd->fd) == 0) {
-        DBG("Device closed successfully\n");
-    }
-
-    vd->width = width;
-    vd->height = height;
-    if (init_v4l2(vd) < 0) {
-        return -1;
-    }
-
-    free_framebuffer(vd);
-    if (init_framebuffer(vd) < 0) {
-        IPRINT("Can\'t reallocate framebuffer\n");
-        return -1;
-    }
-
-    DBG("Resolution changed to %dx%d , enabling the video...\n", width, height);
-    if (video_enable(vd) < 0) {
-        IPRINT("Can\'t RE-enable the video after setResolution(%dx%d)", width, height);
-        return -1;
-    }
-
-    return 0;
+    return ret;
 }
-
-/*
- *
- * Enumarates all V4L2 controls using various methods.
- * It places them to the
- *
- */
 
 void enumerateControls(struct vdIn *vd, globals *pglobal, int id)
 {
     // enumerating v4l2 controls
     struct v4l2_queryctrl ctrl;
-    memset(&ctrl, 0, sizeof(struct v4l2_queryctrl));
     pglobal->in[id].parametercount = 0;
-    pglobal->in[id].in_parameters = malloc(0 * sizeof(control));
+    pglobal->in[id].in_parameters = NULL;
     /* Enumerate the v4l2 controls
      Try the extended control API first */
 #ifdef V4L2_CTRL_FLAG_NEXT_CTRL
@@ -1093,4 +857,5 @@ void enumerateControls(struct vdIn *vd, globals *pglobal, int id)
         DBG("Modifying the setting of the JPEG compression is not supported\n");
         pglobal->in[id].jpegcomp.quality = -1;
     }
+
 }

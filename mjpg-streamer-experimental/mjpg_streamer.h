@@ -28,10 +28,8 @@
 #define MAX_INPUT_PLUGINS 10
 #define MAX_OUTPUT_PLUGINS 10
 #define MAX_PLUGIN_ARGUMENTS 32
-
 #include <linux/types.h>          /* for videodev2.h */
 #include <linux/videodev2.h>
-#include <pthread.h>
 
 #ifdef DEBUG
 #define DBG(...) fprintf(stderr, " DBG(%s, %s(), %d): ", __FILE__, __FUNCTION__, __LINE__); fprintf(stderr, __VA_ARGS__)
@@ -55,13 +53,12 @@ typedef enum {
 } command_dest;
 
 /* commands which can be send to the input plugin */
-//typedef enum _cmd_group cmd_group;
+typedef enum _cmd_group cmd_group;
 enum _cmd_group {
-    IN_CMD_GENERIC =        0, // if you use non V4L2 input plugin you not need to deal the groups.
-    IN_CMD_V4L2 =           1,
-    IN_CMD_RESOLUTION =     2,
-    IN_CMD_JPEG_QUALITY =   3,
-    IN_CMD_PWC =            4,
+    IN_CMD_GENERIC = 0, // if you use non V4L2 input plugin you not need to deal the groups.
+    IN_CMD_V4L2 = 1,
+    IN_CMD_RESOLUTION = 2,
+    IN_CMD_JPEG_QUALITY = 3,
 };
 
 typedef struct _control control;

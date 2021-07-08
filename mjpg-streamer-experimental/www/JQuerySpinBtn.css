@@ -31,9 +31,9 @@ INPUT.spin-button {
 
 INPUT.spin-button.up {					/* Change button img when mouse is over the UP-arrow */
 	cursor:pointer;
-	background-position:100% -20px;		/* 18px matches height of 2 visible buttons */
+	background-position:100% -18px;		/* 18px matches height of 2 visible buttons */
 }
 INPUT.spin-button.down {				/* Change button img when mouse is over the DOWN-arrow */
 	cursor:pointer;
-	background-position:100% -40px;		/* 36px matches height of 2x2 visible buttons */
+	background-position:100% -36px;		/* 36px matches height of 2x2 visible buttons */
 }

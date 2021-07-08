@@ -39,7 +39,8 @@
 static pthread_t worker;
 static globals *pglobal;
 static unsigned char *frame = NULL;
-static int input_number = 0;
+static int plugin_number;
+
 
 /******************************************************************************
 Description.: print a help message
@@ -50,11 +51,12 @@ void help(void)
 {
     fprintf(stderr, " ---------------------------------------------------------------\n" \
             " Help for output plugin..: "OUTPUT_PLUGIN_NAME"\n" \
+            " [-i| --input ].........: input plugin number. Without specifying it it uses the first input plugin.\n" \
             " ---------------------------------------------------------------\n");
 }
 
 /******************************************************************************
-Description.: clean up allocated resources
+Description.: clean up allocated ressources
 Input Value.: unused argument
 Return Value: -
 ******************************************************************************/
@@ -63,12 +65,12 @@ void worker_cleanup(void *arg)
     static unsigned char first_run = 1;
 
     if(!first_run) {
-        DBG("already cleaned up resources\n");
+        DBG("already cleaned up ressources\n");
         return;
     }
 
     first_run = 0;
-    OPRINT("cleaning up resources allocated by worker thread\n");
+    OPRINT("cleaning up ressources allocated by worker thread\n");
 
     free(frame);
     SDL_Quit();
@@ -273,19 +275,19 @@ void *worker_thread(void *arg)
         exit(EXIT_FAILURE);
     }
 
-    /* set cleanup handler to cleanup allocated resources */
+    /* set cleanup handler to cleanup allocated ressources */
     pthread_cleanup_push(worker_cleanup, NULL);
 
     while(!pglobal->stop) {
         DBG("waiting for fresh frame\n");
         pthread_mutex_lock(&pglobal->in[input_number].db);
-        pthread_cond_wait(&pglobal->in[input_number].db_update, &pglobal->in[input_number].db);
+        pthread_cond_wait(&pglobal->in[plugin_number].db_update, &pglobal->in[plugin_number].db);
 
         /* read buffer */
-        frame_size = pglobal->in[input_number].size;
-        memcpy(frame, pglobal->in[input_number].buf, frame_size);
+        frame_size = pglobal->in[plugin_number].size;
+        memcpy(frame, pglobal->in[plugin_number].buf, frame_size);
 
-        pthread_mutex_unlock(&pglobal->in[input_number].db);
+        pthread_mutex_unlock(&pglobal->in[plugin_number].db);
 
         /* decompress the JPEG and store results in memory */
         if(decompress_jpeg(frame, frame_size, &rgbimage)) {
@@ -354,12 +356,11 @@ int output_init(output_parameter *param)
     reset_getopt();
     while(1) {
         int option_index = 0, c = 0;
-        static struct option long_options[] = {
-            {"h", no_argument, 0, 0
-            },
+        static struct option long_options[] =  {
+            {"h", no_argument, 0, 0},
             {"help", no_argument, 0, 0},
-            {"i", required_argument, 0, 0},
-            {"input", required_argument, 0, 0},
+            {"i", no_argument, 0, 0},
+            {"input", no_argument, 0, 0},
             {0, 0, 0, 0}
         };
 
@@ -382,21 +383,15 @@ int output_init(output_parameter *param)
             help();
             return 1;
             break;
-            /* i, input */
         case 2:
         case 3:
             DBG("case 2,3\n");
-            input_number = atoi(optarg);
+            plugin_number = atoi(optarg);
             break;
         }
     }
 
     pglobal = param->global;
-    if(!(input_number < pglobal->incnt)) {
-        OPRINT("ERROR: the %d input_plugin number is too much only %d plugins loaded\n", input_number, pglobal->incnt);
-        return 1;
-    }
-    OPRINT("input plugin.....: %d: %s\n", input_number, pglobal->in[input_number].plugin);
 
     return 0;
 }
@@ -428,7 +423,7 @@ int output_run(int id)
 
 int output_cmd()
 {
-
-
+    DBG("Commands supported for the %s", OUTPUT_PLUGIN_NAME);
+    return 0;
 }
 

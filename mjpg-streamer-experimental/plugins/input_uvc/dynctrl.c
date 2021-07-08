@@ -111,7 +111,7 @@ static struct uvc_xu_control_mapping xu_mappings[] = {
         .selector  = XU_MOTORCONTROL_PANTILT_RESET,
         .size      = 1,
         .offset    = 0,
-        .v4l2_type = V4L2_CTRL_TYPE_BUTTON,
+        .v4l2_type = V4L2_CTRL_TYPE_INTEGER,
         .data_type = UVC_CTRL_DATA_TYPE_UNSIGNED
     },
     {
@@ -121,7 +121,7 @@ static struct uvc_xu_control_mapping xu_mappings[] = {
         .selector  = XU_MOTORCONTROL_PANTILT_RESET,
         .size      = 1,
         .offset    = 1,
-        .v4l2_type = V4L2_CTRL_TYPE_BUTTON,
+        .v4l2_type = V4L2_CTRL_TYPE_INTEGER,
         .data_type = UVC_CTRL_DATA_TYPE_UNSIGNED
     },
     {
@@ -131,7 +131,7 @@ static struct uvc_xu_control_mapping xu_mappings[] = {
         .selector  = XU_MOTORCONTROL_PANTILT_RESET,
         .size      = 8,
         .offset    = 0,
-        .v4l2_type = V4L2_CTRL_TYPE_BUTTON,
+        .v4l2_type = V4L2_CTRL_TYPE_INTEGER,
         .data_type = UVC_CTRL_DATA_TYPE_UNSIGNED
     },
     {
@@ -193,21 +193,22 @@ int initDynCtrls(int fd)
     int err = 0;
     /* try to add all controls listed above */
     for(i = 0; i < LENGTH_OF_XU_CTR; i++) {
+        fprintf(stderr, "Adding control for %s\n", xu_mappings[i].name);
         if((err = xioctl(fd, UVCIOC_CTRL_ADD, &xu_ctrls[i])) < 0) {
-            if(errno == EEXIST)
-                fprintf(stderr,"Control exists\n");
-            else if (errno != 0)
-                fprintf(stderr, "UVCIOC_CTRL_ADD - Error at %s: %s (%d)\n", xu_mappings[i].name, strerror(errno), errno);
+            if(errno != EEXIST)
+                perror("UVCIOC_CTRL_ADD - Error");
+            else
+                perror("Control exists");
         }
     }
-
     /* after adding the controls, add the mapping now */
     for(i = 0; i < LENGTH_OF_XU_MAP; i++) {
+        fprintf(stderr, "mapping control for %s\n", xu_mappings[i].name);
         if((err = xioctl(fd, UVCIOC_CTRL_MAP, &xu_mappings[i])) < 0) {
-            if(errno == EEXIST)
-                fprintf(stderr,"Mapping exists\n");
-            else if (errno != 0)
-                fprintf(stderr, "UVCIOC_CTRL_MAP - Error at %s: %s (%d)\n", xu_mappings[i].name, strerror(errno), errno);
+            if(errno != EEXIST)
+                perror("UVCIOC_CTRL_MAP - Error");
+            else
+                perror("Mapping exists");
         }
     }
     return 0;

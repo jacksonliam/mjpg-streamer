@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <linux/videodev2.h>
 #include <sys/ioctl.h>
 #include <errno.h>
 #include <signal.h>
@@ -33,9 +34,6 @@
 #include <getopt.h>
 #include <pthread.h>
 #include <syslog.h>
-
-#include <linux/types.h>          /* for videodev2.h */
-#include <linux/videodev2.h>
 
 #include "../../mjpg_streamer.h"
 #include "../../utils.h"
@@ -231,7 +229,7 @@ void *worker_thread(void *arg)
 {
     int i = 0;
 
-    /* set cleanup handler to cleanup allocated resources */
+    /* set cleanup handler to cleanup allocated ressources */
     pthread_cleanup_push(worker_cleanup, NULL);
 
     while(!pglobal->stop) {
@@ -257,7 +255,7 @@ void *worker_thread(void *arg)
 }
 
 /******************************************************************************
-Description.: this functions cleans up allocated resources
+Description.: this functions cleans up allocated ressources
 Input Value.: arg is unused
 Return Value: -
 ******************************************************************************/
@@ -266,12 +264,12 @@ void worker_cleanup(void *arg)
     static unsigned char first_run = 1;
 
     if(!first_run) {
-        DBG("already cleaned up resources\n");
+        DBG("already cleaned up ressources\n");
         return;
     }
 
     first_run = 0;
-    DBG("cleaning up resources allocated by input thread\n");
+    DBG("cleaning up ressources allocated by input thread\n");
 
     if(pglobal->in[plugin_number].buf != NULL) free(pglobal->in[plugin_number].buf);
 }

@@ -88,36 +88,16 @@ static struct uvc_xu_control_mapping xu_mappings[] = {
         .v4l2_type = V4L2_CTRL_TYPE_INTEGER,
         .data_type = UVC_CTRL_DATA_TYPE_SIGNED
     },
-{
-		.id        = V4L2_CID_PAN_RESET,
-		.name      = N_("Pan Reset"),
-		.entity    = UVC_GUID_LOGITECH_MOTOR_CONTROL,
-		.selector  = XU_MOTORCONTROL_PANTILT_RESET,
-		.size      = 1,
-		.offset    = 0,
-		.v4l2_type = V4L2_CTRL_TYPE_BUTTON,
-		.data_type = UVC_CTRL_DATA_TYPE_UNSIGNED
-	},
-	{
-		.id        = V4L2_CID_TILT_RESET,
-		.name      = N_("Tilt Reset"),
-		.entity    = UVC_GUID_LOGITECH_MOTOR_CONTROL,
-		.selector  = XU_MOTORCONTROL_PANTILT_RESET,
-		.size      = 1,
-		.offset    = 1,
-		.v4l2_type = V4L2_CTRL_TYPE_BUTTON,
-		.data_type = UVC_CTRL_DATA_TYPE_UNSIGNED
-	},
-	{
-		.id        = V4L2_CID_PANTILT_RESET_LOGITECH,
-		.name      = N_("Pan/tilt Reset"),
-		.entity    = UVC_GUID_LOGITECH_MOTOR_CONTROL,
-		.selector  = XU_MOTORCONTROL_PANTILT_RESET,
-		.size      = 8,
-		.offset    = 0,
-		.v4l2_type = V4L2_CTRL_TYPE_BUTTON,
-		.data_type = UVC_CTRL_DATA_TYPE_UNSIGNED
-	},
+    {
+        .id        = V4L2_CID_PANTILT_RESET_LOGITECH,
+        .name      = "Pan/Tilt (reset)",
+        .entity    = UVC_GUID_LOGITECH_MOTOR_CONTROL,
+        .selector  = XU_MOTORCONTROL_PANTILT_RESET,
+        .size      = 2,
+        .offset    = 0,
+        .v4l2_type = V4L2_CTRL_TYPE_INTEGER,
+        .data_type = UVC_CTRL_DATA_TYPE_ENUM
+    },
     {
         .id        = V4L2_CID_FOCUS_LOGITECH,
         .name      = "Focus (absolute)",
