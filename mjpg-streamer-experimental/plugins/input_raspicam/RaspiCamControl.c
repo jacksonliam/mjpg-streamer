@@ -484,7 +484,26 @@ static int raspicli_map_xref(const char *str, const XREF_T *map, int num_refs)
    return -1;
 }
 
+/**
+ * Function to take a mmal enum (as int) and return the string equivalent
+ * @param en Incoming int to match
+ * @param map Mapping data
+ * @param num_refs The number of items in the mapping data
+ * @return const pointer to string, or NULL if no match
+ */
+static const char *raspicli_unmap_xref(const int en, XREF_T *map, int num_refs)
+{
+   int i;
 
+   for (i=0;i<num_refs;i++)
+   {
+      if (en == map[i].mmal_mode)
+      {
+         return map[i].mode;
+      }
+   }
+   return NULL;
+}
 /**
  * Convert string to the MMAL parameter for exposure mode
  * @param str Incoming string to match
