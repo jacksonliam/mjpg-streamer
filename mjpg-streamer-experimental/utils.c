@@ -26,7 +26,7 @@
 #include <linux/types.h>
 #include <string.h>
 #include <fcntl.h>
-#include <wait.h>
+#include <sys/wait.h>
 #include <time.h>
 #include <limits.h>
 #include <linux/stat.h>
