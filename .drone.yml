@@ -1,0 +1,50 @@
+---
+name: mjpg-streamer-repo
+kind: pipeline
+type: docker
+
+steps:
+  - name: dockerhub
+    image: plugins/docker
+    settings:
+      username:
+          from_secret: docker_username
+      password:
+          from_secret: docker_password
+      repo: davralin/mjpg-streamer
+      dockerfile: mjpg-streamer-experimental/Dockerfile
+      tags: latest
+      custom_labels:
+        - org.opencontainers.image.source=https://github.com/davralin/mjpg-streamer
+        - org.opencontainers.image.url=https://github.com/davralin/mjpg-streamer
+
+  - name: ghcr
+    image: plugins/docker
+    settings:
+      username:
+          from_secret: ghcr_username
+      password:
+          from_secret: ghcr_password
+      repo: ghcr.io/davralin/mjpg-streamer
+      registry: ghcr.io
+      dockerfile: mjpg-streamer-experimental/Dockerfile
+      tags: latest
+      custom_labels:
+        - org.opencontainers.image.source=https://github.com/davralin/mjpg-streamer
+        - org.opencontainers.image.url=https://github.com/davralin/mjpg-streamer
+
+  - name: notify
+    image: plugins/matrix
+    when:
+      status:
+        - success
+        - failure
+    settings:
+      homeserver:
+        from_secret: matrix_server
+      roomid:
+        from_secret: matrix_room
+      username:
+        from_secret: matrix_username
+      password:
+        from_secret: matrix_password
