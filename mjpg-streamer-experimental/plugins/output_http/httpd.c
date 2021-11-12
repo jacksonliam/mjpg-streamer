@@ -372,7 +372,7 @@ int check_client_status(client_info *client)
             if ((msec < 1000) && (msec > 0)) { // FIXME make it parameter
                 DBG("CHEATER\n");
                 pthread_mutex_unlock(&client_infos.mutex);
-                return 1;
+                return 0; // address https://github.com/jacksonliam/mjpg-streamer/issues/162
             } else {
                 pthread_mutex_unlock(&client_infos.mutex);
                 return 0;
