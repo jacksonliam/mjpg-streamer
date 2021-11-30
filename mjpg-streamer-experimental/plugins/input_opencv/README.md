@@ -5,6 +5,9 @@ This input plugin uses OpenCV to read from supported video sources, optionally
 running the image through a filter plugin that can be specified on the command
 line.
 
+Enable this plugin by adding `-DENABLE_INPUT_OPENCV` to the cmake build config.
+You must have the OpenCV development packages installed.
+
 If you're not using the image filtering functionality of this plugin, you're
 probably better off using some other input plugin as this plugin will probably
 consume more CPU resources.

@@ -25,6 +25,7 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 option(BUILD_TESTING "build and run tests" ON)
 option(ENABLE_WXP_COMPAT "" OFF)
 option(ENABLE_HTTP_MANAGEMENT "" OFF)
+option(ENABLE_INPUT_OPENCV "" OFF)
 
 # If the user doesn't manually specify a build type, use 'Release'
 if(NOT CMAKE_BUILD_TYPE)
