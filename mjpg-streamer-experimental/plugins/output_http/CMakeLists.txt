@@ -1,5 +1,5 @@
 
-add_feature_option(ENABLE_HTTP_MANAGEMENT "Enable experimental HTTP management option" OFF)
+add_feature_option(ENABLE_HTTP_MANAGEMENT "Enable experimental HTTP management option" ${ENABLE_HTTP_MANAGEMENT})
 
 if (ENABLE_HTTP_MANAGEMENT)
     add_definitions(-DMANAGMENT)

@@ -229,11 +229,7 @@ int main(int argc, char *argv[])
 
         case 'v':
             printf("MJPG Streamer Version: %s\n",
-#ifdef GIT_HASH
-            GIT_HASH
-#else
             SOURCE_VERSION
-#endif
             );
             return 0;
             break;
