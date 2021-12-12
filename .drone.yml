@@ -33,6 +33,12 @@ steps:
         - org.opencontainers.image.source=https://github.com/davralin/mjpg-streamer
         - org.opencontainers.image.url=https://github.com/davralin/mjpg-streamer
 
+  - name: trivy-scan
+    image: quay.io/sighup/trivy-offline:latest
+    pull: always
+    commands:
+      - trivy --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed --skip-update davralin/mjpg-streamer
+
   - name: notify
     image: plugins/matrix
     when:
