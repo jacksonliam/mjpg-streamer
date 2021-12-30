@@ -1,5 +1,6 @@
-
-if (EXISTS /opt/vc/include)
+# Ubuntu libraspberrypi-dev places the raspberry header files under /usr/include so we
+# check for the vcos.h header
+if (EXISTS /opt/vc/include OR EXISTS /usr/include/interface/vcos/vcos.h)
     set(HAS_RASPI ON)
 else()
     set(HAS_RASPI OFF)
