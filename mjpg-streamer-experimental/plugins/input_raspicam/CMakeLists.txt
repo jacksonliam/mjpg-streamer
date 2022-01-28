@@ -1,5 +1,5 @@
 
-if (EXISTS /opt/vc/include)
+if (EXISTS /usr/include)
     set(HAS_RASPI ON)
 else()
     set(HAS_RASPI OFF)
@@ -10,13 +10,13 @@ MJPG_STREAMER_PLUGIN_OPTION(input_raspicam "Raspberry Pi input camera plugin"
 
 if (PLUGIN_INPUT_RASPICAM)
 
-    include_directories(/opt/vc/include)
-    include_directories(/opt/vc/include/interface/vcos)
-    include_directories(/opt/vc/include/interface/vcos/pthreads)
-    include_directories(/opt/vc/include/interface/vmcs_host)
-    include_directories(/opt/vc/include/interface/vmcs_host/linux)
+    include_directories(/usr/include)
+    include_directories(/usr/include/interface/vcos)
+    include_directories(/usr/include/interface/vcos/pthreads)
+    include_directories(/usr/include/interface/vmcs_host)
+    include_directories(/usr/include/interface/vmcs_host/linux)
 
-    link_directories(/opt/vc/lib)
+    link_directories(/usr/lib)
 
     MJPG_STREAMER_PLUGIN_COMPILE(input_raspicam input_raspicam.c)
 
