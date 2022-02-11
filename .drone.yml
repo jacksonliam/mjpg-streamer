@@ -37,7 +37,7 @@ steps:
     image: quay.io/sighup/trivy-offline:latest
     pull: always
     commands:
-      - trivy --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed --skip-update davralin/mjpg-streamer
+      - trivy image --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed --skip-update davralin/mjpg-streamer
 
   - name: notify
     image: plugins/matrix
