@@ -30,6 +30,7 @@ Input plugins:
 * input_ptp2
 * input_raspicam ([documentation](plugins/input_raspicam/README.md))
 * input_uvc ([documentation](plugins/input_uvc/README.md))
+* input_libcamera ([documentation](plugins/input_libcamera/README.md))
 
 Output plugins:
 
