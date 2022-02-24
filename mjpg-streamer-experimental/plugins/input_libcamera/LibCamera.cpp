@@ -11,7 +11,7 @@ int LibCamera::initCamera(int *width, int *height, PixelFormat format, int buffe
               << ret << std::endl;
         return ret;
     }
-    std::string cameraId = cm->cameras()[0]->id();
+    cameraId = cm->cameras()[0]->id();
     camera_ = cm->get(cameraId);
     if (!camera_) {
         std::cerr << "Camera " << cameraId << " not found" << std::endl;
@@ -58,6 +58,10 @@ int LibCamera::initCamera(int *width, int *height, PixelFormat format, int buffe
     *height = config->at(0).size.height;
     config_ = std::move(config);
     return 0;
+}
+
+char * LibCamera::getCameraId(){
+    return cameraId.data();
 }
 
 int LibCamera::startCamera() {

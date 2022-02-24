@@ -20,10 +20,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 #include <getopt.h>
 #include <dlfcn.h>
 #include <pthread.h>
 #include <linux/videodev2.h>
+#include <fcntl.h>
 
 #include "input_libcamera.h"
 #include "LibCamera.h"
@@ -47,6 +49,7 @@ typedef struct {
 
 typedef struct {
     pthread_t   worker;
+    pthread_mutex_t control_mutex;
     LibCamera camera;
     context_settings *init_settings;
     struct vdIn *videoIn;
@@ -109,7 +112,8 @@ Return Value: 0 if everything is ok
 ******************************************************************************/
 
 int input_init(input_parameter *param, int plugin_no)
-{
+{   
+    // char *device = "/dev/video0";
     int width = 640, height = 480, i, device_idx;
     
     input * in;
@@ -126,6 +130,19 @@ int input_init(input_parameter *param, int plugin_no)
     pglobal = param->global;
     in = &pglobal->in[plugin_no];
     in->context = pctx;
+
+    control libcamera_AfTrigger_ctrl;
+	libcamera_AfTrigger_ctrl.group = IN_CMD_GENERIC;
+	libcamera_AfTrigger_ctrl.ctrl.id = 1;
+	libcamera_AfTrigger_ctrl.ctrl.type = V4L2_CTRL_TYPE_BUTTON;
+	strcpy((char*) libcamera_AfTrigger_ctrl.ctrl.name, "AfTrigger");
+
+	in->in_parameters = (control*) malloc((in->parametercount + 1) * sizeof(control));
+	in->in_parameters[in->parametercount] = libcamera_AfTrigger_ctrl;
+	in->parametercount++;
+
+    // in->name = (char*)malloc((strlen(INPUT_PLUGIN_NAME) + 1) * sizeof(char));
+    // sprintf(in->name, INPUT_PLUGIN_NAME);
 
     param->argv[0] = plugin_name;
 
@@ -209,6 +226,9 @@ int input_init(input_parameter *param, int plugin_no)
     IPRINT("Desired Resolution: %i x %i\n", width, height);
 
     ret = pctx->camera.initCamera(&width, &height, formats::BGR888, 4, 0);
+    char *device_id = pctx->camera.getCameraId();
+    in->name = (char*)malloc((strlen(device_id) + 1) * sizeof(char));
+    sprintf(in->name, device_id);
     if (ret) {
         IPRINT("LibCamera::initCamera() failed\n");
         goto fatal_error;
@@ -358,4 +378,46 @@ void worker_cleanup(void *arg)
         delete pctx;
         in->context = NULL;
     }
+}
+
+/******************************************************************************
+Description.: process commands, allows to set libcamera controls
+Input Value.: -
+Return Value: depends in the command, for most cases 0 means no errors and
+              -1 signals an error. This is just rule of thumb, not more!
+******************************************************************************/
+int input_cmd(int plugin, unsigned int control_id, unsigned int typecode, int value)
+{
+    input * in = &pglobal->in[plugin];
+    context *pctx = (context*)in->context;
+    ControlList controls_;
+
+    DBG("Requested cmd (id: %d) for the %d plugin. Group: %d value: %d\n", control_id, plugin_number, group, value);
+
+    int i;
+    switch(typecode)
+    {
+        case IN_CMD_GENERIC:
+            for(i = 0; i < in->parametercount; i++)
+			{
+				if((in->in_parameters[i].ctrl.id == control_id) && (in->in_parameters[i].group == IN_CMD_GENERIC))
+				{
+					DBG("Generic control found (id: %d): %s\n", control_id, in->in_parameters[i].ctrl.name);
+                    pthread_mutex_lock(&pctx->control_mutex);
+					if(control_id == 1)
+					{
+						controls_.set(controls::draft::AfTrigger, 1);
+					} 
+                    pctx->camera.set(controls_);
+                    pthread_mutex_unlock(&pctx->control_mutex);
+                    DBG("New %s value: %d\n", in->in_parameters[i].ctrl.name, value);
+					return 0;
+				}
+			}
+			DBG("Requested generic control (%d) did not found\n", control_id);
+			return -1;
+            break;
+    }
+
+    return 0;
 }

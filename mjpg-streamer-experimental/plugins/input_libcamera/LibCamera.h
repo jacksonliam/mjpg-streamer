@@ -87,6 +87,7 @@ class LibCamera {
         void closeCamera();
 
         libcamera::Stream *VideoStream(int *w, int *h, int *stride) const;
+        char * getCameraId();
 
     private:
 
@@ -116,5 +117,5 @@ class LibCamera {
         std::mutex free_requests_mutex_;
 
         Stream *viewfinder_stream_ = nullptr;
-
+        std::string cameraId;
 };

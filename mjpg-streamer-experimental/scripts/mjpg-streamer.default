@@ -21,7 +21,8 @@ WWW_ROOT=/var/local/www
 DAEMON=${BASEDIR}/bin/mjpg_streamer
 
 # The input library.
-INPUT_UVC_LIB=${LIB_DIR}/input_libcamera.so
+INPUT_UVC_LIB=${LIB_DIR}/input_uvc.so
+# INPUT_LIBCAMERA_LIB=${LIB_DIR}/input_libcamera.so
 
 # The output library.
 OUTPUT_HTTP_LIB=${LIB_DIR}/output_http.so
