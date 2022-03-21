@@ -12,6 +12,7 @@ sudo rm /etc/systemd/system/raswebcamd.service
 # end removing old service 
 
 sudo apt install subversion libjpeg8-dev imagemagick ffmpeg libv4l-dev cmake git curl -y # Installing the dependacys that are needed to install the software
+sudo apt install subversion libjpeg62-turbo-dev imagemagick ffmpeg libv4l-dev cmake git curl -y # Installing the dependacys that are needed to install the software
 
 git clone https://github.com/St3v3-B/mjpg-streamer.git # Download the files from github
 
