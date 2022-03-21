@@ -86,9 +86,9 @@ shows the basic steps to enable the experimental HTTP management feature:
     make
     sudo make install
 
-raspberry pi instalatation
+raspberry pi quick instalatation
 --------------------------------
-bash <(curl -sSL https://raw.githubusercontent.com/St3v3-B/mjpg-streamer/master/Instalation/install.sh)
+wget -O - https://raw.githubusercontent.com/St3v3-B/mjpg-streamer/master/Instalation/install.sh | sudo bash
 
 Usage
 =====
