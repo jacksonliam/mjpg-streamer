@@ -86,6 +86,10 @@ shows the basic steps to enable the experimental HTTP management feature:
     make
     sudo make install
 
+raspberry pi instalatation
+--------------------------------
+bash <(curl -sSL https://raw.githubusercontent.com/St3v3-B/mjpg-streamer/master/Instalation/install.sh)
+
 Usage
 =====
 From the mjpeg streamer experimental
