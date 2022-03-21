@@ -11,9 +11,9 @@ cd mjpg-streamer/mjpg-streamer-experimental # Go in to the directory that has be
 export LD_LIBRARY_PATH=. # exporting the path to the curent directory
 make # making the programa
 echo "${RED}Making webcamDaemon executable ${NC}\n"
-sudo chmod +x mjpg_streamer/scripts/webcamDaemon
+sudo chmod +x /root/mjpg-streamer/scripts/WebcamDaemon
 echo "${RED}installing the raswebcamd service${NC}\n"
-sudo mv mjpg-streamer/Instalation/raswebcamd.service /etc/systemd/system/raswebcamd.service
+sudo mv /root/mjpg-streamer/Instalation/raswebcamd.service /etc/systemd/system/raswebcamd.service
 sudo systemctl daemon-reload
 sudo systemctl enable raswebcamd
 sudo systemctl start raswebcamd
