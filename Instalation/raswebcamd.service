@@ -1,0 +1,12 @@
+[Unit]
+Description=Camera streamer for raspberry pi
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+ExecStart=~mjpg_streamer/scripts/webcamDaemon
+
+[Install]
+WantedBy=multi-user.target

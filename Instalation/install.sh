@@ -9,3 +9,4 @@ git clone https://github.com/St3v3-B/mjpg-streamer.git # Download the files from
 cd mjpg-streamer/mjpg-streamer-experimental # Go in to the directory that has been downloaded
 export LD_LIBRARY_PATH=. # exporting the path to the curent directory
 make # making the programa
+chmod +x ~mjpg_streamer/scripts/webcamDaemon
