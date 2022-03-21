@@ -10,7 +10,7 @@ systemctl daemon-reload
 sudo rm -r mjpg-streamer/
 sudo rm /etc/systemd/system/raswebcamd.service
 # end removing old service 
-
+sudo apt-get install libjpeg-dev git cmake -y
 sudo apt install subversion libjpeg8-dev imagemagick ffmpeg libv4l-dev cmake git curl -y # Installing the dependacys that are needed to install the software
 sudo apt install subversion libjpeg62-turbo-dev imagemagick ffmpeg libv4l-dev cmake git curl -y # Installing the dependacys that are needed to install the software
 
