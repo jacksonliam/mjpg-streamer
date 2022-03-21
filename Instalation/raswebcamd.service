@@ -6,7 +6,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=pi
-ExecStart=/root/mjpg-streamer/scripts/webcamDaemon
+ExecStart=/root/mjpg-streamer/scripts/WebcamDaemon
 
 [Install]
 WantedBy=multi-user.target
