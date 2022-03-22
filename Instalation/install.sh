@@ -36,3 +36,5 @@ sudo systemctl daemon-reload # reloading the daemon to include the raswebcam ser
 sudo systemctl enable raswebcamd # enableling the raswebcamd service
 
 sudo systemctl start raswebcamd # starting the raswebcamd service
+
+sudo reboot now # restarting in some casses this is necacerry to activate the script
