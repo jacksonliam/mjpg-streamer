@@ -40,6 +40,7 @@ typedef struct {
     char *filter_args;
     int fps_set, fps,
         quality_set, quality,
+        buffercount_set, buffercount,
         co_set, co,
         br_set, br,
         sa_set, sa,
@@ -78,6 +79,7 @@ static void help() {
     
     fprintf(stderr,
     " [-f | --fps ]..........: frames per second\n" \
+    " [-b | --buffercount ]...: Set the number of request buffers.\n"  \
     " [-q | --quality ] .....: set quality of JPEG encoding\n" \
     " ---------------------------------------------------------------\n" \
     " Optional parameters (may not be supported by all cameras):\n\n"
@@ -114,7 +116,7 @@ Return Value: 0 if everything is ok
 int input_init(input_parameter *param, int plugin_no)
 {   
     // char *device = "/dev/video0";
-    int width = 640, height = 480, i, device_idx;
+    int width = 640, height = 480, stride, i, device_idx;
     
     input * in;
     context *pctx;
@@ -169,6 +171,8 @@ int input_init(input_parameter *param, int plugin_no)
             {"sa", required_argument, 0, 0},            // 10
             {"gain", required_argument, 0, 0},          // 11
             {"ex", required_argument, 0, 0},            // 12
+            {"b", required_argument, 0, 0},             // 13
+            {"buffercount", required_argument, 0, 0},   // 14
             {0, 0, 0, 0}
         };
     
@@ -216,6 +220,9 @@ int input_init(input_parameter *param, int plugin_no)
             break;
         OPTION_INT(12, ex)
             break;
+        case 13:
+        OPTION_INT(14, buffercount)
+            break;
             
         default:
             help();
@@ -225,7 +232,12 @@ int input_init(input_parameter *param, int plugin_no)
 
     IPRINT("Desired Resolution: %i x %i\n", width, height);
 
-    ret = pctx->camera.initCamera(&width, &height, formats::BGR888, 4, 0);
+    if (!settings->buffercount) {
+        settings->buffercount = 4;
+    } else {
+        settings->buffercount = MAX(settings->buffercount, 1);
+    }
+    ret = pctx->camera.initCamera(&width, &height, &stride, formats::BGR888, settings->buffercount, 0);
     char *device_id = pctx->camera.getCameraId();
     in->name = (char*)malloc((strlen(device_id) + 1) * sizeof(char));
     sprintf(in->name, device_id);
@@ -267,6 +279,7 @@ int input_init(input_parameter *param, int plugin_no)
     pctx->videoIn = (struct vdIn*)malloc(sizeof(struct vdIn));
     pctx->videoIn->width = width;
     pctx->videoIn->height = height;
+    pctx->videoIn->stride = stride;
     
     return 0;
     

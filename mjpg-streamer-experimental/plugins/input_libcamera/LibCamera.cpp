@@ -2,7 +2,7 @@
 
 using namespace std::placeholders;
 
-int LibCamera::initCamera(int *width, int *height, PixelFormat format, int buffercount, int rotation) {
+int LibCamera::initCamera(int *width, int *height, int *stride, PixelFormat format, int buffercount, int rotation) {
     int ret;
     cm = std::make_unique<CameraManager>();
     ret = cm->start();
@@ -56,6 +56,7 @@ int LibCamera::initCamera(int *width, int *height, PixelFormat format, int buffe
     }
     *width = config->at(0).size.width;
     *height = config->at(0).size.height;
+    *stride = config->at(0).stride;
     config_ = std::move(config);
     return 0;
 }
@@ -143,7 +144,7 @@ int LibCamera::startCapture() {
     return 0;
 }
 
-void LibCamera::StreamDimensions(Stream const *stream, int *w, int *h, int *stride) const
+void LibCamera::StreamDimensions(Stream const *stream, uint32_t *w, uint32_t *h, uint32_t *stride) const
 {
 	StreamConfiguration const &cfg = stream->configuration();
 	if (w)
@@ -154,7 +155,7 @@ void LibCamera::StreamDimensions(Stream const *stream, int *w, int *h, int *stri
 		*stride = cfg.stride;
 }
 
-libcamera::Stream *LibCamera::VideoStream(int *w, int *h, int *stride) const
+libcamera::Stream *LibCamera::VideoStream(uint32_t *w, uint32_t *h, uint32_t *stride) const
 {
 	StreamDimensions(viewfinder_stream_, w, h, stride);
 	return viewfinder_stream_;
@@ -193,7 +194,7 @@ void LibCamera::returnFrameBuffer(LibcameraOutData frameData) {
 
 bool LibCamera::readFrame(LibcameraOutData *frameData){
     std::lock_guard<std::mutex> lock(free_requests_mutex_);
-    int w, h, stride;
+    // int w, h, stride;
     if (!requestQueue.empty()){
         Request *request = this->requestQueue.front();
 

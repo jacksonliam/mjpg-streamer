@@ -144,12 +144,13 @@ int compress_image_to_jpeg(struct vdIn *vd, unsigned char *buffer, int size, int
     struct jpeg_compress_struct cinfo;
     struct jpeg_error_mgr jerr;
     JSAMPROW row_pointer[1];
-    unsigned char *line_buffer, *yuyv;
+    unsigned char *line_buffer, *yuyv, *line_base;
     int z;
     static int written;
 
     line_buffer = calloc(vd->width * 3, 1);
-    yuyv = vd->framebuffer;
+    line_base = vd->framebuffer;
+    // yuyv = vd->framebuffer;
 
     cinfo.err = jpeg_std_error(&jerr);
     jpeg_create_compress(&cinfo);
@@ -205,13 +206,14 @@ int compress_image_to_jpeg(struct vdIn *vd, unsigned char *buffer, int size, int
         while(cinfo.next_scanline < vd->height) {
             int x;
             unsigned char *ptr = line_buffer;
-
+            yuyv = line_base;
             for(x = 0; x < vd->width; x++) {
                 *(ptr++) = yuyv[0];
                 *(ptr++) = yuyv[1];
                 *(ptr++) = yuyv[2];
                 yuyv += 3;
             }
+            line_base += vd->stride;
 
             row_pointer[0] = line_buffer;
             jpeg_write_scanlines(&cinfo, row_pointer, 1);

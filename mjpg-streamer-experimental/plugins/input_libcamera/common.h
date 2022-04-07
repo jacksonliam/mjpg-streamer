@@ -6,6 +6,7 @@ struct vdIn {
     int width;
     int height;
     int formatIn;
+    int stride;
 };
 
 #endif

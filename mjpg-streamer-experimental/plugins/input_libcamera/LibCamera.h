@@ -37,6 +37,7 @@ typedef struct {
     uint64_t request;
     uint32_t width;
     uint32_t height;
+    uint32_t stride;
 } LibcameraOutData;
 
 struct CompletedRequest
@@ -76,7 +77,7 @@ class LibCamera {
         LibCamera(){};
         ~LibCamera(){};
         
-        int initCamera(int *width, int *height, PixelFormat format, int buffercount, int rotation);
+        int initCamera(int *width, int *height, int *stride, PixelFormat format, int buffercount, int rotation);
         
         int startCamera();
         bool readFrame(LibcameraOutData *frameData);
@@ -86,7 +87,7 @@ class LibCamera {
         void stopCamera();
         void closeCamera();
 
-        libcamera::Stream *VideoStream(int *w, int *h, int *stride) const;
+        libcamera::Stream *VideoStream(uint32_t *w, uint32_t *h, uint32_t *stride) const;
         char * getCameraId();
 
     private:
@@ -95,7 +96,7 @@ class LibCamera {
         int queueRequest(Request *request);
         void requestComplete(Request *request);
         void processRequest(Request *request);
-        void StreamDimensions(Stream const *stream, int *w, int *h, int *stride) const;
+        void StreamDimensions(Stream const *stream, uint32_t *w, uint32_t *h, uint32_t *stride) const;
 
         unsigned int cameraIndex_;
 	    uint64_t last_;
