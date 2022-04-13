@@ -1,6 +1,8 @@
 
 if (EXISTS /opt/vc/include)
     set(HAS_RASPI ON)
+elseif (EXISTS /usr/include/interface/vcos AND CMAKE_SIZEOF_VOID_P EQUAL 4)
+    set(HAS_RASPI ON)
 else()
     set(HAS_RASPI OFF)
 endif()
@@ -15,6 +17,10 @@ if (PLUGIN_INPUT_RASPICAM)
     include_directories(/opt/vc/include/interface/vcos/pthreads)
     include_directories(/opt/vc/include/interface/vmcs_host)
     include_directories(/opt/vc/include/interface/vmcs_host/linux)
+    include_directories(/usr/include/interface/vcos)
+    include_directories(/usr/include/interface/vcos/pthreads)
+    include_directories(/usr/include/interface/vmcs_host)
+    include_directories(/usr/include/interface/vmcs_host/linux)
 
     link_directories(/opt/vc/lib)
 
