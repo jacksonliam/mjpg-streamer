@@ -47,7 +47,7 @@ macro(MJPG_STREAMER_PLUGIN_COMPILE MODULE_NAME)
 			list(APPEND MOD_SRC "${arg}")
 		endforeach()
 
-		add_library(${MODULE_NAME} SHARED ${MOD_SRC})
+		add_library(${MODULE_NAME} MODULE ${MOD_SRC})
 	    set_target_properties(${MODULE_NAME} PROPERTIES PREFIX "")
 
 		install(TARGETS ${MODULE_NAME} DESTINATION ${MJPG_STREAMER_PLUGIN_INSTALL_PATH})
