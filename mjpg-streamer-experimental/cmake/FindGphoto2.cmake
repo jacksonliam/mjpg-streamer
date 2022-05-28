@@ -18,21 +18,23 @@
 # From: https://github.com/darktable-org/darktable/blob/master/cmake/modules/FindGphoto2.cmake
 #=============================================================================
 
-include(FindPkgConfig)
-
 SET(GPHOTO2_FIND_REQUIRED ${Gphoto2_FIND_REQUIRED})
 
-find_path(GPHOTO2_INCLUDE_DIR gphoto2/gphoto2.h)
-mark_as_advanced(GPHOTO2_INCLUDE_DIR)
+find_path(Gphoto2_INCLUDE_DIR gphoto2/gphoto2.h)
+mark_as_advanced(Gphoto2_INCLUDE_DIR)
 
 set(GPHOTO2_NAMES ${GPHOTO2_NAMES} gphoto2 libgphoto2)
 set(GPHOTO2_PORT_NAMES ${GPHOTO2_PORT_NAMES} gphoto2_port libgphoto2_port)
-find_library(GPHOTO2_LIBRARY NAMES ${GPHOTO2_NAMES} )
+find_library(Gphoto2_LIBRARY NAMES ${GPHOTO2_NAMES} )
 find_library(GPHOTO2_PORT_LIBRARY NAMES ${GPHOTO2_PORT_NAMES} )
-mark_as_advanced(GPHOTO2_LIBRARY)
+mark_as_advanced(Gphoto2_LIBRARY)
 mark_as_advanced(GPHOTO2_PORT_LIBRARY)
 
 # Detect libgphoto2 version
+if(NOT PkgConfig_FOUND)
+    find_package(PkgConfig)
+endif()
+
 pkg_check_modules(PC_GPHOTO2 libgphoto2)
 if(PC_GPHOTO2_FOUND)
   set(GPHOTO2_VERSION_STRING "${PC_GPHOTO2_VERSION}")
@@ -41,11 +43,11 @@ endif()
 # handle the QUIETLY and REQUIRED arguments and set GPHOTO2_FOUND to TRUE if
 # all listed variables are TRUE
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(GPHOTO2 DEFAULT_MSG GPHOTO2_LIBRARY GPHOTO2_INCLUDE_DIR)
+find_package_handle_standard_args(Gphoto2 DEFAULT_MSG Gphoto2_LIBRARY Gphoto2_INCLUDE_DIR)
 
 IF(GPHOTO2_FOUND)
-  SET(Gphoto2_LIBRARIES ${GPHOTO2_LIBRARY} ${GPHOTO2_PORT_LIBRARY})
-  SET(Gphoto2_INCLUDE_DIRS ${GPHOTO2_INCLUDE_DIR})
+  SET(Gphoto2_LIBRARIES ${Gphoto2_LIBRARY} ${GPHOTO2_PORT_LIBRARY})
+  SET(Gphoto2_INCLUDE_DIRS ${Gphoto2_INCLUDE_DIR})
 
   # libgphoto2 dynamically loads and unloads usb library
   # without calling any cleanup functions (since they are absent from libusb-0.1).

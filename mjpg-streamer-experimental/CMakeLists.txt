@@ -1,19 +1,56 @@
-cmake_minimum_required(VERSION 2.8.3)
-set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
+cmake_minimum_required(VERSION 3.10.0)
 
-project("mjpg-streamer" C)
+# Add cmake modules of this project to the module path
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
-# If the user doesn't manually specify a build type, use 'Release'
-message("CMAKE_BUILD_TYPE = ${CMAKE_BUILD_TYPE}")
-if("${CMAKE_BUILD_TYPE}" STREQUAL "")
-  SET(CMAKE_BUILD_TYPE "Release")
+# with at least one base tag, this can have dynamic (git) versioning:
+#  git describe last tag = 1.1.0
+#  git describe last tag + rev count = 1.1.0.45
+#
+# for now, set -DSCM_VERSION_INFO in the build env to override
+if(NOT SCM_VERSION_INFO)
+    set(PACKAGE_VERSION "1.0.0")
+    set(SCM_VERSION_INFO ${PACKAGE_VERSION})
 endif()
 
-SET(COMPILE_DEFINITIONS -Werror -Wall)
+project(mjpg-streamer
+    LANGUAGES C
+    VERSION ${SCM_VERSION_INFO}
+)
 
-include(CheckLibraryExists) 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_VERBOSE_MAKEFILE ON)
+
+# eventually this should have some tests
+option(BUILD_TESTING "build and run tests" ON)
+option(ENABLE_WXP_COMPAT "" OFF)
+option(ENABLE_HTTP_MANAGEMENT "" OFF)
+option(ENABLE_INPUT_OPENCV "" OFF)
+
+# If the user doesn't manually specify a build type, use 'Release'
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE
+        "Release"
+        CACHE STRING "Default build type: ${CMAKE_BUILD_TYPE}" FORCE
+    )
+endif()
+message(STATUS "CMAKE_BUILD_TYPE = ${CMAKE_BUILD_TYPE}")
+
+include(CheckLibraryExists)
 include(CheckIncludeFiles)
 include(FeatureSummary)
+include(CTest)
+include(GNUInstallDirs)
+
+set(MJPG_STREAMER_PLUGIN_INSTALL_PATH
+    "${CMAKE_INSTALL_LIBDIR}/mjpg-streamer/${CMAKE_INSTALL_LIBDIR}"
+    CACHE PATH "Install directory for plugin (.so) files"
+)
+
+set(MJPG_STREAMER_WWW_ROOT
+    "${CMAKE_INSTALL_DATAROOTDIR}/mjpg-streamer"
+    CACHE PATH "Install directory for example www server root"
+)
 
 include(mjpg_streamer_utils)
 
@@ -21,36 +58,37 @@ include(mjpg_streamer_utils)
 # Get the current git hash
 #
 execute_process(
-  COMMAND git rev-parse HEAD
-  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-  RESULT_VARIABLE GIT_RESULT
-  OUTPUT_VARIABLE GIT_HASH
-  OUTPUT_STRIP_TRAILING_WHITESPACE
+    COMMAND git rev-parse HEAD
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    RESULT_VARIABLE GIT_RESULT
+    OUTPUT_VARIABLE GIT_HASH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
 if(GIT_RESULT EQUAL 0)
-  add_definitions("-DGIT_HASH=\"${GIT_HASH}\"")
+    add_compile_definitions(GIT_HASH=\"${GIT_HASH}\")
 endif()
 
 #
 # Options
 #
-set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG")
+# SCM_VERSION_INFO can be defined by cmake args and passed into the code as a
+# define here (see PACKAGE_VERSION near the top of this file)
+add_compile_definitions(SOURCE_VERSION=\"${SCM_VERSION_INFO}\")
 
-add_feature_option(WXP_COMPAT "Enable compatibility with WebcamXP" OFF)
+add_compile_options(-Wall)
+
+add_feature_option(WXP_COMPAT "Enable compatibility with WebcamXP" ${ENABLE_WXP_COMPAT})
 
 if (WXP_COMPAT)
     add_definitions(-DWXP_COMPAT)
 endif (WXP_COMPAT)
-
-set (MJPG_STREAMER_PLUGIN_INSTALL_PATH "lib/mjpg-streamer")
 
 #
 # Global dependencies
 #
 
 find_library(JPEG_LIB jpeg)
-
 
 #
 # Input plugins
@@ -84,23 +122,34 @@ add_subdirectory(plugins/output_zmqserver)
 #     need to do it
 
 set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--enable-new-dtags")
-set (CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
-set (CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/${MJPG_STREAMER_PLUGIN_INSTALL_PATH})
-set (CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-
 
 add_executable(mjpg_streamer mjpg_streamer.c
                              utils.c)
 
 target_link_libraries(mjpg_streamer pthread dl)
-install(TARGETS mjpg_streamer DESTINATION bin)
+
+install(TARGETS mjpg_streamer
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+)
+
+if(BUILD_TESTING)
+    enable_testing()
+
+    # tell ctest to run main app as a test; note this is mainly for illustration
+    add_test(NAME main_test
+        COMMAND mjpg_streamer --version
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+    )
+endif()
+
+# what to do with this...
+# MJPG_STREAMER_PLUGIN_INSTALL_PATH
 
 #
 # www directory
 #
 
-install(DIRECTORY www DESTINATION share/mjpg-streamer)
-
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/www DESTINATION "${MJPG_STREAMER_WWW_ROOT}")
 
 #
 # Show enabled/disabled features
