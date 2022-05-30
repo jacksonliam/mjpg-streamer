@@ -1,7 +1,9 @@
-mjpg-streamer
-=============
+mjpg-streamer with NDI output support
+=====================================
 
-Currently no issues are known, but since this software is quite young and not used widely it may cause problems. You must really know what you are doing, if you use this software. If you want to use the software you are obliged to check if the sourcecode does what you expect it to do and take the risk yourself to use it.
+Currently issues are known, but since this software is quite young and not used widely it may cause problems. You must really know what you are doing, if you use this software. If you want to use the software you are obliged to check if the sourcecode does what you expect it to do and take the risk yourself to use it.
+
+The current implementation somehow messes up a bit of the streambuffer.
 
 
 Usage
@@ -10,7 +12,7 @@ Usage
 When launching mjpg-streamer, you specify one or more input plugins and an output plugin. For example, to stream a V4L compatible webcam via an HTTP server (the most common use case), you
 can do something like this:
 
-	mjpg_streamer -i input_uvc.so -o output_http.so
+	mjpg_streamer -i input_uvc.so -o output_ndi.so
 
 Each plugin supports various options, you can view the plugin's options via its `--help` option:
 
@@ -37,5 +39,6 @@ Output plugins:
 * output_http ([documentation](plugins/output_http/README.md))
 * ~output_rtsp~ (not functional)
 * ~output_udp~ (not functional)
+* output_ndi - NDI network stream output (can be used with OBS NDI etc.)
 * output_viewer ([documentation](plugins/output_viewer/README.md))
 

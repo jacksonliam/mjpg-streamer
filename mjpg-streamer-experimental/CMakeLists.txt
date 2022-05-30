@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
 
-project("mjpg-streamer" C)
+project("mjpg-streamer")
 
 # If the user doesn't manually specify a build type, use 'Release'
 message("CMAKE_BUILD_TYPE = ${CMAKE_BUILD_TYPE}")
@@ -73,6 +73,7 @@ add_subdirectory(plugins/output_rtsp)
 add_subdirectory(plugins/output_udp)
 add_subdirectory(plugins/output_viewer)
 add_subdirectory(plugins/output_zmqserver)
+add_subdirectory(plugins/output_ndi)
 
 #
 # mjpg_streamer executable
