@@ -683,6 +683,13 @@ void send_error(int fd, int which, char *message)
                 "\r\n" \
                 "403: Forbidden!\r\n" \
                 "%s", message);
+        } else if (which == 429) {
+        sprintf(buffer, "HTTP/1.0 429 Too Many Requests\r\n" \
+                "Content-type: text/plain\r\n" \
+                STD_HEADER \
+                "\r\n" \
+                "429: Too Many Requests!\r\n" \
+                "%s", message);
     } else {
         sprintf(buffer, "HTTP/1.0 501 Not Implemented\r\n" \
                 "Content-type: text/plain\r\n" \
