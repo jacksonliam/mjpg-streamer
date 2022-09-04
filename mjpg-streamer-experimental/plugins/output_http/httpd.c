@@ -1078,7 +1078,7 @@ void *client_thread(void *arg)
         if (check_client_ratelimit(lcfd.client, lcfd.pc->conf.ratelimit)) {
             req.type = A_UNKNOWN;
             lcfd.client->last_take_time.tv_sec += piggy_fine;
-            send_error(lcfd.fd, 403, "frame already sent");
+            send_error(lcfd.fd, 429, "rate limit exceeded");
             query_suffixed = 0;
         }
         #endif
@@ -1090,7 +1090,7 @@ void *client_thread(void *arg)
         if (check_client_ratelimit(lcfd.client, lcfd.pc->conf.ratelimit)) {
             req.type = A_UNKNOWN;
             lcfd.client->last_take_time.tv_sec += piggy_fine;
-            send_error(lcfd.fd, 403, "frame already sent");
+            send_error(lcfd.fd, 429, "rate limit exceeded");
             query_suffixed = 0;
         }
         #endif
@@ -1102,7 +1102,7 @@ void *client_thread(void *arg)
         if (check_client_ratelimit(lcfd.client, lcfd.pc->conf.ratelimit)) {
             req.type = A_UNKNOWN;
             lcfd.client->last_take_time.tv_sec += piggy_fine;
-            send_error(lcfd.fd, 403, "frame already sent");
+            send_error(lcfd.fd, 429, "rate limit exceeded");
             query_suffixed = 0;
         }
         #endif
@@ -1113,7 +1113,7 @@ void *client_thread(void *arg)
         if (check_client_ratelimit(lcfd.client, lcfd.pc->conf.ratelimit)) {
             req.type = A_UNKNOWN;
             lcfd.client->last_take_time.tv_sec += piggy_fine;
-            send_error(lcfd.fd, 403, "frame already sent");
+            send_error(lcfd.fd, 429, "rate limit exceeded");
             query_suffixed = 0;
         }
         #endif
@@ -1125,7 +1125,7 @@ void *client_thread(void *arg)
         if (check_client_ratelimit(lcfd.client, lcfd.pc->conf.ratelimit)) {
             req.type = A_UNKNOWN;
             lcfd.client->last_take_time.tv_sec += piggy_fine;
-            send_error(lcfd.fd, 403, "frame already sent");
+            send_error(lcfd.fd, 429, "rate limit exceeded");
             query_suffixed = 0;
         }
         #endif
