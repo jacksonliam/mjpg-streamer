@@ -197,9 +197,9 @@ int output_init(output_parameter *param, int id)
     OPRINT("HTTP Listen Address..: %s\n", hostname);
     OPRINT("username:password....: %s\n", (credentials == NULL) ? "disabled" : credentials);
     OPRINT("commands.............: %s\n", (nocommands) ? "disabled" : "enabled");
-    char ratelimit_str_buffer[12];
+    char ratelimit_str_buffer[24];
     if (ratelimit > 0){
-        snprintf(ratelimit_str_buffer, 12, "%d", ratelimit);
+        snprintf(ratelimit_str_buffer, 24, "%d ms", ratelimit);
     } else {
         sprintf(ratelimit_str_buffer, "%s", "disabled");
     }
