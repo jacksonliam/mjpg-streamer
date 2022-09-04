@@ -184,7 +184,7 @@ void check_JSON_string(char *source, char *destination);
 
 #ifdef MANAGMENT
 client_info *add_client(char *address);
-int check_client_status(client_info *client);
+int check_client_ratelimit(client_info *client);
 void update_client_timestamp(client_info *client);
 void send_clients_JSON(int fd);
 #endif
