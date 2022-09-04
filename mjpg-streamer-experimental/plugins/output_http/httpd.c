@@ -357,7 +357,7 @@ Input Value.: Client IP address as a string
 Return Value: If a frame was served to it within the specified interval it returns 1
               If not it returns with 0
 ******************************************************************************/
-int check_client_ratelimit(client_info *client, int ratelimit = -1)
+int check_client_ratelimit(client_info *client, int ratelimit)
 {
     // Dip out if ratelimit is disabled (less then 1 ms)
     if (ratelimit < 1){
