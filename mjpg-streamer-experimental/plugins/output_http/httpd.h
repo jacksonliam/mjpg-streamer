@@ -20,6 +20,9 @@
 #                                                                              #
 *******************************************************************************/
 
+#ifndef HTTPD_H_
+#define HTTPD_H_
+
 #define IO_BUFFER 256
 #define BUFFER_SIZE 1024
 
@@ -186,10 +189,7 @@ void update_client_timestamp(client_info *client);
 void send_clients_JSON(int fd);
 #endif
 
-
-
-
-
+#endif  // HTTPD_H_
 
 
 
