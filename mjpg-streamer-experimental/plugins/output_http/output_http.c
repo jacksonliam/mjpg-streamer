@@ -64,6 +64,7 @@ void help(void)
 	    " [-l ] --listen ]........: Listen on Hostname / IP\n" \
             " [-c | --credentials ]...: ask for \"username:password\" on connect\n" \
             " [-n | --nocommands ]....: disable execution of commands\n"
+            " [-r | --ratelimit ]....: enable snapshot / frame rate limiting per client IP (milliseconds)\n"
             " ---------------------------------------------------------------\n");
 }
 
@@ -79,17 +80,14 @@ Return Value: 0 if everything is OK, other values signal an error
 ******************************************************************************/
 int output_init(output_parameter *param, int id)
 {
+    // TODO: Rewrite option parsing to work the way it was intended to with getopt_long_only. The current way is needlessly complicated.
     int i;
-    int  port;
-    char *credentials, *www_folder, *hostname = NULL;
-    char nocommands;
+    int port = htons(8080);
+    char *credentials = NULL, *www_folder = NULL, *hostname = NULL;
+    char nocommands = 0;
+    int ratelimit = -1;
 
     DBG("output #%02d\n", param->id);
-
-    port = htons(8080);
-    credentials = NULL;
-    www_folder = NULL;
-    nocommands = 0;
 
     param->argv[0] = OUTPUT_PLUGIN_NAME;
 
@@ -102,19 +100,20 @@ int output_init(output_parameter *param, int id)
     while(1) {
         int option_index = 0, c = 0;
         static struct option long_options[] = {
-            {"h", no_argument, 0, 0
-            },
+            {"h", no_argument, 0, 0},
             {"help", no_argument, 0, 0},
             {"p", required_argument, 0, 0},
             {"port", required_argument, 0, 0},
             {"l", required_argument , 0, 0},
-	    {"listen", required_argument, 0, 0},
+	        {"listen", required_argument, 0, 0},
             {"c", required_argument, 0, 0},
             {"credentials", required_argument, 0, 0},
             {"w", required_argument, 0, 0},
             {"www", required_argument, 0, 0},
             {"n", no_argument, 0, 0},
             {"nocommands", no_argument, 0, 0},
+            {"r", required_argument, 0, 0},
+            {"ratelimit", required_argument, 0, 0},
             {0, 0, 0, 0}
         };
 
@@ -175,6 +174,12 @@ int output_init(output_parameter *param, int id)
             DBG("case 10,11\n");
             nocommands = 1;
             break;
+            /* r, ratelimit */
+        case 12:
+        case 13:
+            DBG("case 12,13\n");
+            ratelimit = atoi(optarg);
+            break;
         }
     }
 
@@ -185,12 +190,14 @@ int output_init(output_parameter *param, int id)
     servers[param->id].conf.credentials = credentials;
     servers[param->id].conf.www_folder = www_folder;
     servers[param->id].conf.nocommands = nocommands;
+    servers[param->id].conf.ratelimit = ratelimit;
 
     OPRINT("www-folder-path......: %s\n", (www_folder == NULL) ? "disabled" : www_folder);
     OPRINT("HTTP TCP port........: %d\n", ntohs(port));
     OPRINT("HTTP Listen Address..: %s\n", hostname);
     OPRINT("username:password....: %s\n", (credentials == NULL) ? "disabled" : credentials);
     OPRINT("commands.............: %s\n", (nocommands) ? "disabled" : "enabled");
+    OPRINT("rate limit...........: %s\n", (ratelimit > 0) ? itos(ratelimit) : "disabled");
 
     param->global->out[id].name = malloc((strlen(OUTPUT_PLUGIN_NAME) + 1) * sizeof(char));
     sprintf(param->global->out[id].name, OUTPUT_PLUGIN_NAME);

@@ -357,8 +357,12 @@ Input Value.: Client IP address as a string
 Return Value: If a frame was served to it within the specified interval it returns 1
               If not it returns with 0
 ******************************************************************************/
-int check_client_status(client_info *client)
+int check_client_ratelimit(client_info *client, int ratelimit = -1)
 {
+    // Dip out if ratelimit is disabled (less then 1 ms)
+    if (ratelimit < 1){
+        return 0;
+    }
     unsigned int i = 0;
     pthread_mutex_lock(&client_infos.mutex);
     for (; i<client_infos.client_count; i++) {
@@ -369,7 +373,7 @@ int check_client_status(client_info *client)
             msec  =(tim.tv_sec - client_infos.infos[i]->last_take_time.tv_sec)*1000;
             msec +=(tim.tv_usec - client_infos.infos[i]->last_take_time.tv_usec)/1000;
             DBG("diff: %ld\n", msec);
-            if ((msec < 1000) && (msec > 0)) { // FIXME make it parameter
+            if ((msec < ratelimit) && (msec > 0)) {
                 DBG("CHEATER\n");
                 pthread_mutex_unlock(&client_infos.mutex);
                 return 1;
@@ -1068,7 +1072,7 @@ void *client_thread(void *arg)
         req.type = A_SNAPSHOT;
         query_suffixed = 255;
         #ifdef MANAGMENT
-        if (check_client_status(lcfd.client)) {
+        if (check_client_ratelimit(lcfd.client, lcfd.pc.conf.ratelimit)) {
             req.type = A_UNKNOWN;
             lcfd.client->last_take_time.tv_sec += piggy_fine;
             send_error(lcfd.fd, 403, "frame already sent");
@@ -1080,7 +1084,7 @@ void *client_thread(void *arg)
         req.type = A_SNAPSHOT_WXP;
         query_suffixed = 255;
         #ifdef MANAGMENT
-        if (check_client_status(lcfd.client)) {
+        if (check_client_ratelimit(lcfd.client, lcfd.pc.conf.ratelimit))) {
             req.type = A_UNKNOWN;
             lcfd.client->last_take_time.tv_sec += piggy_fine;
             send_error(lcfd.fd, 403, "frame already sent");
@@ -1092,7 +1096,7 @@ void *client_thread(void *arg)
         req.type = A_STREAM;
         query_suffixed = 255;
         #ifdef MANAGMENT
-        if (check_client_status(lcfd.client)) {
+        if (check_client_ratelimit(lcfd.client, lcfd.pc.conf.ratelimit))) {
             req.type = A_UNKNOWN;
             lcfd.client->last_take_time.tv_sec += piggy_fine;
             send_error(lcfd.fd, 403, "frame already sent");
@@ -1103,7 +1107,7 @@ void *client_thread(void *arg)
         req.type = A_STREAM;
         query_suffixed = 255;
         #ifdef MANAGMENT
-        if (check_client_status(lcfd.client)) {
+        if (check_client_ratelimit(lcfd.client, lcfd.pc.conf.ratelimit))) {
             req.type = A_UNKNOWN;
             lcfd.client->last_take_time.tv_sec += piggy_fine;
             send_error(lcfd.fd, 403, "frame already sent");
@@ -1115,7 +1119,7 @@ void *client_thread(void *arg)
         req.type = A_STREAM_WXP;
         query_suffixed = 255;
         #ifdef MANAGMENT
-        if (check_client_status(lcfd.client)) {
+        if (check_client_ratelimit(lcfd.client, lcfd.pc.conf.ratelimit))) {
             req.type = A_UNKNOWN;
             lcfd.client->last_take_time.tv_sec += piggy_fine;
             send_error(lcfd.fd, 403, "frame already sent");

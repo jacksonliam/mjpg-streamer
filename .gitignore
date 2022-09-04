@@ -20,3 +20,6 @@ __pycache__
 *.deb
 _pkg/
 doc/
+
+# VSCode
+.vscode/
