@@ -18,6 +18,7 @@ The following parameters can be passed to this plugin:
 [-l ] --listen ]........: Listen on Hostname / IP
 [-c | --credentials ]...: ask for "username:password" on connect
 [-n | --nocommands ]....: disable execution of commands
+[-r | --ratelimit ].....: enable snapshot / frame rate limiting per client IP (milliseconds)
 ---------------------------------------------------------------
 ```
 
