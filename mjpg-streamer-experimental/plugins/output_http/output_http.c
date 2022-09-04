@@ -197,7 +197,13 @@ int output_init(output_parameter *param, int id)
     OPRINT("HTTP Listen Address..: %s\n", hostname);
     OPRINT("username:password....: %s\n", (credentials == NULL) ? "disabled" : credentials);
     OPRINT("commands.............: %s\n", (nocommands) ? "disabled" : "enabled");
-    OPRINT("rate limit...........: %s\n", (ratelimit > 0) ? itos(ratelimit) : "disabled");
+    char ratelimit_str_buffer[11];
+    if (ratelimit > 0){
+        sprintf(ratelimit_str_buffer, "%d", ratelimit);
+    } else {
+        sprintf(ratelimit_str_buffer, "%s", "disabled");
+    }
+    OPRINT("rate limit...........: %s\n", ratelimit_str_buffer);
 
     param->global->out[id].name = malloc((strlen(OUTPUT_PLUGIN_NAME) + 1) * sizeof(char));
     sprintf(param->global->out[id].name, OUTPUT_PLUGIN_NAME);

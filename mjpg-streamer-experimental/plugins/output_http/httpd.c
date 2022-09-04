@@ -57,6 +57,8 @@ static globals *pglobal;
 extern context servers[MAX_OUTPUT_PLUGINS];
 int piggy_fine = 2; // FIXME make it command line parameter
 
+_client_infos client_infos;
+
 /******************************************************************************
 Description.: initializes the iobuffer structure properly
 Input Value.: pointer to already allocated iobuffer
@@ -1072,7 +1074,7 @@ void *client_thread(void *arg)
         req.type = A_SNAPSHOT;
         query_suffixed = 255;
         #ifdef MANAGMENT
-        if (check_client_ratelimit(lcfd.client, lcfd.pc.conf.ratelimit)) {
+        if (check_client_ratelimit(lcfd.client, lcfd.pc->conf.ratelimit)) {
             req.type = A_UNKNOWN;
             lcfd.client->last_take_time.tv_sec += piggy_fine;
             send_error(lcfd.fd, 403, "frame already sent");
@@ -1084,7 +1086,7 @@ void *client_thread(void *arg)
         req.type = A_SNAPSHOT_WXP;
         query_suffixed = 255;
         #ifdef MANAGMENT
-        if (check_client_ratelimit(lcfd.client, lcfd.pc.conf.ratelimit))) {
+        if (check_client_ratelimit(lcfd.client, lcfd.pc->conf.ratelimit)) {
             req.type = A_UNKNOWN;
             lcfd.client->last_take_time.tv_sec += piggy_fine;
             send_error(lcfd.fd, 403, "frame already sent");
@@ -1096,7 +1098,7 @@ void *client_thread(void *arg)
         req.type = A_STREAM;
         query_suffixed = 255;
         #ifdef MANAGMENT
-        if (check_client_ratelimit(lcfd.client, lcfd.pc.conf.ratelimit))) {
+        if (check_client_ratelimit(lcfd.client, lcfd.pc->conf.ratelimit)) {
             req.type = A_UNKNOWN;
             lcfd.client->last_take_time.tv_sec += piggy_fine;
             send_error(lcfd.fd, 403, "frame already sent");
@@ -1107,7 +1109,7 @@ void *client_thread(void *arg)
         req.type = A_STREAM;
         query_suffixed = 255;
         #ifdef MANAGMENT
-        if (check_client_ratelimit(lcfd.client, lcfd.pc.conf.ratelimit))) {
+        if (check_client_ratelimit(lcfd.client, lcfd.pc->conf.ratelimit)) {
             req.type = A_UNKNOWN;
             lcfd.client->last_take_time.tv_sec += piggy_fine;
             send_error(lcfd.fd, 403, "frame already sent");
@@ -1119,7 +1121,7 @@ void *client_thread(void *arg)
         req.type = A_STREAM_WXP;
         query_suffixed = 255;
         #ifdef MANAGMENT
-        if (check_client_ratelimit(lcfd.client, lcfd.pc.conf.ratelimit))) {
+        if (check_client_ratelimit(lcfd.client, lcfd.pc->conf.ratelimit)) {
             req.type = A_UNKNOWN;
             lcfd.client->last_take_time.tv_sec += piggy_fine;
             send_error(lcfd.fd, 403, "frame already sent");

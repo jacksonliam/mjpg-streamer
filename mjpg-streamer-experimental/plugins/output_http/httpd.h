@@ -152,11 +152,11 @@ typedef struct _client_info {
     struct timeval last_take_time;
 } client_info;
 
-typedef struct {
+typedef struct _client_infos {
     client_info **infos;
     unsigned int client_count;
     pthread_mutex_t mutex;
-} client_infos;
+} _client_infos;
 
 #endif
 
@@ -184,7 +184,7 @@ void check_JSON_string(char *source, char *destination);
 
 #ifdef MANAGMENT
 client_info *add_client(char *address);
-int check_client_ratelimit(client_info *client);
+int check_client_ratelimit(client_info *client, int ratelimit);
 void update_client_timestamp(client_info *client);
 void send_clients_JSON(int fd);
 #endif
