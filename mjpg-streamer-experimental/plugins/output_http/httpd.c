@@ -57,8 +57,9 @@ static globals *pglobal;
 extern context servers[MAX_OUTPUT_PLUGINS];
 int piggy_fine = 2; // FIXME make it command line parameter
 
+#ifdef HTTP_MANAGEMENT
 _client_infos client_infos;
-
+#endif
 /******************************************************************************
 Description.: initializes the iobuffer structure properly
 Input Value.: pointer to already allocated iobuffer
@@ -307,7 +308,7 @@ int unescape(char *string)
     return 0;
 }
 
-#ifdef MANAGMENT
+#ifdef HTTP_MANAGEMENT
 
 /******************************************************************************
 Description.: Adds a new client information struct to the ino list.
@@ -434,7 +435,7 @@ void send_snapshot(cfd *context_fd, int input_number)
 
     pthread_mutex_unlock(&pglobal->in[input_number].db);
 
-    #ifdef MANAGMENT
+    #ifdef HTTP_MANAGEMENT
     update_client_timestamp(context_fd->client);
     #endif
 
@@ -515,7 +516,7 @@ void send_stream(cfd *context_fd, int input_number)
 
         pthread_mutex_unlock(&pglobal->in[input_number].db);
 
-        #ifdef MANAGMENT
+        #ifdef HTTP_MANAGEMENT
         update_client_timestamp(context_fd->client);
         #endif
 
@@ -613,7 +614,7 @@ void send_stream_wxp(cfd *context_fd, int input_number)
         /* copy v4l2_buffer timeval to user space */
         timestamp = pglobal->in[input_number].timestamp;
 
-        #ifdef MANAGMENT
+        #ifdef HTTP_MANAGEMENT
         update_client_timestamp(context_fd->client);
         #endif
 
@@ -1073,7 +1074,7 @@ void *client_thread(void *arg)
     if(strstr(buffer, "GET /?action=snapshot") != NULL) {
         req.type = A_SNAPSHOT;
         query_suffixed = 255;
-        #ifdef MANAGMENT
+        #ifdef HTTP_MANAGEMENT
         if (check_client_ratelimit(lcfd.client, lcfd.pc->conf.ratelimit)) {
             req.type = A_UNKNOWN;
             lcfd.client->last_take_time.tv_sec += piggy_fine;
@@ -1085,7 +1086,7 @@ void *client_thread(void *arg)
     } else if((strstr(buffer, "GET /cam") != NULL) && (strstr(buffer, ".jpg") != NULL)) {
         req.type = A_SNAPSHOT_WXP;
         query_suffixed = 255;
-        #ifdef MANAGMENT
+        #ifdef HTTP_MANAGEMENT
         if (check_client_ratelimit(lcfd.client, lcfd.pc->conf.ratelimit)) {
             req.type = A_UNKNOWN;
             lcfd.client->last_take_time.tv_sec += piggy_fine;
@@ -1097,7 +1098,7 @@ void *client_thread(void *arg)
     } else if(strstr(buffer, "POST /stream") != NULL) {
         req.type = A_STREAM;
         query_suffixed = 255;
-        #ifdef MANAGMENT
+        #ifdef HTTP_MANAGEMENT
         if (check_client_ratelimit(lcfd.client, lcfd.pc->conf.ratelimit)) {
             req.type = A_UNKNOWN;
             lcfd.client->last_take_time.tv_sec += piggy_fine;
@@ -1108,7 +1109,7 @@ void *client_thread(void *arg)
     } else if(strstr(buffer, "GET /?action=stream") != NULL) {
         req.type = A_STREAM;
         query_suffixed = 255;
-        #ifdef MANAGMENT
+        #ifdef HTTP_MANAGEMENT
         if (check_client_ratelimit(lcfd.client, lcfd.pc->conf.ratelimit)) {
             req.type = A_UNKNOWN;
             lcfd.client->last_take_time.tv_sec += piggy_fine;
@@ -1120,7 +1121,7 @@ void *client_thread(void *arg)
     } else if((strstr(buffer, "GET /cam") != NULL) && (strstr(buffer, ".mjpg") != NULL)) {
         req.type = A_STREAM_WXP;
         query_suffixed = 255;
-        #ifdef MANAGMENT
+        #ifdef HTTP_MANAGEMENT
         if (check_client_ratelimit(lcfd.client, lcfd.pc->conf.ratelimit)) {
             req.type = A_UNKNOWN;
             lcfd.client->last_take_time.tv_sec += piggy_fine;
@@ -1168,7 +1169,7 @@ void *client_thread(void *arg)
         query_suffixed = 255;
     } else if(strstr(buffer, "GET /program.json") != NULL) {
         req.type = A_PROGRAM_JSON;
-    #ifdef MANAGMENT
+    #ifdef HTTP_MANAGEMENT
     } else if(strstr(buffer, "GET /clients.json") != NULL) {
         req.type = A_CLIENTS_JSON;
     #endif
@@ -1357,7 +1358,7 @@ void *client_thread(void *arg)
         DBG("Request for the program descriptor JSON file\n");
         send_program_JSON(lcfd.fd);
         break;
-    #ifdef MANAGMENT
+    #ifdef HTTP_MANAGEMENT
     case A_CLIENTS_JSON:
         DBG("Request for the clients JSON file\n");
         send_clients_JSON(lcfd.fd);
@@ -1488,7 +1489,7 @@ void *server_thread(void *arg)
     for(i = 0; i < MAX_SD_LEN; i++)
         pcontext->sd[i] = -1;
 
-    #ifdef MANAGMENT
+    #ifdef HTTP_MANAGEMENT
     if (pthread_mutex_init(&client_infos.mutex, NULL)) {
         perror("Mutex initialization failed");
         exit(EXIT_FAILURE);
@@ -1592,7 +1593,7 @@ void *server_thread(void *arg)
                     DBG("serving client: %s\n", name);
                 }
 
-                #if defined(MANAGMENT)
+                #if defined(HTTP_MANAGEMENT)
                 pcfd->client = add_client(name);
                 #endif
 
@@ -2036,7 +2037,7 @@ void send_output_JSON(int fd, int input_number)
     }
 }
 
-#ifdef MANAGMENT
+#ifdef HTTP_MANAGEMENT
 void send_clients_JSON(int fd)
 {
     char buffer[BUFFER_SIZE*16] = {0}; // FIXME do reallocation if the buffer size is small

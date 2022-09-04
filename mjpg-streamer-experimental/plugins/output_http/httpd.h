@@ -97,7 +97,7 @@ typedef enum {
     A_INPUT_JSON,
     A_OUTPUT_JSON,
     A_PROGRAM_JSON,
-    #ifdef MANAGMENT
+    #ifdef HTTP_MANAGEMENT
     A_CLIENTS_JSON
     #endif
 } answer_t;
@@ -142,7 +142,7 @@ typedef struct {
 } context;
 
 
-#if defined(MANAGMENT)
+#if defined(HTTP_MANAGEMENT)
 /*
  * this struct is used to hold information from the clients address, and last picture take time
  */
@@ -167,7 +167,7 @@ typedef struct _client_infos {
 typedef struct {
     context *pc;
     int fd;
-    #ifdef MANAGMENT
+    #ifdef HTTP_MANAGEMENT
     client_info *client;
     #endif
 } cfd;
@@ -182,7 +182,7 @@ void send_input_JSON(int fd, int plugin_number);
 void send_program_JSON(int fd);
 void check_JSON_string(char *source, char *destination);
 
-#ifdef MANAGMENT
+#ifdef HTTP_MANAGEMENT
 client_info *add_client(char *address);
 int check_client_ratelimit(client_info *client, int ratelimit);
 void update_client_timestamp(client_info *client);

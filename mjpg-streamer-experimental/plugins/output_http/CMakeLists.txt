@@ -2,7 +2,7 @@
 add_feature_option(ENABLE_HTTP_MANAGEMENT "Enable experimental HTTP management option" OFF)
 
 if (ENABLE_HTTP_MANAGEMENT)
-    add_definitions(-DMANAGMENT)
+    add_definitions(-DHTTP_MANAGEMENT)
 endif (ENABLE_HTTP_MANAGEMENT)
 
 add_definitions(-D_GNU_SOURCE)
