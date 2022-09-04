@@ -1,5 +1,7 @@
 mjpg-streamer
 =============
+This version of mjpg-streamer removes the default frame-request rate limiting ("403: Forbidden! frame already sent") and moves it to an optional command-line parameter. It also uses the correct HTTP error code when rate limiting is enabled and sends a more appropriate message - "429: Too Many Requests! rate limit exceeded".
+Building with `ENABLE_HTTP_MANAGEMENT` is also fixed.
 
 This is a fork of http://sourceforge.net/projects/mjpg-streamer/ with added support for the Raspberry Pi camera via the input_raspicam plugin.
 
