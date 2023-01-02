@@ -88,14 +88,58 @@ shows the basic steps to enable the experimental HTTP management feature:
 
 Usage
 =====
-From the mjpeg streamer experimental
-folder:
+
+Shell
+-----
+
+From the mjpg-streamer-experimental folder:
 ```
 export LD_LIBRARY_PATH=.
 ./mjpg_streamer -o "output_http.so -w ./www" -i "input_raspicam.so"
 ```
 
 See [README.md](mjpg-streamer-experimental/README.md) or the individual plugin's documentation for more details.
+
+Docker
+------
+
+**Build the mjpg-streamer image** 
+
+From the mjpg-streamer-experimental folder:
+
+***Note***: the example creates a docker image named `mjpg-streamer` that is used in the following steps; if a different name is used, update the steps below to match
+
+```
+docker build -t mjpg-streamer .
+```
+
+**Create a Docker Container** 
+
+After building the docker image, launch a container using either docker run or docker compose
+
+**Launch a container using `docker run`**:
+
+***Note***: ensure each argument string below is present and enclosed with quotes. Additionally, don't change the command input order from output, input
+
+```
+docker run \
+    -it \
+    --device /dev/video0:/dev/video0 \
+    -p 8080:8080 \
+    mjpg-streamer \
+    "output_http.so -w ./www" \
+    "input_uvc.so"
+```
+
+**Launch a container using `docker compose`**:
+
+***Note***: the docker compose example uses v2 of `docker/compose`; users still on v1 should update `docker compose` -> `docker-compose`
+
+From the mjpg-streamer-experimental folder:
+
+```
+docker compose -f docker-compose.yml up
+```
 
 Discussion / Questions / Help
 =============================

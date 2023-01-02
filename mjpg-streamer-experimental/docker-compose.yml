@@ -1,0 +1,23 @@
+services:
+  mjpg-streamer:
+    restart: always
+    # update to tag used to create image
+    container_name: mjpg-streamer
+    image: mjpg-streamer
+    devices:
+      - /dev/video0:/dev/video0
+    ports:
+      - 8080:8080
+
+# docker-start.sh default output and input arguments
+# ensure each argument string is present and input with quotes
+# don't change the command input order
+
+    command:
+      - "output_http.so -w ./www"
+      - "input_uvc.so"
+
+      # example command updates
+      
+      # - "output_http.so -w ./www -c admin:admin"
+      # - "input_uvc.so -r 1920x1080"
