@@ -58,6 +58,7 @@ static void help(char *progname)
             "  -o | --output \"<output-plugin.so> [parameters]\"\n" \
             " [-h | --help ]........: display this help\n" \
             " [-v | --version ].....: display version information\n" \
+            " [-l | --logging <how>]: logging of FPS\n" \
             " [-b | --background]...: fork to the background, daemon mode\n", progname);
     fprintf(stderr, "-----------------------------------------------------------------------\n");
     fprintf(stderr, "Example #1:\n" \
@@ -71,6 +72,15 @@ static void help(char *progname)
     fprintf(stderr, "Example #3:\n" \
             " To get help for a certain input plugin:\n" \
             "  %s -i \"input_uvc.so --help\"\n", progname);
+    fprintf(stderr, "-----------------------------------------------------------------------\n");
+    fprintf(stderr, "Example #4:\n" \
+            " To open an UVC webcam and stream via HTTP port 8090 and print FPS to terminal:\n" \
+            "  %s -l print -i \"input_uvc.so\" -o \"output_http.so -p 8090\"\n", progname);
+    fprintf(stderr, "-----------------------------------------------------------------------\n");
+    fprintf(stderr, "Example #5:\n" \
+            " Report FPS to scoket /dev/shm/jrnl.sock with section name 'stream':\n" \
+            "  %s -l journal:/dev/shm/jrnl.sock@stream -i \"input_uvc.so\" -o \"output_http.so -p 8090\"\n", progname);
+    fprintf(stderr, "-----------------------------------------------------------------------\n");
     fprintf(stderr, "-----------------------------------------------------------------------\n");
     fprintf(stderr, "In case the modules (=plugins) can not be found:\n" \
             " * Set the default search path for the modules with:\n" \
@@ -194,8 +204,11 @@ int main(int argc, char *argv[])
     //char *input  = "input_uvc.so --resolution 640x480 --fps 5 --device /dev/video0";
     char *input[MAX_INPUT_PLUGINS];
     char *output[MAX_OUTPUT_PLUGINS];
+    char *logging = NULL;
     int daemon = 0, i, j;
     size_t tmp = 0;
+
+    char *p, *q;
 
     output[0] = "output_http.so --port 8080";
     global.outcnt = 0;
@@ -208,12 +221,13 @@ int main(int argc, char *argv[])
             {"help", no_argument, NULL, 'h'},
             {"input", required_argument, NULL, 'i'},
             {"output", required_argument, NULL, 'o'},
+            {"logging", required_argument, NULL, 'l'},
             {"version", no_argument, NULL, 'v'},
             {"background", no_argument, NULL, 'b'},
             {NULL, 0, NULL, 0}
         };
 
-        c = getopt_long(argc, argv, "hi:o:vb", long_options, NULL);
+        c = getopt_long(argc, argv, "hi:o:l:vb", long_options, NULL);
 
         /* no more options to parse */
         if(c == -1) break;
@@ -240,6 +254,10 @@ int main(int argc, char *argv[])
 
         case 'b':
             daemon = 1;
+            break;
+
+        case 'l':
+            logging = strdup(optarg);
             break;
 
         case 'h': /* fall through */
@@ -393,6 +411,38 @@ int main(int argc, char *argv[])
         if(global.out[i].init(&global.out[i].param, i)) {
             LOG("output_init() return value signals to exit\n");
             closelog();
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    /* logging engine */
+    global.logtype = LOGGING_NO;
+    if(logging != NULL) {
+        if(strcmp(logging, "print")==0) {
+            global.logtype = LOGGING_PRINT;
+            LOG(" l: FPS logging activated: print\n");
+        } else if(strncmp(logging, "journal:", strlen("journal:"))==0) {
+            global.logtype = LOGGING_JOURNAL;
+
+            p = strchr(logging,':');
+            if(p == NULL) {
+                LOG("parsing logging parameter - failed! Should be in format: journal:PATH_TO_SOCKET@SECTION_NAME\n");
+                exit(EXIT_FAILURE);    
+            }
+            q = strchr(logging,'@');
+            if(q == NULL) {
+                LOG("parsing logging parameter - failed! Should be in format: journal:PATH_TO_SOCKET@SECTION_NAME\n");
+                exit(EXIT_FAILURE);    
+            }
+            
+            global.logging_section = strdup(q+1);
+            *q = 0;
+            global.logging_sockfile = strdup(p+1);
+
+            LOG(" l: FPS logging activated: journal to socket %s with section %s\n", 
+                    global.logging_sockfile, global.logging_section );
+        } else {
+            LOG("parsing logging parameter - failed: should be print or report\n");
             exit(EXIT_FAILURE);
         }
     }

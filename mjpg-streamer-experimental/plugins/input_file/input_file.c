@@ -248,6 +248,10 @@ void *worker_thread(void *arg)
     char hasJpgFile = 0;
     struct timeval timestamp;
 
+    /* logging fps */
+    unsigned int frame_count = 0;
+    double elapsed = wall_time();
+
     if (mode == ExistingFiles) {
         fileCount = scandir(folder, &fileList, 0, alphasort);
         if (fileCount < 0) {
@@ -367,6 +371,10 @@ void *worker_thread(void *arg)
                 perror("could not remove/delete file");
             }
         }
+
+        /* report FPS */
+        report_fps(&frame_count, &elapsed, "in_file", 0,
+                       pglobal->logtype, pglobal->logging_sockfile, pglobal->logging_section);
 
         if(delay != 0)
             usleep(1000 * 1000 * delay);

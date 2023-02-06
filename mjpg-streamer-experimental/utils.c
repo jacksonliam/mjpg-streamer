@@ -31,6 +31,12 @@
 #include <limits.h>
 #include <linux/stat.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <pthread.h>
+#include <ctype.h>
 
 #include "utils.h"
 
@@ -142,4 +148,144 @@ void resolutions_help(const char * padding) {
     }
     fprintf(stderr, "\n%sor a custom value like the following" \
     "\n%sexample: 640x480\n", padding, padding);
+}
+
+/* get current time */
+double wall_time() {
+    struct timeval tm;
+    gettimeofday(&tm, 0);
+    return tm.tv_sec + tm.tv_usec/1000000.0;
+}
+
+/* open unix socket */
+int journal_socket = 0;
+
+int journal_log(const char * logging_sockfile, const char * data) {
+    static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+    int ret;
+    int try = 0, size;
+    char header[6];
+    char * h;
+
+    size = strlen(data);
+
+    pthread_mutex_lock(&lock);
+    while(try<2)  {
+        if(!journal_socket) {
+            journal_socket = open_journal_socket(logging_sockfile);
+        }
+        if(!journal_socket) {
+            break;
+        }
+        h = header;
+        *h++ = 's';
+        *h++ = 0x00;
+        memcpy(h, &size, 4);
+
+        ret = send(journal_socket, header, 6, 0);
+        if(ret <= 0) {
+            close(journal_socket);
+            journal_socket = 0;
+            try++;
+            continue;
+        }
+        
+        ret = send(journal_socket, data, size, 0);
+        if(ret <= 0) {
+            close(journal_socket);
+            journal_socket = 0;
+            try++;
+            continue;
+        }
+        break;
+    }
+    pthread_mutex_unlock(&lock);
+}
+
+int open_journal_socket(const char * logging_sockfile) {
+    int sock;
+    struct sockaddr_un server;
+    char buf[1024];
+
+    sock = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (sock < 0) {
+        return 0;
+    }
+    server.sun_family = AF_UNIX;
+    strcpy(server.sun_path, logging_sockfile);
+
+    if (connect(sock, (struct sockaddr *) &server, sizeof(struct sockaddr_un)) < 0) {
+        close(sock);
+        return 0;
+    }
+    return sock;
+}
+
+
+/* report FPS */
+void report_fps(int * frame_count,              /* FRAMES PASSED */
+                double * elapsed,               /* LAST TIMESTAMP */
+                const char * key_name,          /* Which section we are logging (uvc, http, sock, ...) */ 
+                int key_id,                     /* Extra info, life http socket number */
+                int logging_type,               /* How we log: no, print, journal  */
+                const char * logging_sockfile,  /* If journal, socketfile location */
+                const char * logging_section    /* If journal, name of the section  */
+                ) {
+
+    
+    const int print_check_every  = 30;
+    const int report_check_every = 100;
+    double diff, new_ts;
+    char keys[1024], keys2[1024];
+    int i;
+
+    if(logging_type == LOGGING_NO) {
+        return ;
+    }    
+    
+    (*frame_count) ++;
+
+    if(logging_type == LOGGING_PRINT) {
+        if (*frame_count % print_check_every == 0) {
+            new_ts = wall_time();
+            diff = new_ts - *elapsed;
+            const char *s = key_name;
+            i = 0;
+            while (*s) {
+                keys[i] = toupper((unsigned char) *s);
+                i++;
+                s++;
+            }
+            keys2[0] = 0;
+            if(key_id>0) {
+                snprintf(keys2, sizeof(keys2), "[SOCK=%d]", key_id);
+            }
+            printf("[%10.3lf][%s]%s Frames per sec: %lf\n", new_ts, keys, keys2, *frame_count/diff);
+            *elapsed = new_ts;
+            *frame_count = 0;
+        }
+        return ;
+    }
+    if(logging_type == LOGGING_JOURNAL) {
+        if (*frame_count % report_check_every == 0) {
+            new_ts = wall_time();
+            diff = new_ts - *elapsed;
+
+            snprintf(keys2, sizeof(keys2), "%s,%s "
+                "{\"from\":\"%s\", \"from_id\":%d, \"fps\": %lf, \"at\": %lf}",
+                logging_section, 
+                key_name[0] == 'i' ? "in": "out",
+                key_name, key_id,
+                *frame_count/diff,
+                new_ts
+                );
+
+            //printf("Sending to journal: %s\n", keys2);
+            journal_log(logging_sockfile, keys2);
+
+            *elapsed = new_ts;
+            *frame_count = 0;
+        }
+        return ;
+    }
 }

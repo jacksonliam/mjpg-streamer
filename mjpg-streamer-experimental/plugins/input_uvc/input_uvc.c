@@ -586,6 +586,10 @@ void *cam_thread(void *arg)
     
     unsigned int every_count = 0;
     int quality = settings->quality;
+
+    /* logging fps */
+    unsigned int frame_count = 0;
+    double elapsed = wall_time();
     
     /* set cleanup handler to cleanup allocated resources */
     pthread_cleanup_push(cam_cleanup, in);
@@ -808,6 +812,11 @@ void *cam_thread(void *arg)
             /* signal fresh_frame */
             pthread_cond_broadcast(&pglobal->in[pcontext->id].db_update);
             pthread_mutex_unlock(&pglobal->in[pcontext->id].db);
+
+            /* report FPS */
+            report_fps(&frame_count, &elapsed, "in_uvc", 0,
+                       pglobal->logtype, pglobal->logging_sockfile, pglobal->logging_section);
+
         }
 
 other_select_handlers:

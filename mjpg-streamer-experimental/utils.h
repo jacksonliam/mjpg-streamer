@@ -130,3 +130,21 @@ void daemon_mode(void);
 void resolutions_help(const char * padding);
 void parse_resolution_opt(const char * optarg, int * width, int * height);
 
+/* logging type */
+enum _log_type {
+    LOGGING_NO = 0,
+    LOGGING_PRINT = 1,
+    LOGGING_JOURNAL = 2
+};
+
+double wall_time();
+int journal_log(const char * logging_sockfile, const char * data);
+int open_journal_socket(const char * logging_sockfile);
+void report_fps(int * frame_count,              /* FRAMES PASSED */
+                double * elapsed,               /* LAST TIMESTAMP */
+                const char * key_name,          /* Which section we are logging (uvc, http, sock, ...) */ 
+                int key_id,                     /* Extra info, life http socket number */
+                int logging_type,               /* How we log: no, print, journal  */
+                const char * logging_sockfile,  /* If journal, socketfile location */
+                const char * logging_section    /* If journal, name of the section  */
+                );

@@ -64,6 +64,7 @@ enum _cmd_group {
     IN_CMD_PWC =            4,
 };
 
+
 typedef struct _control control;
 struct _control {
     struct v4l2_queryctrl ctrl;
@@ -90,6 +91,11 @@ struct _globals {
 
     /* pointer to control functions */
     //int (*control)(int command, char *details);
+
+    int logtype;
+    char * logging_sockfile;  /* If journal, socketfile location */
+    char * logging_section ;  /* If journal, section name */
+
 };
 
 #endif

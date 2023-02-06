@@ -462,6 +462,10 @@ void send_stream(cfd *context_fd, int input_number)
     char buffer[BUFFER_SIZE] = {0};
     struct timeval timestamp;
 
+    /* logging fps */
+    unsigned int frame_count = 0;
+    double elapsed = wall_time();
+
     DBG("preparing header\n");
     sprintf(buffer, "HTTP/1.0 200 OK\r\n" \
             "Access-Control-Allow-Origin: *\r\n" \
@@ -531,6 +535,10 @@ void send_stream(cfd *context_fd, int input_number)
         DBG("sending boundary\n");
         sprintf(buffer, "\r\n--" BOUNDARY "\r\n");
         if(write(context_fd->fd, buffer, strlen(buffer)) < 0) break;
+
+        /* report FPS */
+        report_fps(&frame_count, &elapsed, "out_http", context_fd->fd,
+                       pglobal->logtype, pglobal->logging_sockfile, pglobal->logging_section);
     }
 
     free(frame);
