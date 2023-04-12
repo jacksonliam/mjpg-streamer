@@ -36,8 +36,14 @@ endif()
 # Options
 #
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG")
+set (CMAKE_CXX_STANDARD 11)
 
-add_feature_option(WXP_COMPAT "Enable compatibility with WebcamXP" OFF)
+add_feature_option(WXP_COMPAT "Enable compatibility with WebcamXP" ON)
+# add_feature_option(ENABLE_HTTP_MANAGEMENT "Enable http management" ON)
+add_feature_option(PLUGIN_INPUT_OPENCV "Enable opencv" ON)
+add_feature_option(PLUGIN_INPUT_RASPICAM "Raspberry Pi input camera plugin" ON)
+
+
 
 if (WXP_COMPAT)
     add_definitions(-DWXP_COMPAT)
