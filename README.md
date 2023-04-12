@@ -48,9 +48,18 @@ Building & Installation
 =======================
 
 You must have cmake installed. You will also probably want to have a development
-version of libjpeg installed. I used libjpeg8-dev. e.g.
+version of libjpeg installed. I used libjpeg-dev and opencv 4.5.1 on ubuntu-22.04 . e.g.
 
-    sudo apt-get install cmake libjpeg8-dev
+    sudo apt-get install cmake \
+                libjpeg9-dev \
+                gphoto2 \
+                libgphoto2-dev \
+                libopencv-dev \
+                libprotobuf-c-dev \
+                libzmq3-dev \
+                protobuf-c-compiler \
+                qv4l2 
+
 
 If you do not have gcc (and g++ for the opencv plugin) you may need to install those.
 

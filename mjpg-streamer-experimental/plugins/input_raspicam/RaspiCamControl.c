@@ -38,6 +38,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //#include "mmal/util/mmal_util_params.h"
 #include "mmal/util/mmal_default_components.h"
 #include "RaspiCamControl.h"
+#include "mmal/util/mmal_util_params.h"
 
 /// Cross reference structure, mode string against mode id
 typedef struct xref_t

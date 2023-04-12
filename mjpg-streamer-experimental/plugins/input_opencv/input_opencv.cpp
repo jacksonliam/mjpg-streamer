@@ -405,7 +405,7 @@ void *worker_thread(void *arg)
     
     /* setup imencode options */
     vector<int> compression_params;
-    compression_params.push_back(CV_IMWRITE_JPEG_QUALITY);
+    compression_params.push_back(IN_CMD_JPEG_QUALITY);
     compression_params.push_back(settings->quality); // 1-100
     
     free(settings);

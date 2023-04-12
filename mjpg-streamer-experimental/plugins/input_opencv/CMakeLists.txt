@@ -1,10 +1,12 @@
 
 # TODO: which components do I need?
 # To fix the error: "undefined symbol: _ZN2cv12VideoCaptureC1Ev"
-find_package(OpenCV COMPONENTS core imgproc highgui videoio)
+#find_package(OpenCV COMPONENTS core imgproc highgui videoio)
 
-MJPG_STREAMER_PLUGIN_OPTION(input_opencv "OpenCV input plugin"
-                            ONLYIF OpenCV_FOUND ${OpenCV_VERSION_MAJOR} EQUAL 3)
+set(OpenCV_DIR /usr/local/share/opencv4)
+find_package(OpenCV 4.5.1 EXACT REQUIRED)
+
+MJPG_STREAMER_PLUGIN_OPTION(input_opencv "OpenCV input plugin")
 
 if (PLUGIN_INPUT_OPENCV)
     enable_language(CXX)
