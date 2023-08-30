@@ -106,9 +106,6 @@ int input_stop(int id) {
     if (pctx != NULL) {
         DBG("will cancel GStreamer input thread\n");
         pthread_cancel(pctx->worker);
-        
-        // If there are any GStreamer-specific cleanup tasks, add them here.
-        // For example, stopping the GStreamer pipeline or releasing resources.
     }
     return 0;
 }
@@ -148,7 +145,7 @@ static GstFlowReturn appsink_callback(GstElement *sink, context *pctx) {
         return GST_FLOW_ERROR;
     }
     
-    // Lock and update global buffer with JPEG data
+    // Lock and update global buffer with JPEG data & current timestamp
     pthread_mutex_lock(&pctx->in->db);
 
     gettimeofday(&pctx->in->timestamp, NULL);
