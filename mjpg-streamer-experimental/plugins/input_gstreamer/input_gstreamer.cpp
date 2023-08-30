@@ -1,5 +1,4 @@
 #include <getopt.h>
-#include <opencv2/opencv.hpp>
 #include <vector>
 #include <string>
 #include <stdio.h>
@@ -8,10 +7,10 @@
 #include <dlfcn.h>
 #include <pthread.h>
 #include <gst/gst.h>
+#include <time.h>
 
 #include "input_gstreamer.h"
 
-using namespace cv;
 using namespace std;
 
 static globals     *pglobal;
@@ -21,7 +20,7 @@ typedef struct {
     GstElement *pipeline;
     GMainLoop *main_loop;
     input * in;
-    vector<uchar> jpeg_buffer;
+    vector<unsigned char> jpeg_buffer;
     int width, height;
     int cvType;
 } context;
@@ -151,6 +150,8 @@ static GstFlowReturn appsink_callback(GstElement *sink, context *pctx) {
     
     // Lock and update global buffer with JPEG data
     pthread_mutex_lock(&pctx->in->db);
+
+    gettimeofday(&pctx->in->timestamp, NULL);
 
     pctx->jpeg_buffer.assign(map.data, map.data + map.size);
     
