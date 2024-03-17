@@ -856,6 +856,9 @@ void cam_cleanup(void *arg)
     free(in->buf);
     in->buf = NULL;
     in->size = 0;
+    // add by ywz - for some reason, my linux init cam wrongly, but will recover after ctrl-c 1~2 times. But when I use new shell, then I need re-run, so add this to avoid input ctrl-c, which is difficult in popen subprocess.
+    closelog();
+    exit(EXIT_FAILURE);
 }
 
 /******************************************************************************
