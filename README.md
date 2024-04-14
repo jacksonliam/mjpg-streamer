@@ -1,5 +1,65 @@
-mjpg-streamer
-=============
+=====*NEW*======
+
+MJPEG-Streamer相比于RTSP等视频方案，非常做适合性能受限的硬件推流，尝试过基于高通410制作了推流器，效果很不错。但为了进一步降低时延，采用将彩色画面转成黑白画面传输(RGB转单Y通道)，并采用一系列加速方式，用法和之前一致。
+
+- 效果：
+1. 体积方面：尝试了桌面截图、摄像头照片，传输大小分别降低76%、50%
+2. 时间方面：平均增加0.15~0.2s每帧
+效果截图见b站视频
+
+- 改动文件：
+1. jpeg_utils.c/.h
+2. v4l2uvc.c => 加入了一行调用，将输入的图像转换成了Y通道单色，也可根据需要，如动态内容识别/动态分辨率，来进一步降低传输大小。
+
+- 单测：
+见test_jpeglib/文件夹
+```
+gcc test.c -ljpeg
+```
+
+- 编译：
+```
+cd mjpg-streamer-experimental
+make distclean
+make
+# or
+make CMAKE_BUILD_TYPE=Debug #DEBUG版本
+```
+
+- 使用:
+增加--gray参数，加上则是灰色，不加则是原版
+
+=====*NEW(EN)*======
+
+Compared with video schemes such as RTSP, MJPEG-Streamer is very suitable for hardware streaming with limited performance. I have tried to make a streamer based on Qualcomm 410, and the effect is very good. However, in order to further reduce the delay, the color picture is converted into black and white picture transmission (RGB transfer Y channel), and a series of acceleration methods are adopted, the usage is the same as before.
+
+- Effect:
+1. Volume: Tried desktop screenshots and camera photos, and the transmission size was reduced by 76% and 50% respectively
+2. Time: an average increase of 0.15~0.2s per frame
+For the screenshot of the effect, see the video of bilibili.
+
+- Change files:
+1. jpeg_utils.c/.h
+2. v4l2uvc.c => Added a line of calls to convert the input image into Y channel monochrome, and further reduce the transmission size according to needs, such as dynamic content recognition/dynamic resolution.
+
+- Single test:
+See test_jpeglib/ folder
+```
+gcc test.c -ljpeg
+```
+- Compile:
+```
+cd mjpg-streamer-experimental
+make distclean
+make
+# or
+make CMAKE_BUILD_TYPE=Debug #DEBUG version
+```
+- Usage:
+`--gray` argument is what you need while using gray mode.
+
+
+====QUOTE====
 
 This is a fork of http://sourceforge.net/projects/mjpg-streamer/ with added support for the Raspberry Pi camera via the input_raspicam plugin.
 

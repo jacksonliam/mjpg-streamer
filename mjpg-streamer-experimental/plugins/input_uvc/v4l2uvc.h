@@ -151,7 +151,7 @@ void enumerateControls(struct vdIn *vd, globals *pglobal, int id);
 void control_readed(struct vdIn *vd, struct v4l2_queryctrl *ctrl, globals *pglobal, int id);
 int setResolution(struct vdIn *vd, int width, int height);
 
-int memcpy_picture(unsigned char *out, unsigned char *buf, int size);
+int memcpy_picture(unsigned char *out, struct vdIn *vd, int quality, unsigned char gray);
 int uvcGrab(struct vdIn *vd);
 int close_v4l2(struct vdIn *vd);
 

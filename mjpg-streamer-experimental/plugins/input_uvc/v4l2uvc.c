@@ -591,8 +591,11 @@ Description.:
 Input Value.:
 Return Value:
 ******************************************************************************/
-int memcpy_picture(unsigned char *out, unsigned char *buf, int size)
-{
+int memcpy_picture(unsigned char *out, struct vdIn *vd, int quality, unsigned char gray)
+{   
+    unsigned char *buf = vd->tmpbuffer;
+    int size = vd->tmpbytesused;
+    // ---------------
     unsigned char *ptdeb, *ptlimit, *ptcur = buf;
     int sizein, pos = 0;
 
@@ -608,8 +611,15 @@ int memcpy_picture(unsigned char *out, unsigned char *buf, int size)
         memcpy(out + pos, buf, sizein); pos += sizein;
         memcpy(out + pos, dht_data, sizeof(dht_data)); pos += sizeof(dht_data);
         memcpy(out + pos, ptcur, size - sizein); pos += size - sizein;
+        if(gray)
+          pos = jpeg_imageFile_dec_rgb2y_enc(out, out, size + sizeof(dht_data), vd->width, vd->height, quality);
     } else {
-        memcpy(out + pos, ptcur, size); pos += size;
+        if(gray){
+            pos += jpeg_imageFile_dec_rgb2y_enc(out + pos, ptcur, size, vd->width, vd->height, quality);
+        }
+        else{
+            memcpy(out + pos, ptcur, size); pos += size;
+        }
     }
     return pos;
 }

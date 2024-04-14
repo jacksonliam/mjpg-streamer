@@ -76,6 +76,7 @@ static struct timeval timestamp;
 static int softfps = -1;
 static unsigned int timeout = 5;
 static unsigned int dv_timings = 0;
+static unsigned char gray = 0;
 
 static const struct {
   const char * k;
@@ -215,6 +216,7 @@ int input_init(input_parameter *param, int id)
             {"softfps", required_argument, 0, 0},
             {"timeout", required_argument, 0, 0},
             {"dv_timings", no_argument, 0, 0},
+            {"gray", no_argument, 0, 0},
             {0, 0, 0, 0}
         };
 
@@ -387,6 +389,10 @@ int input_init(input_parameter *param, int id)
             DBG("case 42\n");
             dv_timings = 1;
             break;
+        case 43:
+            DBG("case 43\n");
+            gray = 1;
+            break;
        default:
            DBG("default case\n");
            help();
@@ -551,6 +557,7 @@ void help(void)
     "                          set your camera to its maximum fps to avoid stuttering\n" \
     " [-timeout] ............: Timeout for device querying (seconds)\n" \
     " [-dv_timings] .........: Enable DV timings queriyng and events processing\n" \
+    " [-gray] ...............: Transfer image to gray\n" \
     " ---------------------------------------------------------------\n");
 
     fprintf(stderr, "\n"\
@@ -790,7 +797,7 @@ void *cam_thread(void *arg)
             } else {
             #endif
                 DBG("copying frame from input: %d\n", (int)pcontext->id);
-                pglobal->in[pcontext->id].size = memcpy_picture(pglobal->in[pcontext->id].buf, pcontext->videoIn->tmpbuffer, pcontext->videoIn->tmpbytesused);
+                pglobal->in[pcontext->id].size = memcpy_picture(pglobal->in[pcontext->id].buf, pcontext->videoIn, quality, gray);
                 /* copy this frame's timestamp to user space */
                 pglobal->in[pcontext->id].timestamp = pcontext->videoIn->tmptimestamp;
             #ifndef NO_LIBJPEG
@@ -856,6 +863,9 @@ void cam_cleanup(void *arg)
     free(in->buf);
     in->buf = NULL;
     in->size = 0;
+    // add by ywz - for some reason, my linux init cam wrongly, but will recover after ctrl-c 1~2 times. But when I use new shell, then I need re-run, so add this to avoid input ctrl-c, which is difficult in popen subprocess.
+    closelog();
+    exit(EXIT_FAILURE);
 }
 
 /******************************************************************************
