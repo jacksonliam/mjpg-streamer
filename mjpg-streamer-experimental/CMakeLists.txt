@@ -92,6 +92,7 @@ set (CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 add_executable(mjpg_streamer mjpg_streamer.c
                              utils.c)
 
+set_property(TARGET mjpg_streamer PROPERTY ENABLE_EXPORTS ON)
 target_link_libraries(mjpg_streamer pthread dl)
 install(TARGETS mjpg_streamer DESTINATION bin)
 
