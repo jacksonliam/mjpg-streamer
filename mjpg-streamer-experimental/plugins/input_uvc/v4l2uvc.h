@@ -81,8 +81,10 @@ struct vdIn {
     struct v4l2_capability cap;
     struct v4l2_format fmt;
     struct v4l2_buffer buf;
+    struct v4l2_plane plane;
     struct v4l2_requestbuffers rb;
     void *mem[NB_BUFFER];
+    size_t memlen[NB_BUFFER];
     unsigned char *tmpbuffer;
     unsigned char *framebuffer;
     streaming_state streamingState;
@@ -115,6 +117,7 @@ struct vdIn {
     unsigned long frame_period_time; // in ms
     unsigned char soft_framedrop;
     unsigned int dv_timings;
+    unsigned int mplane;
 };
 
 /* optional initial settings */

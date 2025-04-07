@@ -76,6 +76,7 @@ static struct timeval timestamp;
 static int softfps = -1;
 static unsigned int timeout = 5;
 static unsigned int dv_timings = 0;
+static unsigned int mplane = 0;
 
 static const struct {
   const char * k;
@@ -215,6 +216,7 @@ int input_init(input_parameter *param, int id)
             {"softfps", required_argument, 0, 0},
             {"timeout", required_argument, 0, 0},
             {"dv_timings", no_argument, 0, 0},
+            {"mplane", no_argument, 0, 0},
             {0, 0, 0, 0}
         };
 
@@ -387,6 +389,9 @@ int input_init(input_parameter *param, int id)
             DBG("case 42\n");
             dv_timings = 1;
             break;
+        case 43:
+            mplane = 1;
+            break;
        default:
            DBG("default case\n");
            help();
@@ -448,6 +453,7 @@ int input_init(input_parameter *param, int id)
     DBG("vdIn pn: %d\n", id);
     /* open video device and prepare data structure */
     pctx->videoIn->dv_timings = dv_timings;
+    pctx->videoIn->mplane = mplane;
     if(init_videoIn(pctx->videoIn, dev, width, height, fps, format, 1, pctx->pglobal, id, tvnorm) < 0) {
         IPRINT("init_VideoIn failed\n");
         closelog();
@@ -551,6 +557,7 @@ void help(void)
     "                          set your camera to its maximum fps to avoid stuttering\n" \
     " [-timeout] ............: Timeout for device querying (seconds)\n" \
     " [-dv_timings] .........: Enable DV timings queriyng and events processing\n" \
+    " [-mplane] .............: Force v4l2 multiplane support\n" \
     " ---------------------------------------------------------------\n");
 
     fprintf(stderr, "\n"\
