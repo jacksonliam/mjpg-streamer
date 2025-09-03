@@ -1,0 +1,24 @@
+Source: mjpg-streamer
+Section: video
+Priority: optional
+Maintainer: Michel Stam <michel.stam@ultimaker.com>
+Build-Depends: debhelper-compat (= 13),
+               cmake,
+               libjpeg-dev,
+               libv4l-dev,
+               libdbus-1-dev,
+               pkg-config
+Standards-Version: 4.6.0
+Homepage: https://github.com/jacksonliam/mjpg-streamer
+Vcs-Git: https://github.com/jacksonliam/mjpg-streamer.git
+Vcs-Browser: https://github.com/jacksonliam/mjpg-streamer
+
+Package: mjpg-streamer
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, libdbus-1-3
+Description: MJPEG streaming server
+ MJPG-streamer is a command line application that copies JPEG frames from one
+ or more input plugins to multiple output plugins. It can be used to stream
+ JPEG files over an IP-based network from a webcam to various types of viewers
+ such as Chrome, Firefox, Cambozola, VLC, mplayer, and other software capable
+ of receiving MJPG streams.
