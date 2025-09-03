@@ -11,7 +11,7 @@ endif()
 
 SET(COMPILE_DEFINITIONS -Werror -Wall)
 
-include(CheckLibraryExists) 
+include(CheckLibraryExists)
 include(CheckIncludeFiles)
 include(FeatureSummary)
 
@@ -69,6 +69,7 @@ add_subdirectory(plugins/input_uvc)
 
 add_subdirectory(plugins/output_file)
 add_subdirectory(plugins/output_http)
+add_subdirectory(plugins/output_qrscanner)
 add_subdirectory(plugins/output_rtsp)
 add_subdirectory(plugins/output_udp)
 add_subdirectory(plugins/output_viewer)

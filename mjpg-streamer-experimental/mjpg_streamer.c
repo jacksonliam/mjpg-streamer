@@ -262,6 +262,20 @@ int main(int argc, char *argv[])
     /* ignore SIGPIPE (send by OS if transmitting to closed TCP sockets) */
     signal(SIGPIPE, SIG_IGN);
 
+    /* Block SIGUSR1 and SIGUSR2 for all threads by default using pthread_sigmask */
+    /* This ensures only threads that explicitly unblock them can receive these signals */
+    sigset_t signal_set;
+    sigemptyset(&signal_set);
+    sigaddset(&signal_set, SIGUSR1);
+    sigaddset(&signal_set, SIGUSR2);
+
+    int sig_result = pthread_sigmask(SIG_BLOCK, &signal_set, NULL);
+    if(sig_result != 0) {
+        LOG("could not block SIGUSR1/SIGUSR2 signals: %s\n", strerror(sig_result));
+        closelog();
+        exit(EXIT_FAILURE);
+    }
+
     /* register signal handler for <CTRL>+C in order to clean up */
     if(signal(SIGINT, signal_handler) == SIG_ERR) {
         LOG("could not register signal handler\n");

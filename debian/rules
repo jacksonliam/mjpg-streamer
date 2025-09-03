@@ -1,0 +1,38 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+
+# Use debhelper's built-in CMake support
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+export DEB_CFLAGS_MAINT_APPEND = -Wall -g
+export DEB_CXXFLAGS_MAINT_APPEND = -Wall -g
+
+%:
+	dh $@ --sourcedirectory=mjpg-streamer-experimental --buildsystem=cmake
+
+# Configure CMake options - debhelper automatically handles cross-compilation
+override_dh_auto_configure:
+	dh_auto_configure -- \
+		-DCMAKE_BUILD_TYPE=Release \
+		-DPLUGIN_INPUT_UVC=ON \
+		-DPLUGIN_INPUT_FILE=ON \
+		-DPLUGIN_INPUT_HTTP=ON \
+		-DPLUGIN_INPUT_TESTPICTURE=ON \
+		-DPLUGIN_OUTPUT_HTTP=ON \
+		-DPLUGIN_OUTPUT_FILE=ON \
+		-DPLUGIN_OUTPUT_UDP=ON \
+		-DPLUGIN_OUTPUT_RTSP=ON \
+		-DPLUGIN_OUTPUT_QRSCANNER=ON
+
+# Override to handle local quirc library dependency
+override_dh_shlibdeps:
+	# Process all files with relaxed dependency checking to allow local quirc
+	dh_shlibdeps -v --dpkg-shlibdeps-params=--ignore-missing-info || true
+
+# Override installation to rename mjpg_streamer to mjpg-streamer
+override_dh_auto_install:
+	dh_auto_install
+	# Rename the binary from mjpg_streamer to mjpg-streamer
+	mv debian/mjpg-streamer/usr/bin/mjpg_streamer debian/mjpg-streamer/usr/bin/mjpg-streamer
