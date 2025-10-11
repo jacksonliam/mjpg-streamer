@@ -1099,7 +1099,7 @@ void *client_thread(void *arg)
             query_suffixed = 0;
         }
         #endif
-    } else if(strstr(buffer, "GET /?action=stream") != NULL) {
+    } else if(strstr(buffer, "action=stream") != NULL) {
         req.type = A_STREAM;
         query_suffixed = 255;
         #ifdef MANAGMENT

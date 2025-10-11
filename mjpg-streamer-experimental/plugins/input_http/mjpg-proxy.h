@@ -20,6 +20,8 @@
 #ifndef MJPG_PROXY_H
 #define MJPG_PROXY_H
 
+#include <stdbool.h>
+
 #include "misc.h"
 
 
@@ -32,27 +34,35 @@
 #endif
 
 #define BUFFER_SIZE 1024 * 256
-
+#define PATH_SIZE 256
+#define BOUNDARY_SIZE 128
+/* Added path to state because servers that host more than 1 stream have to have a path
+    to identify each of the streams. 
+    Added because MotionPlus has a stream for each camera.*/
 struct extractor_state {
-    
     char * port;
     char * hostname;
+    char path[PATH_SIZE]; // the path part of the url for the sream we'll open
 
     // this is current result
     char buffer [BUFFER_SIZE];
-    int length;
+    int length; // how many chars we've stuffed in the frame buffer
 
     // this is inner state of a parser
 
-    int sockfd;
-    int part;
-    int last_four_bytes;
-    struct search_pattern contentlength;
-    struct search_pattern boundary;
+    int sockfd; // what we listen on
+ //   int part;
+   // int last_four_bytes;
+    //struct search_pattern contentlength;
+    //struct search_pattern boundary;
 
     int * should_stop;
     void (*on_image_received)(char * data, int length);
-        
+
+    int frameLength; // set when we get a new frame 
+                        //- how we know when we;re done with a frame, length >= frameLength
+    char boundary[BOUNDARY_SIZE]; // the name of the boundary tag that seperates frames
+    bool collecting;  // set if we;re collecting messages for a frame
 };
 
 void init_mjpg_proxy(struct extractor_state  * state);
