@@ -255,7 +255,7 @@ void send_request_and_process_response(struct extractor_state * state) {
         extract_data(state, netbuffer, recv_length);
     DBG("Ending Stream \n");
 }
-// TODO:this must be reworked to decouple from mjpeg-streamer
+
 void show_help(char * program_name) {
 
 fprintf(stderr, " ---------------------------------------------------------------\n" \
@@ -266,10 +266,10 @@ fprintf(stderr, " --------------------------------------------------------------
                 " [-h | --help]............: show this message\n"
                 " [-H | --host]............: select host to data from, localhost is default\n"
                 " [-p | --port]............: port, defaults to 8080\n"
-                " [-t | --path]............: path to the stream, defaults to '/'"
+                " [-t | --path]............: path to the stream, defaults to '/'\n"
                 " ---------------------------------------------------------------\n", program_name);
 }
-// TODO: this must be reworked, too. I don't know how
+
 void show_version() {
     printf("Version - %s\n", VERSION);
 }
