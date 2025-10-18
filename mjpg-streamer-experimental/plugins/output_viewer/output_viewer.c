@@ -86,7 +86,7 @@ static void init_source(j_decompress_ptr cinfo)
     return;
 }
 
-static int fill_input_buffer(j_decompress_ptr cinfo)
+static boolean fill_input_buffer(j_decompress_ptr cinfo)
 {
     my_source_mgr * src = (my_source_mgr *) cinfo->src;
 
