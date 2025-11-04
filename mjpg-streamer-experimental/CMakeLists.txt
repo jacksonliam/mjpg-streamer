@@ -115,3 +115,20 @@ feature_summary(WHAT ALL)
 if("${CMAKE_CURRENT_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_BINARY_DIR}")
   message(WARNING "The source directory is the same as binary directory. \"make clean\" may damage the source tree")
 endif()
+
+#
+# Debian package ( cpack -G DEB )
+#
+
+include(InstallRequiredSystemLibraries)
+set(CPACK_GENERATOR "DEB")
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "jacksonliam")
+set(CPACK_DEBIAN_PACKAGE_DESCRIPTION "mjpg-streamer")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "libc6 (>= 2.27)")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "libjpeg8 (>= 8)")
+set(CPACK_DEBIAN_PACKAGE_SECTION "utils")
+set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
+set(CPACK_PACKAGE_VERSION "1.0.0")
+set(CPACK_PACKAGE_CONTACT "jacksonliam@gitlab.com")
+include(CPack)
+
